@@ -15,17 +15,17 @@ const (
 	AttrTextContext
 )
 
-type Visitable interface {
+type Node interface {
 	Visit(Visitor)
 }
 
 type Statement interface {
-	Visitable
+	Node
 	String() string
 }
 
 type Expression interface {
-	Visitable
+	Node
 	String() string
 }
 
@@ -44,7 +44,14 @@ type Visitor interface {
 	VisitFunctionCall(*FunctionCall)
 }
 
+type Info struct {
+	File   string
+	Line   int
+	Column int
+}
+
 type Template struct {
+	Info
 	Statements []Statement
 }
 
@@ -65,6 +72,7 @@ func (n *Template) Visit(v Visitor) {
 }
 
 type Block struct {
+	Info
 	Expression   Expression
 	Template     *Template
 	ElseTemplate *Template
@@ -86,6 +94,7 @@ func (b *Block) Visit(v Visitor) {
 }
 
 type Interpolation struct {
+	Info
 	Expression Expression
 	Raw        bool
 	Context    Context
@@ -105,6 +114,7 @@ func (n *Interpolation) Visit(v Visitor) {
 }
 
 type Comment struct {
+	Info
 	Content string
 }
 
@@ -117,6 +127,7 @@ func (c *Comment) Visit(v Visitor) {
 }
 
 type Literal struct {
+	Info
 	Content string
 }
 
@@ -129,6 +140,7 @@ func (l *Literal) Visit(v Visitor) {
 }
 
 type IntegerLiteral struct {
+	Info
 	Value int
 }
 
@@ -141,6 +153,7 @@ func (n *IntegerLiteral) Visit(v Visitor) {
 }
 
 type FloatLiteral struct {
+	Info
 	Value float64
 }
 
@@ -153,6 +166,7 @@ func (n *FloatLiteral) Visit(v Visitor) {
 }
 
 type StringLiteral struct {
+	Info
 	Value string
 }
 
@@ -165,6 +179,7 @@ func (n *StringLiteral) String() string {
 }
 
 type Identifier struct {
+	Info
 	Value string
 }
 
@@ -177,6 +192,7 @@ func (n *Identifier) Visit(v Visitor) {
 }
 
 type Get struct {
+	Info
 	From Expression
 	Name *Identifier
 }
@@ -193,6 +209,7 @@ func (n *Get) Visit(v Visitor) {
 }
 
 type FunctionCall struct {
+	Info
 	From    Expression
 	Args    []Expression
 	Options map[string]Expression

@@ -46,6 +46,7 @@ func (p *parser) parseTemplate() (*ast.Template, error) {
 
 	for {
 		token := p.pop()
+		info := ast.Info{Line: token.Line, Column: token.Column}
 
 		switch token.Type {
 
@@ -57,10 +58,10 @@ func (p *parser) parseTemplate() (*ast.Template, error) {
 			return tmpl, nil
 
 		case lexer.ItemHtmlText:
-			tmpl.Statements = append(tmpl.Statements, &ast.Literal{token.Value})
+			tmpl.Statements = append(tmpl.Statements, &ast.Literal{info, token.Value})
 
 		case lexer.ItemHtmlLiteral:
-			tmpl.Statements = append(tmpl.Statements, &ast.Literal{token.Value})
+			tmpl.Statements = append(tmpl.Statements, &ast.Literal{info, token.Value})
 
 		case lexer.ItemHtmlAttr:
 			p.push(token)
@@ -68,15 +69,15 @@ func (p *parser) parseTemplate() (*ast.Template, error) {
 			if err != nil {
 				return nil, err
 			}
-			tmpl.Statements = append(tmpl.Statements, &ast.Literal{"="})
+			tmpl.Statements = append(tmpl.Statements, &ast.Literal{info, "="})
 			tmpl.Statements = append(tmpl.Statements, stmt)
 
 		case lexer.ItemHtmlAttrInterp:
-			tmpl.Statements = append(tmpl.Statements, &ast.Literal{token.Value})
+			tmpl.Statements = append(tmpl.Statements, &ast.Literal{info, token.Value})
 			ctx = ast.AttrTextContext
 
 		case lexer.ItemHtmlAttrInterpEnd:
-			tmpl.Statements = append(tmpl.Statements, &ast.Literal{token.Value})
+			tmpl.Statements = append(tmpl.Statements, &ast.Literal{info, token.Value})
 			ctx = ast.TextContext
 
 		case lexer.ItemLeftMeta2, lexer.ItemLeftMeta3:
@@ -130,9 +131,12 @@ func (p *parser) parseTemplate() (*ast.Template, error) {
 }
 
 func (p *parser) parseHtmlAttr() (ast.Statement, error) {
-	if token := p.pop(); token.Type != lexer.ItemHtmlAttr {
+	token := p.pop()
+	if token.Type != lexer.ItemHtmlAttr {
 		return nil, p.unexpected_token(token)
 	}
+	// ={{
+	info := ast.Info{Line: token.Line, Column: token.Column + 1}
 
 	expr, err := p.parseExpression()
 	if err != nil {
@@ -143,15 +147,17 @@ func (p *parser) parseHtmlAttr() (ast.Statement, error) {
 		return nil, p.unexpected_token(token)
 	}
 
-	return &ast.Interpolation{expr, false, ast.AttrContext}, nil
+	return &ast.Interpolation{info, expr, false, ast.AttrContext}, nil
 }
 
 func (p *parser) parseComment() (ast.Statement, error) {
-	if token := p.pop(); token.Type != lexer.ItemLeftMetaBang {
+	token := p.pop()
+	if token.Type != lexer.ItemLeftMetaBang {
 		return nil, p.unexpected_token(token)
 	}
+	info := ast.Info{Line: token.Line, Column: token.Column + 1}
 
-	comment := &ast.Comment{Content: ""}
+	comment := &ast.Comment{Info: info, Content: ""}
 	if token := p.pop(); token.Type != lexer.ItemHtmlComment {
 		return nil, p.unexpected_token(token)
 	} else {
@@ -179,6 +185,7 @@ func (p *parser) parseInterpolation(ctx ast.Context) (ast.Statement, error) {
 	default:
 		return nil, p.unexpected_token(token)
 	}
+	info := ast.Info{Line: token.Line, Column: token.Column}
 
 	expr, err := p.parseExpression()
 	if err != nil {
@@ -195,15 +202,17 @@ func (p *parser) parseInterpolation(ctx ast.Context) (ast.Statement, error) {
 		}
 	}
 
-	return &ast.Interpolation{expr, raw, ctx}, nil
+	return &ast.Interpolation{info, expr, raw, ctx}, nil
 }
 
 func (p *parser) parseBlock() (ast.Statement, error) {
 	var token lexer.Item
 
-	if t := p.pop(); t.Type != lexer.ItemLeftMetaPound {
-		return nil, p.unexpected_token(t)
+	token = p.pop()
+	if token.Type != lexer.ItemLeftMetaPound {
+		return nil, p.unexpected_token(token)
 	}
+	info := ast.Info{Line: token.Line, Column: token.Column}
 
 	token = p.pop()
 	if token.Type != lexer.ItemIdentifier {
@@ -260,7 +269,7 @@ func (p *parser) parseBlock() (ast.Statement, error) {
 		return nil, fmt.Errorf("Unmatched block close tag: {{/%s}}", token.Value)
 	}
 
-	return &ast.Block{ast.Expression: expr, ast.Template: t_main, ElseTemplate: t_else}, nil
+	return &ast.Block{info, expr, t_main, t_else}, nil
 }
 
 func (p *parser) parseExpression() (ast.Expression, error) {
@@ -286,13 +295,14 @@ func (p *parser) parseExpression() (ast.Expression, error) {
 
 func (p *parser) parseNumberExpression() (ast.Expression, error) {
 	t := p.pop()
+	info := ast.Info{Line: t.Line, Column: t.Column}
 
 	if i, err := strconv.Atoi(t.Value); err == nil {
-		return &ast.IntegerLiteral{Value: i}, nil
+		return &ast.IntegerLiteral{info, i}, nil
 	}
 
 	if f, err := strconv.ParseFloat(t.Value, 64); err == nil {
-		return &ast.FloatLiteral{Value: f}, nil
+		return &ast.FloatLiteral{info, f}, nil
 	}
 
 	return nil, fmt.Errorf("Invalid number literal: %s", t.Value)
@@ -300,9 +310,10 @@ func (p *parser) parseNumberExpression() (ast.Expression, error) {
 
 func (p *parser) parseStringExpression() (ast.Expression, error) {
 	t := p.pop()
+	info := ast.Info{Line: t.Line, Column: t.Column}
 
 	if s, err := strconv.Unquote(t.Value); err == nil {
-		return &ast.StringLiteral{Value: s}, nil
+		return &ast.StringLiteral{info, s}, nil
 	}
 
 	return nil, fmt.Errorf("Invalid string literal: %s", t.Value)
@@ -354,7 +365,8 @@ func (p *parser) parseGetExpression(base ast.Expression) (ast.Expression, error)
 		return nil, p.unexpected_token(t)
 	}
 
-	expr := &ast.Get{From: base, Name: &ast.Identifier{Value: t.Value}}
+	info := ast.Info{Line: t.Line, Column: t.Column}
+	expr := &ast.Get{info, base, &ast.Identifier{Value: t.Value}}
 	return p.parseAfterExpression(expr)
 }
 
