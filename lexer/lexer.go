@@ -11,25 +11,29 @@ type ItemType int
 const eof = rune(-1)
 
 const (
-	ItemError          ItemType = iota
-	ItemEOF                     //  1: EOF
-	ItemHtmlText                //  2: html text
-	ItemHtmlLiteral             //  2: html literal ends with >, =" or ={{
-	ItemHtmlComment             //  3: html comment
-	ItemHtmlAttr                //  4: ={{
-	ItemHtmlAttrInterp          //  5: ="
-	ItemLeftMeta3               //  5: {{{
-	ItemLeftMetaPound           //  6: {{#
-	ItemLeftMetaSlash           //  7: {{/
-	ItemLeftMetaBang            //  8: {{!
-	ItemLeftMeta2               //  9: {{
-	ItemRightMeta3              // 11: }}}
-	ItemRightMeta2              // 12: }}
-	ItemDot                     // 13: .
-	ItemEqual                   // 14: =
-	ItemNumber                  // 15: 42
-	ItemString                  // 16: "hello"
-	ItemIdentifier              // 17: hello
+	ItemError             ItemType = iota
+	ItemEOF                        //  1: EOF
+	ItemHtmlText                   //  2: html text
+	ItemHtmlLiteral                //  3: html literal ends with >, =" or ={{
+	ItemHtmlComment                //  4: html comment
+	ItemHtmlAttr                   //  5: ={{
+	ItemHtmlAttrInterp             //  6: ="
+	ItemHtmlAttrInterpEnd          //  7: "
+	ItemLeftMeta3                  //  8: {{{
+	ItemLeftMetaPound              //  9: {{#
+	ItemLeftMetaSlash              // 10: {{/
+	ItemLeftMetaBang               // 11: {{!
+	ItemLeftMeta2                  // 12: {{
+	ItemRightMeta3                 // 13: }}}
+	ItemRightMeta2                 // 14: }}
+	ItemDot                        // 15: .
+	ItemEqual                      // 16: =
+	ItemLeftParen                  // 17: (
+	ItemRightParen                 // 18: )
+	ItemComma                      // 19: ,
+	ItemNumber                     // 20: 42
+	ItemString                     // 21: "hello"
+	ItemIdentifier                 // 22: hello
 )
 
 const (
@@ -58,8 +62,10 @@ const (
 )
 
 type Item struct {
-	Type  ItemType
-	Value string
+	Type   ItemType
+	Value  string
+	Line   int
+	Column int
 }
 
 func Lex(name, input string) <-chan Item {
@@ -69,20 +75,28 @@ func Lex(name, input string) <-chan Item {
 type stateFn func(*lexer) stateFn
 
 type lexer struct {
-	name    string    // used only for error reports.
-	input   string    // the string being scanned.
-	start   int       // start position of this item.
-	pos     int       // current position in the input.
-	width   int       // width of last rune read from input.
-	context int       // context of actions
+	name    string // used only for error reports.
+	input   string // the string being scanned.
+	start   int    // start position of this item.
+	pos     int    // current position in the input.
+	width   int    // width of last rune read from input.
+	context int    // context of actions
+	line    int
+	col     int
+	s_line  int
+	s_col   int
 	items   chan Item // channel of scanned items.
 }
 
 func lex(name, input string) <-chan Item {
 	l := &lexer{
-		name:  name,
-		input: input,
-		items: make(chan Item),
+		name:   name,
+		input:  input,
+		items:  make(chan Item),
+		line:   1,
+		col:    1,
+		s_line: 1,
+		s_col:  1,
 	}
 	go l.run() // Concurrently run state machine.
 	return l.items
@@ -96,8 +110,10 @@ func (l *lexer) run() {
 }
 
 func (l *lexer) emit(t ItemType) {
-	l.items <- Item{t, l.input[l.start:l.pos]}
+	l.items <- Item{t, l.input[l.start:l.pos], l.s_line, l.s_col}
 	l.start = l.pos
+	l.s_line = l.line
+	l.s_col = l.col
 }
 
 func (l *lexer) next() (r rune) {
@@ -107,15 +123,32 @@ func (l *lexer) next() (r rune) {
 	}
 	r, l.width = utf8.DecodeRuneInString(l.input[l.pos:])
 	l.pos += l.width
+
+	if r == '\n' {
+		l.line += 1
+		l.col = 1
+	} else {
+		l.col += 1
+	}
+
 	return r
 }
 
 func (l *lexer) ignore() {
 	l.start = l.pos
+	l.s_line = l.line
+	l.s_col = l.col
 }
 
 func (l *lexer) backup() {
 	l.pos -= l.width
+
+	if r, _ := utf8.DecodeRuneInString(l.input[l.pos:]); r == '\n' {
+		l.line -= 1
+		l.col = 1
+	} else {
+		l.col -= 1
+	}
 }
 
 func (l *lexer) peek() rune {
@@ -142,6 +175,8 @@ func (l *lexer) errorf(format string, args ...interface{}) stateFn {
 	l.items <- Item{
 		ItemError,
 		fmt.Sprintf(format, args...),
+		l.line,
+		l.col,
 	}
 	return nil
 }
@@ -224,36 +259,42 @@ func lexHtmlText(l *lexer) stateFn {
 
 func lexLeftMeta3(l *lexer) stateFn {
 	l.pos += len(leftMeta3)
+	l.col += len(leftMeta3)
 	l.emit(ItemLeftMeta3)
 	return lexInsideAction // Now inside {{{ }}}.
 }
 
 func lexLeftMetaPound(l *lexer) stateFn {
 	l.pos += len(leftMetaPound)
+	l.col += len(leftMetaPound)
 	l.emit(ItemLeftMetaPound)
 	return lexInsideAction // Now inside {{# }}.
 }
 
 func lexLeftMetaSlash(l *lexer) stateFn {
 	l.pos += len(leftMetaSlash)
+	l.col += len(leftMetaSlash)
 	l.emit(ItemLeftMetaSlash)
 	return lexInsideTerminator // Now inside {{/ }}.
 }
 
 func lexLeftMetaBang(l *lexer) stateFn {
 	l.pos += len(leftMetaBang)
+	l.col += len(leftMetaBang)
 	l.emit(ItemLeftMetaBang)
 	return lexInsideComment // Now inside {{! }}.
 }
 
 func lexLeftMeta2(l *lexer) stateFn {
 	l.pos += len(leftMeta2)
+	l.col += len(leftMeta2)
 	l.emit(ItemLeftMeta2)
 	return lexInsideAction // Now inside {{ }}.
 }
 
 func lexRightMeta3(l *lexer) stateFn {
 	l.pos += len(rightMeta3)
+	l.col += len(rightMeta3)
 	l.emit(ItemRightMeta3)
 	switch l.context {
 	case inHtmlText:
@@ -270,6 +311,7 @@ func lexRightMeta3(l *lexer) stateFn {
 
 func lexRightMeta2(l *lexer) stateFn {
 	l.pos += len(rightMeta2)
+	l.col += len(rightMeta2)
 	l.emit(ItemRightMeta2)
 	switch l.context {
 	case inHtmlText:
@@ -277,7 +319,7 @@ func lexRightMeta2(l *lexer) stateFn {
 	case inHtmlLiteral:
 		return lexHtmlLiteral
 	case inAttrInterp:
-		return lexHtmlLiteral
+		return lexInsideAttrAssignInterp
 	case inAttr:
 		return lexHtmlLiteral
 	}
@@ -286,12 +328,14 @@ func lexRightMeta2(l *lexer) stateFn {
 
 func lexAttrAssign(l *lexer) stateFn {
 	l.pos += len(attrAssign)
+	l.col += len(attrAssign)
 	l.emit(ItemHtmlAttr)
 	return lexInsideAction // Now outside ={{ }}.
 }
 
 func lexAttrAssignInterp(l *lexer) stateFn {
 	l.pos += len(attrAssignInterp)
+	l.col += len(attrAssignInterp)
 	l.emit(ItemHtmlAttrInterp)
 	return lexInsideAttrAssignInterp // Now outside =" ".
 }
@@ -327,7 +371,12 @@ func lexInsideAttrAssignInterp(l *lexer) stateFn {
 		}
 
 		if r == '"' {
-			l.emit(ItemHtmlLiteral)
+			l.backup()
+			if l.pos > l.start {
+				l.emit(ItemHtmlLiteral)
+			}
+			l.next()
+			l.emit(ItemHtmlAttrInterpEnd)
 			return lexHtmlLiteral
 		}
 	}
@@ -351,10 +400,16 @@ func lexInsideAction(l *lexer) stateFn {
 			return l.errorf("unclosed action")
 		case isSpace(r):
 			l.ignore()
-		case r == '=':
-			l.emit(ItemEqual)
 		case r == '.':
 			l.emit(ItemDot)
+		case r == '=':
+			l.emit(ItemEqual)
+		case r == '(':
+			l.emit(ItemLeftParen)
+		case r == ')':
+			l.emit(ItemRightParen)
+		case r == ',':
+			l.emit(ItemComma)
 		case r == '"':
 			return lexQuote
 		case r == '+' || r == '-' || '0' <= r && r <= '9':
@@ -456,15 +511,17 @@ func lexInsideComment(l *lexer) stateFn {
 }
 
 func lexIdentifier(l *lexer) stateFn {
-	l.accept("abcdefghijklmnopqrstuvwxyz.")
-	l.acceptRun("abcdefghijklmnopqrstuvwxyz0123456789_.")
+	l.accept("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
+	l.acceptRun("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_")
 	l.emit(ItemIdentifier)
 	return lexInsideAction
 }
 
-func lexQuote(l *lexer) stateFn {
-	l.ignore()
+func lexDot(l *lexer) stateFn {
+	return lexInsideAction
+}
 
+func lexQuote(l *lexer) stateFn {
 	for {
 		r := l.next()
 
@@ -480,9 +537,7 @@ func lexQuote(l *lexer) stateFn {
 		}
 
 		if r == '"' {
-			l.backup()
 			l.emit(ItemString)
-			l.next()
 			return lexInsideAction
 		}
 	}
@@ -526,5 +581,5 @@ func isSpace(r rune) bool {
 }
 
 func isAlphaNumeric(r rune) bool {
-	return (r >= '0' && r <= '9') || (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z')
+	return r >= '0' && r <= '9' || r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z'
 }
