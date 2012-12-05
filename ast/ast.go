@@ -17,6 +17,8 @@ const (
 
 type Node interface {
 	Visit(Visitor)
+	FirstNode() Node
+	NodeInfo() Info
 }
 
 type Statement interface {
@@ -50,6 +52,10 @@ type Info struct {
 	Column int
 }
 
+func (i Info) NodeInfo() Info {
+	return i
+}
+
 type Template struct {
 	Info
 	Statements []Statement
@@ -69,6 +75,13 @@ func (n *Template) Visit(v Visitor) {
 	for _, stmt := range n.Statements {
 		stmt.Visit(v)
 	}
+}
+
+func (n *Template) FirstNode() Node {
+	if len(n.Statements) > 0 {
+		return n.Statements[0].FirstNode()
+	}
+	return n
 }
 
 type Block struct {
@@ -93,6 +106,10 @@ func (b *Block) Visit(v Visitor) {
 	b.ElseTemplate.Visit(v)
 }
 
+func (n *Block) FirstNode() Node {
+	return n.Expression.FirstNode()
+}
+
 type Interpolation struct {
 	Info
 	Expression Expression
@@ -113,6 +130,10 @@ func (n *Interpolation) Visit(v Visitor) {
 	n.Expression.Visit(v)
 }
 
+func (n *Interpolation) FirstNode() Node {
+	return n.Expression.FirstNode()
+}
+
 type Comment struct {
 	Info
 	Content string
@@ -124,6 +145,10 @@ func (c *Comment) String() string {
 
 func (c *Comment) Visit(v Visitor) {
 	v.VisitComment(c)
+}
+
+func (n *Comment) FirstNode() Node {
+	return n
 }
 
 type Literal struct {
@@ -139,6 +164,10 @@ func (l *Literal) Visit(v Visitor) {
 	v.VisitLiteral(l)
 }
 
+func (n *Literal) FirstNode() Node {
+	return n
+}
+
 type IntegerLiteral struct {
 	Info
 	Value int
@@ -150,6 +179,10 @@ func (n *IntegerLiteral) String() string {
 
 func (n *IntegerLiteral) Visit(v Visitor) {
 	v.VisitIntegerLiteral(n)
+}
+
+func (n *IntegerLiteral) FirstNode() Node {
+	return n
 }
 
 type FloatLiteral struct {
@@ -165,6 +198,10 @@ func (n *FloatLiteral) Visit(v Visitor) {
 	v.VisitFloatLiteral(n)
 }
 
+func (n *FloatLiteral) FirstNode() Node {
+	return n
+}
+
 type StringLiteral struct {
 	Info
 	Value string
@@ -178,6 +215,10 @@ func (n *StringLiteral) String() string {
 	return strconv.Quote(n.Value)
 }
 
+func (n *StringLiteral) FirstNode() Node {
+	return n
+}
+
 type Identifier struct {
 	Info
 	Value string
@@ -189,6 +230,10 @@ func (n *Identifier) String() string {
 
 func (n *Identifier) Visit(v Visitor) {
 	v.VisitIdentifier(n)
+}
+
+func (n *Identifier) FirstNode() Node {
+	return n
 }
 
 type Get struct {
@@ -206,6 +251,10 @@ func (n *Get) Visit(v Visitor) {
 
 	n.From.Visit(v)
 	n.Name.Visit(v)
+}
+
+func (n *Get) FirstNode() Node {
+	return n.From.FirstNode()
 }
 
 type FunctionCall struct {
@@ -247,4 +296,8 @@ func (n *FunctionCall) Visit(v Visitor) {
 	for _, arg := range n.Options {
 		arg.Visit(v)
 	}
+}
+
+func (n *FunctionCall) FirstNode() Node {
+	return n.From.FirstNode()
 }

@@ -141,6 +141,21 @@ func TestLexer(t *testing.T) {
 	if err != nil {
 		t.Errorf("error: %s", err)
 	}
+
+	exp = []Item{
+		{ItemHtmlLiteral, "<a href", 1, 1},
+		{ItemHtmlAttr, "={{", 1, 8},
+		{ItemIdentifier, "person", 2, 3},
+		{ItemDot, ".", 3, 5},
+		{ItemIdentifier, "name", 3, 6},
+		{ItemRightMeta2, "}}", 4, 1},
+		{ItemHtmlLiteral, ">", 4, 3},
+		{ItemEOF, "", 4, 4},
+	}
+	err = consume(Lex("", "<a href={{\n  person\n    .name\n}}>"), exp)
+	if err != nil {
+		t.Errorf("error: %s", err)
+	}
 }
 
 func consume(c <-chan Item, expected []Item) error {

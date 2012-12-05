@@ -396,7 +396,7 @@ func lexInsideAction(l *lexer) stateFn {
 			return lexRightMeta2
 		}
 		switch r := l.next(); {
-		case r == eof || r == '\n':
+		case r == eof:
 			return l.errorf("unclosed action")
 		case isSpace(r):
 			l.ignore()

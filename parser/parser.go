@@ -429,7 +429,8 @@ func (p *parser) parseFunctionCallExpression(base ast.Expression, bare bool) (as
 		}
 	}
 
-	expr := &ast.FunctionCall{From: base, Args: args, Options: opts}
+	info := base.FirstNode().NodeInfo()
+	expr := &ast.FunctionCall{Info: info, From: base, Args: args, Options: opts}
 
 	p.level -= 1
 	return p.parseAfterExpression(expr)
