@@ -123,6 +123,24 @@ func TestLexer(t *testing.T) {
 	if err != nil {
 		t.Errorf("error: %s", err)
 	}
+
+	exp = []Item{
+		{ItemHtmlLiteral, "<a ", 1, 1},
+		{ItemError, "unexpected {{ token", 1, 4},
+	}
+	err = consume(Lex("", "<a {{ person }}>"), exp)
+	if err != nil {
+		t.Errorf("error: %s", err)
+	}
+
+	exp = []Item{
+		{ItemHtmlLiteral, "<a ", 1, 1},
+		{ItemError, "unexpected {{ token", 1, 4},
+	}
+	err = consume(Lex("", "<a {{{ person }}}>"), exp)
+	if err != nil {
+		t.Errorf("error: %s", err)
+	}
 }
 
 func consume(c <-chan Item, expected []Item) error {

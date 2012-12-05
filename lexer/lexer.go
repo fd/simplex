@@ -430,6 +430,15 @@ func lexHtmlLiteral(l *lexer) stateFn {
 	l.context = inHtmlLiteral
 
 	for {
+		// {{
+		if strings.HasPrefix(l.input[l.pos:], leftMeta2) {
+			if l.pos > l.start {
+				l.emit(ItemHtmlLiteral)
+			}
+			return l.errorf("unexpected {{ token")
+		}
+
+		// ="
 		if strings.HasPrefix(l.input[l.pos:], attrAssignInterp) {
 			if l.pos > l.start {
 				l.emit(ItemHtmlLiteral)
@@ -437,6 +446,7 @@ func lexHtmlLiteral(l *lexer) stateFn {
 			return lexAttrAssignInterp
 		}
 
+		// ={{
 		if strings.HasPrefix(l.input[l.pos:], attrAssign) {
 			if l.pos > l.start {
 				l.emit(ItemHtmlLiteral)
