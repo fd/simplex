@@ -2,8 +2,8 @@ package parser
 
 import (
 	"fmt"
-	"github.com/fd/handlebars/ast"
-	"github.com/fd/handlebars/lexer"
+	"github.com/fd/w/template/ast"
+	"github.com/fd/w/template/lexer"
 	"strconv"
 )
 
