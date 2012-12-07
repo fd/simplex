@@ -1,0 +1,9 @@
+{{! This is a handlebars(-ish) file }}
+
+<h1>{{ LinkTo "A Simple blog", "/" }}</h1>
+
+<ul>
+{{#each AllPosts() }}
+  <li>{{ title }}</li>
+{{/each}}
+</ul>

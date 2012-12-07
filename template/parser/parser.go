@@ -4,8 +4,17 @@ import (
 	"fmt"
 	"github.com/fd/w/template/ast"
 	"github.com/fd/w/template/lexer"
+	"io/ioutil"
 	"strconv"
 )
+
+func ParseFile(path string) (*ast.Template, error) {
+	dat, err := ioutil.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	return Parse(path, string(dat))
+}
 
 func Parse(name, content string) (*ast.Template, error) {
 	p := &parser{tokenChan: lexer.Lex(name, content)}
@@ -374,6 +383,20 @@ func (p *parser) parseFunctionCallExpression(base ast.Expression, bare bool) (as
 	first := true
 	args := []ast.Expression{}
 	opts := map[string]ast.Expression{}
+	name := ""
+	var info ast.Info
+
+	// reclaim identifer
+	switch v := base.(type) {
+	case *ast.Identifier:
+		info = v.Info
+		name = v.Value
+		base = nil
+	case *ast.Get:
+		info = v.Name.Info
+		name = v.Name.Value
+		base = v.From
+	}
 
 	p.level += 1
 
@@ -429,8 +452,7 @@ func (p *parser) parseFunctionCallExpression(base ast.Expression, bare bool) (as
 		}
 	}
 
-	info := base.FirstNode().NodeInfo()
-	expr := &ast.FunctionCall{Info: info, From: base, Args: args, Options: opts}
+	expr := &ast.FunctionCall{Info: info, From: base, Name: name, Args: args, Options: opts}
 
 	p.level -= 1
 	return p.parseAfterExpression(expr)
