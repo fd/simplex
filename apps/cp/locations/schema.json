@@ -1,0 +1,10 @@
+{
+  "description": "A location",
+  "type": "object",
+
+  "properties": {
+    "name":    {"type": "string", "required": true},
+    "address": {"type": "string", "required": true},
+    "website": {"type": "string", "required": true, "format": "uri"}
+  }
+}
