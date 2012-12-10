@@ -25,6 +25,9 @@ func InitializingPackage() string {
 		file, _ := f.FileLine(pc[i])
 		pkg_path := path.Dir(file)
 
+		parts := strings.SplitN(pkg_path, "/src/", 2)
+		pkg_path = parts[len(parts)-1]
+
 		return pkg_path
 	}
 

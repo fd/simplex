@@ -1,10 +1,11 @@
 package data
 
 import (
+	"fmt"
 	"github.com/fd/w/util"
 )
 
-var current_engine *Engine
+var current_engine = &Engine{}
 
 type Engine struct {
 	source *Source
@@ -33,6 +34,8 @@ func (e *Engine) UnscopedView() View {
 func (e *Engine) ScopedView() View {
 	v := e.UnscopedView()
 	app := util.InitializingApplication()
+
+	fmt.Printf("ScopedView[%s]\n", app)
 
 	if app == "unknown" {
 		panic("Initialized view in unknown application")

@@ -31,6 +31,8 @@ func (v View) add_transformation(t transformation) View {
 	c := &transformation_decl{transformation: t}
 	c.id = fmt.Sprintf("%s:%d", pkg, data_view_counters[pkg])
 
+	fmt.Printf("View[%s]\n", c.id)
+
 	// bind dependencies
 	if v.current != nil {
 		c.upstream = append(c.upstream, v.current.id)
