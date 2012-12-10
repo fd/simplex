@@ -1,54 +1,52 @@
 package data
 
-type SelectFunc func(Document) bool
-type MapFunc func(Document) Value
-type SortFunc func(Document) Value
-type GroupFunc func(Document) Value
+import (
+	"fmt"
+	"github.com/fd/w/util"
+)
+
+var data_view_counters = map[string]int{}
 
 type View struct {
-	selects []SelectFunc // Select on the raw input
-	maps    []MapFunc    // Map the inputs
-	sort    SortFunc
-	group   GroupFunc
-
-	offset int
-	limit  int
-	page   int
-
-	state view_state
+	controller *transformation_controller
 }
 
-func (v View) Select(f SelectFunc) View {
-	v.selects = append(v.selects, f)
+type transformation_controller struct {
+	id string
+
+	prev           []*transformation_controller
+	transformation transformation
+	next           []*transformation_controller
+}
+
+type transformation interface {
+	Transform(prev State, txn transaction)
+}
+
+func (v View) add_transformation(t Transformation) View {
+	pkg := util.InitializingPackage()
+	data_view_counters[pkg] += 1
+
+	c := &transformation_controller{transformation: t}
+	c.id = fmt.Sprintf("%s:%d", pkg, data_view_counters[pkg])
+
+	c.prev = append(c.prev, v.controller)
+	v.controller.next = append(v.controller.next, c)
+	v.controller = c
+
 	return v
 }
 
-func (v View) Map(f MapFunc) View {
-	v.maps = append(v.maps, f)
-	return v
-}
-
-func (v View) Sort(f SortFunc) View {
-	v.sort = f
-	return v
-}
+/*
+type GroupFunc func(Document) Value
 
 func (v View) Group(f GroupFunc) View {
-	v.group = f
-	return v
-}
-
-func (v View) Offset(n int) View {
-	v.offset = n
-	return v
-}
-
-func (v View) Limit(n int) View {
-	v.limit = n
-	return v
+  v.group = f
+  return v
 }
 
 func (v View) Paginate(n int) View {
-	v.page = n
-	return v
+  v.page = n
+  return v
 }
+*/

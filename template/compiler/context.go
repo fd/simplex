@@ -28,6 +28,19 @@ type RenderFunc struct {
 	Name       string
 	ImportPath string
 	Template   *w_ast.Template
+	Export     bool
+}
+
+func (f *RenderFunc) FunctionName() string {
+	if f.Export == false {
+		return f.Name
+	}
+
+	parts := strings.Split(f.Name, "_")
+	for i, part := range parts {
+		parts[i] = strings.Title(part)
+	}
+	return strings.Join(parts, "")
 }
 
 type DataView struct {
@@ -183,11 +196,14 @@ func (ctx *Context) ParseTemplates(import_path, dir string) error {
 			return err
 		}
 
-		name := fmt.Sprintf("\"%s\".%s", import_path, base[:len(base)-8])
+		base = base[:len(base)-8]
+
+		name := fmt.Sprintf("\"%s\".%s", import_path, base)
 		ctx.RenderFuncs[name] = &RenderFunc{
 			Name:       base,
 			ImportPath: import_path,
 			Template:   tmpl,
+			Export:     true,
 		}
 	}
 

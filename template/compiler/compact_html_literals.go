@@ -5,8 +5,8 @@ import (
 )
 
 func (ctx *Context) CleanTemplates() {
-	for _, tmpl := range ctx.Templates {
-		ast.Walk(&compact_html_literals{}, tmpl)
+	for _, render := range ctx.RenderFuncs {
+		ast.Walk(&compact_html_literals{}, render.Template)
 	}
 }
 

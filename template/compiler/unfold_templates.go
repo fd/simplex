@@ -6,6 +6,16 @@ import (
 	"strconv"
 )
 
+func (ctx *Context) UnfoldRenderFuncions() {
+	for _, render := range ctx.RenderFuncs {
+		v := &unfold_templates{
+			render_func: render,
+			ctx:         ctx,
+		}
+		ast.Walk(v, render.Template)
+	}
+}
+
 type unfold_templates struct {
 	render_func *RenderFunc
 	ctx         *Context
@@ -61,13 +71,18 @@ func (visitor *unfold_templates) make_data_view(expr ast.Expression, a_branch, b
 	ctx := visitor.ctx
 	visitor.view_id += 1
 
+	b_branch_ident := "nil"
+	if b_branch != nil {
+		b_branch_ident = b_branch.FunctionName()
+	}
+
 	expr = &ast.FunctionCall{
 		Info: expr.NodeInfo(),
 		From: expr,
 		Name: "Render___",
 		Args: []ast.Expression{
-			&ast.Identifier{Value: a_branch.Name()},
-			&ast.Identifier{Value: b_branch.Name()},
+			&ast.Identifier{Value: a_branch.FunctionName()},
+			&ast.Identifier{Value: b_branch_ident},
 		},
 	}
 
@@ -79,7 +94,7 @@ func (visitor *unfold_templates) make_data_view(expr ast.Expression, a_branch, b
 		Expression: expr,
 	}
 
-	name := fmt.Sprintf("\"%s\".%s#%d", import_path, base, visitor.view_id)
+	name := fmt.Sprintf("\"%s\".%s_%d", import_path, base, visitor.view_id)
 	ctx.DataViews[name] = view
 	return view
 }
@@ -94,9 +109,10 @@ func (visitor *unfold_templates) make_render_func(t *ast.Template) *RenderFunc {
 		Name:       base + "_" + strconv.Itoa(visitor.tmpl_id),
 		ImportPath: import_path,
 		Template:   t,
+		Export:     false,
 	}
 
-	name := fmt.Sprintf("\"%s\".%s#%d", import_path, base, visitor.tmpl_id)
+	name := fmt.Sprintf("\"%s\".%s_%d", import_path, base, visitor.tmpl_id)
 	ctx.RenderFuncs[name] = render_func
 	return render_func
 }
