@@ -33,12 +33,12 @@ func InitializingPackage() string {
 
 func InitializingApplication() string {
 	pkg := InitializingPackage()
-	parts := strings.Split("/")
+	parts := strings.Split(pkg, "/")
 
 	for i, part := range parts {
 		if part == "apps" {
-			if len(parts) > (i + 1) {
-				return strings.Join(parts[:i+1], "/")
+			if len(parts) > i+1 {
+				return parts[i+1]
 			} else {
 				break
 			}

@@ -1,17 +1,18 @@
-package storage
+package file_system
 
 import (
 	"encoding/hex"
 	"io/ioutil"
 	"os"
 	"path"
+	"strings"
 )
 
-type FileSystem struct {
+type S struct {
 	Root string
 }
 
-func (f *FileSystem) Ids() ([]string, error) {
+func (f *S) Ids() ([]string, error) {
 	err := os.MkdirAll(f.Root, 0755)
 	if err != nil {
 		return nil, err
@@ -28,7 +29,7 @@ func (f *FileSystem) Ids() ([]string, error) {
 		return nil, err
 	}
 
-	ids := make([]string, 0, len(name))
+	ids := make([]string, 0, len(names))
 	for _, name := range names {
 		if name[:1] == "." || name[:1] == "_" {
 			continue
@@ -39,18 +40,18 @@ func (f *FileSystem) Ids() ([]string, error) {
 		}
 
 		id := name[:len(name)-4]
-		id, err := hex.DecodeString(id)
+		id_bytes, err := hex.DecodeString(id)
 		if err != nil {
 			return nil, err
 		}
 
-		ids = append(ids, id)
+		ids = append(ids, string(id_bytes))
 	}
 
 	return ids, nil
 }
 
-func (f *FileSystem) Get(id string) ([]byte, error) {
+func (f *S) Get(id string) ([]byte, error) {
 	id = hex.EncodeToString([]byte(id))
 
 	err := os.MkdirAll(f.Root, 0755)
@@ -70,7 +71,7 @@ func (f *FileSystem) Get(id string) ([]byte, error) {
 	return data, nil
 }
 
-func (f *FileSystem) Commit(set map[string][]byte, del []string) error {
+func (f *S) Commit(set map[string][]byte, del []string) error {
 	err := os.MkdirAll(f.Root, 0755)
 	if err != nil {
 		return err

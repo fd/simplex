@@ -5,25 +5,26 @@ import (
 	"github.com/fd/w/data/storage/coded/prefixed"
 	"github.com/fd/w/data/storage/coded/storage"
 	raw "github.com/fd/w/data/storage/raw/driver"
+	"net/http"
 )
 
-type Source struct {
+type Target struct {
 	driver driver.I
 }
 
-func NewSource(s raw.I) *Source {
-	return &Source{
+func NewTarget(s raw.I) *Target {
+	return &Target{
 		driver: &prefixed.S{
-			Prefix: "source/",
+			Prefix: "target/",
 			Driver: &storage.S{
-				Coder:  &storage.JsonCoder{},
+				Coder:  &storage.GobCoder{},
 				Driver: s,
 			},
 		},
 	}
 }
 
-func (s *Source) Ids() []string {
+func (s *Target) Ids() []string {
 	ids, err := s.driver.Ids()
 	if err != nil {
 		panic(err)
@@ -31,15 +32,18 @@ func (s *Source) Ids() []string {
 	return ids
 }
 
-func (s *Source) Get(id string) Value {
+func (s *Target) Get(id string) Artefact {
 	val, err := s.driver.Get(id)
 	if err != nil {
 		panic(err)
 	}
-	return Value(val)
+	if art, ok := val.(Artefact); ok {
+		return art
+	}
+	panic("unable to convert to Artefact")
 }
 
-func (s *Source) Commit(set map[string]Value, del []string) {
+func (s *Target) Commit(set map[string]Artefact, del []string) {
 	n := make(map[string]interface{}, len(set))
 
 	for id, val := range set {
@@ -50,4 +54,9 @@ func (s *Source) Commit(set map[string]Value, del []string) {
 	if err != nil {
 		panic(err)
 	}
+}
+
+type Artefact struct {
+	Header http.Header
+	Body   []byte
 }

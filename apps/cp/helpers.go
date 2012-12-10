@@ -1,5 +1,7 @@
 package cp
 
+type HTML string
+
 func Link() string {
 	return ""
 }

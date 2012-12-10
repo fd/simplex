@@ -8,32 +8,43 @@ import (
 var data_view_counters = map[string]int{}
 
 type View struct {
-	controller *transformation_controller
+	engine  *Engine
+	current *transformation_decl
 }
 
-type transformation_controller struct {
+type transformation_decl struct {
 	id string
 
-	prev           []*transformation_controller
+	upstream       []string
 	transformation transformation
-	next           []*transformation_controller
+	downstream     []string
 }
 
 type transformation interface {
-	Transform(prev State, txn transaction)
+	Transform(txn transaction)
 }
 
-func (v View) add_transformation(t Transformation) View {
+func (v View) add_transformation(t transformation) View {
 	pkg := util.InitializingPackage()
 	data_view_counters[pkg] += 1
 
-	c := &transformation_controller{transformation: t}
+	c := &transformation_decl{transformation: t}
 	c.id = fmt.Sprintf("%s:%d", pkg, data_view_counters[pkg])
 
-	c.prev = append(c.prev, v.controller)
-	v.controller.next = append(v.controller.next, c)
-	v.controller = c
+	// bind dependencies
+	if v.current != nil {
+		c.upstream = append(c.upstream, v.current.id)
+		v.current.downstream = append(v.current.downstream, c.id)
+	}
 
+	// register with engine
+	if v.engine.transformations == nil {
+		v.engine.transformations = map[string]*transformation_decl{}
+	}
+	v.engine.transformations[c.id] = c
+
+	// update view
+	v.current = c
 	return v
 }
 

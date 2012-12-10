@@ -1,17 +1,47 @@
 package data
 
-type Engine struct {
-	source Source
-	target Target
-	state  State
+import (
+	"github.com/fd/w/util"
+)
 
-	transformations map[string]*transformation_controller
+var current_engine *Engine
+
+type Engine struct {
+	source *Source
+	target *Target
+	state  *State
+
+	transformations map[string]*transformation_decl
+}
+
+type Changes struct {
+	Create  []Value
+	Update  map[string]Value
+	Destroy []string
 }
 
 func (e *Engine) Update(changes Changes) {
 }
 
 func (e *Engine) Reset() {
-	e.state.Flush()
-	e.Update(&Changes{Added: e.source.Ids()})
+}
+
+func (e *Engine) UnscopedView() View {
+	return View{engine: e, current: nil}
+}
+
+func (e *Engine) ScopedView() View {
+	v := e.UnscopedView()
+	app := util.InitializingApplication()
+
+	if app == "unknown" {
+		panic("Initialized view in unknown application")
+	}
+
+	return v
+}
+
+type StoreReader interface {
+	Ids() []string
+	Get(id string) Value
 }

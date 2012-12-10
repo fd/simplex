@@ -5,7 +5,13 @@ package data
   during a single transformation.
 */
 type transaction struct {
-	added   []int
-	updated []int
-	removed []int
+	upstream_states []StoreReader
+
+	added   []string
+	updated []string
+	removed []string
+}
+
+type Context struct {
+	Id string
 }

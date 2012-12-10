@@ -2,6 +2,10 @@ package data
 
 type MapFunc func(Context, Value) Value
 
+func Map(f MapFunc) View {
+	return current_engine.ScopedView().Map(f)
+}
+
 func (v View) Map(f MapFunc) View {
 	return v.add_transformation(&map_transformation{
 		f: f,
@@ -14,19 +18,20 @@ type map_transformation struct {
 }
 
 type map_state struct {
-	Values map[int]Value
+	Values map[string]Value
 }
 
-func (t *map_transformation) Transform(prev State, txn transaction) {
+func (t *map_transformation) Transform(txn transaction) {
+	upstream := txn.upstream_states[0]
 
 	for _, id := range txn.added {
-		val := prev.Get(id)
-		t.s.Values[id] = t.f(val)
+		val := upstream.Get(id)
+		t.s.Values[id] = t.f(Context{Id: id}, val)
 	}
 
 	for _, id := range txn.updated {
-		val := prev.Get(id)
-		t.s.Values[id] = t.f(val)
+		val := upstream.Get(id)
+		t.s.Values[id] = t.f(Context{Id: id}, val)
 	}
 
 	for _, id := range txn.removed {

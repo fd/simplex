@@ -4,7 +4,11 @@ import (
 	"sort"
 )
 
-type SortFunc func(Document) Value
+type SortFunc func(Context, Value) Value
+
+func Sort(f SortFunc) View {
+	return current_engine.ScopedView().Sort(f)
+}
 
 func (v View) Sort(f SortFunc) View {
 	return v.add_transformation(&sort_transformation{
@@ -18,21 +22,22 @@ type sort_transformation struct {
 }
 
 type sort_state struct {
-	Ids  []int
-	Keys map[int]Value
+	Ids  []string
+	Keys map[string]Value
 }
 
-func (t *sort_transformation) Transform(prev State, txn transaction) {
+func (t *sort_transformation) Transform(txn transaction) {
+	upstream := txn.upstream_states[0]
 
 	for _, id := range txn.added {
-		val := prev.Get(id)
-		key := t.f(val)
+		val := upstream.Get(id)
+		key := t.f(Context{Id: id}, val)
 		t.s.Keys[id] = key
 	}
 
 	for _, id := range txn.updated {
-		val := prev.Get(id)
-		key := t.f(val)
+		val := upstream.Get(id)
+		key := t.f(Context{Id: id}, val)
 		t.s.Keys[id] = key
 	}
 
@@ -40,7 +45,7 @@ func (t *sort_transformation) Transform(prev State, txn transaction) {
 		delete(t.s.Keys, id)
 	}
 
-	ids := make([]int, 0, len(t.s.Keys))
+	ids := make([]string, 0, len(t.s.Keys))
 	for id := range t.s.Keys {
 		ids = append(ids, id)
 	}

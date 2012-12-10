@@ -1,5 +1,9 @@
 package data
 
+func Window(offset, limit int) View {
+	return current_engine.ScopedView().Window(offset, limit)
+}
+
 func (v View) Window(offset, limit int) View {
 	return v.add_transformation(&window_transformation{
 		offset: offset,
@@ -22,11 +26,13 @@ type window_transformation struct {
 }
 
 type window_state struct {
-	Ids []int
+	Ids []string
 }
 
-func (t *window_state) Transform(prev State, txn transaction) {
-	ids := prev.Ids()
+func (t *window_transformation) Transform(txn transaction) {
+	upstream := txn.upstream_states[0]
+
+	ids := upstream.Ids()
 
 	if t.limit == 0 {
 		ids = ids[t.offset:]
