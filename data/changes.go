@@ -7,6 +7,10 @@ type Changes struct {
 	engine  *Engine
 }
 
+func (c Changes) Id() []string {
+	return []string{"$root"}
+}
+
 func (c Changes) Added() []string {
 	ids := make([]string, 0, len(c.Create))
 	for id := range c.Create {
@@ -28,15 +32,48 @@ func (c Changes) Removed() []string {
 }
 
 func (c Changes) Ids() []string {
-	return c.engine.SourceTable.Ids()
+	s_ids := c.engine.SourceTable.Ids()
+
+	rem := make(map[string]bool, len(c.Destroy))
+	for _, id := range c.Destroy {
+		rem[id] = true
+	}
+
+	ids := make([]string, 0, len(s_ids)+len(c.Create))
+
+	for _, id := range s_ids {
+		if !rem[id] {
+			ids = append(ids, id)
+		}
+	}
+
+	for id := range c.Create {
+		ids = append(ids, id)
+	}
+
+	return ids
 }
 
 func (c Changes) Get(id string) Value {
+	if val, p := c.Create[id]; p {
+		return val
+	}
+
+	if val, p := c.Update[id]; p {
+		return val
+	}
+
+	for _, id := range c.Destroy {
+		if id == id {
+			return nil
+		}
+	}
+
 	return c.engine.SourceTable.Get(id)
 }
 
 func (c Changes) NewState(segment ...string) *state {
 	return &state{
-		Id: append([]string{"$root"}, segment...),
+		id: append(c.Id(), segment...),
 	}
 }

@@ -1,6 +1,8 @@
 package data
 
 type upstream_state interface {
+	Id() []string
+
 	Ids() []string
 	Get(id string) Value
 
@@ -12,7 +14,7 @@ type upstream_state interface {
 }
 
 type state struct {
-	Id []string
+	id []string
 
 	Info transformation_state
 
@@ -24,6 +26,10 @@ type state struct {
 type transformation_state interface {
 	Ids() []string
 	Get(id string) Value
+}
+
+func (s *state) Id() []string {
+	return s.id
 }
 
 func (s *state) Ids() []string {
@@ -48,6 +54,6 @@ func (s *state) Removed() []string {
 
 func (s *state) NewState(segment ...string) *state {
 	return &state{
-		Id: append(s.Id, segment...),
+		id: append(s.Id(), segment...),
 	}
 }

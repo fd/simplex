@@ -2,15 +2,43 @@ package data
 
 import (
 	"fmt"
+	"github.com/fd/w/data/storage/raw"
 	"github.com/fd/w/util"
 )
 
 var current_engine = NewEngine()
 
+func Setup(source, state, target string) error {
+	return current_engine.Setup(source, state, target)
+}
+
+func Update(c Changes) {
+	current_engine.Update(c)
+}
+
+func Reset() {
+	current_engine.Reset()
+}
+
+func Stop() {
+	current_engine.Stop()
+}
+
+func Wait() {
+	current_engine.Wait()
+}
+
+func Run() {
+	current_engine.Run()
+}
+
 type Engine struct {
-	/*  source *Source
-	target *Target
-	state  *State*/
+	SourceTable *SourceTable
+	StateTable  *StateTable
+	TargetTable *TargetTable
+
+	transactions chan *transaction
+	done         chan bool
 
 	transformations         map[string]transformation
 	transformation_counters map[string]int
@@ -20,7 +48,32 @@ func NewEngine() *Engine {
 	return &Engine{
 		transformations:         make(map[string]transformation),
 		transformation_counters: make(map[string]int),
+		transactions:            make(chan *transaction),
+		done:                    make(chan bool, 1),
 	}
+}
+
+func (e *Engine) Setup(source, state, target string) error {
+	raw_source, err := raw.New(source)
+	if err != nil {
+		return err
+	}
+
+	raw_state, err := raw.New(state)
+	if err != nil {
+		return err
+	}
+
+	raw_target, err := raw.New(target)
+	if err != nil {
+		return err
+	}
+
+	e.SourceTable = NewSourceTable(raw_source)
+	e.StateTable = NewStateTable(raw_state)
+	e.TargetTable = NewTargetTable(raw_target)
+
+	return nil
 }
 
 func (e *Engine) Update(changes Changes) {
@@ -29,6 +82,28 @@ func (e *Engine) Update(changes Changes) {
 }
 
 func (e *Engine) Reset() {
+}
+
+func (e *Engine) Stop() {
+	close(e.transactions)
+	e.Wait()
+}
+
+func (e *Engine) Wait() {
+	<-e.done
+	e.done <- true
+}
+
+func (e *Engine) Run() {
+	go e.go_run()
+}
+
+func (e *Engine) go_run() {
+	for txn := range e.transactions {
+		txn.project()
+	}
+
+	e.done <- true
 }
 
 func (e *Engine) UnscopedView() View {
@@ -74,4 +149,5 @@ func (e *Engine) sorted_transformations() []transformation {
 }
 
 func (e *Engine) schedule(txn *transaction) {
+	e.transactions <- txn
 }

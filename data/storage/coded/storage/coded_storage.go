@@ -18,13 +18,34 @@ func (s *S) Get(id string) (interface{}, error) {
 	if err != nil {
 		return nil, err
 	}
+	if len(dat) == 0 {
+		return nil, nil
+	}
 
-	val, err := s.Coder.Decode(dat)
+	var val interface{}
+	err = s.Coder.Decode(dat, &val)
 	if err != nil {
 		return nil, err
 	}
 
 	return val, nil
+}
+
+func (s *S) Restore(id string, val interface{}) error {
+	dat, err := s.Driver.Get(id)
+	if err != nil {
+		return err
+	}
+	if len(dat) == 0 {
+		return nil
+	}
+
+	err = s.Coder.Decode(dat, val)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (s *S) Commit(set map[string]interface{}, del []string) error {

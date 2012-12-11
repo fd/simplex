@@ -7,23 +7,23 @@ import (
 	raw "github.com/fd/w/data/storage/raw/driver"
 )
 
-type State struct {
+type SourceTable struct {
 	driver driver.I
 }
 
-func NewState(s raw.I) *State {
-	return &State{
+func NewSourceTable(s raw.I) *SourceTable {
+	return &SourceTable{
 		driver: &prefixed.S{
-			Prefix: "state/",
+			Prefix: "source/",
 			Driver: &storage.S{
-				Coder:  &storage.GobCoder{},
+				Coder:  &storage.JsonCoder{},
 				Driver: s,
 			},
 		},
 	}
 }
 
-func (s *State) Ids() []string {
+func (s *SourceTable) Ids() []string {
 	ids, err := s.driver.Ids()
 	if err != nil {
 		panic(err)
@@ -31,7 +31,7 @@ func (s *State) Ids() []string {
 	return ids
 }
 
-func (s *State) Get(id string) Value {
+func (s *SourceTable) Get(id string) Value {
 	val, err := s.driver.Get(id)
 	if err != nil {
 		panic(err)
@@ -39,7 +39,7 @@ func (s *State) Get(id string) Value {
 	return Value(val)
 }
 
-func (s *State) Commit(set map[string]Value, del []string) {
+func (s *SourceTable) Commit(set map[string]Value, del []string) {
 	n := make(map[string]interface{}, len(set))
 
 	for id, val := range set {

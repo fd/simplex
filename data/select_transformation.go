@@ -8,7 +8,7 @@ func Select(f SelectFunc) View {
 
 func (v View) Select(f SelectFunc) View {
 	return v.push(&select_transformation{
-		id:       v.new_id(),
+		id:       v.new_id() + ":Select",
 		upstream: v.current,
 		f:        f,
 	})
@@ -38,6 +38,7 @@ func (t *select_transformation) Dependencies() []transformation {
 	}
 	return append(t.upstream.Dependencies(), t.upstream)
 }
+
 func (t *select_transformation) PushDownstream(d transformation) {
 	t.downstream = append(t.downstream, d)
 }
@@ -64,16 +65,28 @@ func (t *select_transformation) Transform(upstream upstream_state, txn *transact
 
 			if t.f(Context{Id: id}, val) {
 				selected[id] = true
+				state.added = append(state.added, id)
 			}
 		}
 
 		for _, id := range upstream.Changed() {
 			val := upstream.Get(id)
-			selected[id] = t.f(Context{Id: id}, val)
+			sel := t.f(Context{Id: id}, val)
+			if selected[id] == true && sel == true {
+				state.changed = append(state.changed, id)
+			} else if selected[id] == true && sel == false {
+				state.removed = append(state.removed, id)
+			} else if selected[id] == false && sel == true {
+				state.added = append(state.added, id)
+			}
+			selected[id] = sel
 		}
 
 		for _, id := range upstream.Removed() {
-			selected[id] = false
+			if selected[id] {
+				selected[id] = false
+				state.removed = append(state.removed, id)
+			}
 		}
 
 		ids := make([]string, 0, len(selected))

@@ -32,6 +32,10 @@ func (s *S) Get(id string) (interface{}, error) {
 	return s.Driver.Get(s.Prefix + id)
 }
 
+func (s *S) Restore(id string, state interface{}) error {
+	return s.Driver.Restore(s.Prefix+id, state)
+}
+
 func (self *S) Commit(set map[string]interface{}, del []string) error {
 	s := make(map[string]interface{}, len(set))
 	d := make([]string, len(del))

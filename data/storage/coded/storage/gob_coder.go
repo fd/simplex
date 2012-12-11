@@ -17,11 +17,10 @@ func (c *GobCoder) Encode(v interface{}) ([]byte, error) {
 	return b.Bytes(), nil
 }
 
-func (c *GobCoder) Decode(dat []byte) (interface{}, error) {
-	var val interface{}
-	err := gob.NewDecoder(bytes.NewBuffer(dat)).Decode(&val)
+func (c *GobCoder) Decode(dat []byte, val interface{}) error {
+	err := gob.NewDecoder(bytes.NewBuffer(dat)).Decode(val)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	return val, err
+	return nil
 }

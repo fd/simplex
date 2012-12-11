@@ -12,7 +12,7 @@ func Sort(f SortFunc) View {
 
 func (v View) Sort(f SortFunc) View {
 	return v.push(&sort_transformation{
-		id:       v.new_id(),
+		id:       v.new_id() + ":Sort",
 		upstream: v.current,
 		f:        f,
 	})

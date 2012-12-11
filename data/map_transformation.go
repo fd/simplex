@@ -8,7 +8,7 @@ func Map(f MapFunc) View {
 
 func (v View) Map(f MapFunc) View {
 	return v.push(&map_transformation{
-		id:       v.new_id(),
+		id:       v.new_id() + ":Map",
 		upstream: v.current,
 		f:        f,
 	})

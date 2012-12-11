@@ -11,11 +11,10 @@ func (c *JsonCoder) Encode(v interface{}) ([]byte, error) {
 	return json.Marshal(v)
 }
 
-func (c *JsonCoder) Decode(dat []byte) (interface{}, error) {
-	var val interface{}
-	err := json.Unmarshal(dat, &val)
+func (c *JsonCoder) Decode(dat []byte, val interface{}) error {
+	err := json.Unmarshal(dat, val)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	return val, nil
+	return nil
 }

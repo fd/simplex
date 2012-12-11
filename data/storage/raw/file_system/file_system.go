@@ -1,12 +1,25 @@
 package file_system
 
 import (
-	"encoding/hex"
+	"github.com/fd/w/data/storage/raw"
+	"github.com/fd/w/data/storage/raw/driver"
 	"io/ioutil"
+	"net/url"
 	"os"
 	"path"
 	"strings"
 )
+
+func init() {
+	raw.Register("file", func(us string) (driver.I, error) {
+		u, err := url.Parse(us)
+		if err != nil {
+			return nil, err
+		}
+
+		return &S{Root: u.Path}, nil
+	})
+}
 
 type S struct {
 	Root string
@@ -18,20 +31,39 @@ func (f *S) Ids() ([]string, error) {
 		return nil, err
 	}
 
-	d, err := os.Open(f.Root)
+	return f.ids_for_dir(f.Root, "")
+}
+
+func (f *S) ids_for_dir(dir, prefix string) ([]string, error) {
+	d, err := os.Open(dir)
 	if err != nil {
 		return nil, err
 	}
 	defer d.Close()
 
-	names, err := d.Readdirnames(-1)
+	fis, err := d.Readdir(-1)
 	if err != nil {
 		return nil, err
 	}
 
-	ids := make([]string, 0, len(names))
-	for _, name := range names {
+	ids := make([]string, 0, len(fis))
+	for _, fi := range fis {
+		name := fi.Name()
+
 		if name[:1] == "." || name[:1] == "_" {
+			continue
+		}
+
+		if fi.IsDir() {
+			pref := name
+			if prefix != "" {
+				pref = path.Join(prefix, pref)
+			}
+			i, err := f.ids_for_dir(path.Join(dir, name), pref)
+			if err != nil {
+				return nil, err
+			}
+			ids = append(ids, i...)
 			continue
 		}
 
@@ -40,26 +72,22 @@ func (f *S) Ids() ([]string, error) {
 		}
 
 		id := name[:len(name)-4]
-		id_bytes, err := hex.DecodeString(id)
-		if err != nil {
-			return nil, err
-		}
-
-		ids = append(ids, string(id_bytes))
+		ids = append(ids, string(id))
 	}
 
 	return ids, nil
 }
 
 func (f *S) Get(id string) ([]byte, error) {
-	id = hex.EncodeToString([]byte(id))
+	pat := path.Join(f.Root, id)
+	dir := path.Dir(pat)
 
-	err := os.MkdirAll(f.Root, 0755)
+	err := os.MkdirAll(dir, 0755)
 	if err != nil {
 		return nil, err
 	}
 
-	data, err := ioutil.ReadFile(path.Join(f.Root, id+".dat"))
+	data, err := ioutil.ReadFile(pat + ".dat")
 	if err != nil {
 		if os.IsNotExist(err) {
 			return nil, nil
@@ -78,8 +106,6 @@ func (f *S) Commit(set map[string][]byte, del []string) error {
 	}
 
 	for _, id := range del {
-		id = hex.EncodeToString([]byte(id))
-
 		err := os.Remove(path.Join(f.Root, id+".dat"))
 		if err != nil {
 			if os.IsNotExist(err) {
@@ -91,9 +117,9 @@ func (f *S) Commit(set map[string][]byte, del []string) error {
 	}
 
 	for id, data := range set {
-		id = hex.EncodeToString([]byte(id))
-
-		err := ioutil.WriteFile(path.Join(f.Root, id+".dat"), data, 0644)
+		pat := path.Join(f.Root, id+".dat")
+		os.MkdirAll(pat, 0755)
+		err := ioutil.WriteFile(pat, data, 0644)
 		if err != nil {
 			return err
 		}

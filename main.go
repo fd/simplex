@@ -2,7 +2,7 @@ package main
 
 // Libraries
 import (
-	_ "github.com/fd/w/data"
+	"github.com/fd/w/container"
 )
 
 // Apps
@@ -12,4 +12,5 @@ import (
 )
 
 func main() {
+	container.Run()
 }

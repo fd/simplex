@@ -6,7 +6,7 @@ func Window(offset, limit int) View {
 
 func (v View) Window(offset, limit int) View {
 	return v.push(&window_transformation{
-		id:       v.new_id(),
+		id:       v.new_id() + ":Window",
 		upstream: v.current,
 		offset:   offset,
 		limit:    limit,

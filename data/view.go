@@ -12,7 +12,7 @@ type View struct {
 
 func (v View) push(t transformation) View {
 	if v.current != nil {
-		t.PushDownstream(v.current)
+		v.current.PushDownstream(t)
 	}
 
 	v.engine.transformations[t.Id()] = t
