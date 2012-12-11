@@ -5,21 +5,27 @@ import (
 	"github.com/fd/w/util"
 )
 
-var current_engine = &Engine{}
+var current_engine = NewEngine()
 
 type Engine struct {
-	source *Source
+	/*  source *Source
 	target *Target
-	state  *State
+	state  *State*/
+
+	transformations         map[string]transformation
+	transformation_counters map[string]int
 }
 
-type Changes struct {
-	Create  []Value
-	Update  map[string]Value
-	Destroy []string
+func NewEngine() *Engine {
+	return &Engine{
+		transformations:         make(map[string]transformation),
+		transformation_counters: make(map[string]int),
+	}
 }
 
 func (e *Engine) Update(changes Changes) {
+	txn := new_transaction(e, changes)
+	e.schedule(txn)
 }
 
 func (e *Engine) Reset() {
@@ -42,7 +48,30 @@ func (e *Engine) ScopedView() View {
 	return v
 }
 
-type StoreReader interface {
-	Ids() []string
-	Get(id string) Value
+func (e *Engine) sorted_transformations() []transformation {
+	present := map[string]bool{}
+	transformations := make([]transformation, 0, len(e.transformations))
+
+	for id, transformation := range e.transformations {
+		if present[id] {
+			continue
+		}
+
+		for _, dep := range transformation.Dependencies() {
+			if present[dep.Id()] {
+				continue
+			}
+
+			transformations = append(transformations, dep)
+			present[dep.Id()] = true
+		}
+
+		transformations = append(transformations, transformation)
+		present[id] = true
+	}
+
+	return transformations
+}
+
+func (e *Engine) schedule(txn *transaction) {
 }

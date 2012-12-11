@@ -12,77 +12,113 @@ func Sort(f SortFunc) View {
 
 func (v View) Sort(f SortFunc) View {
 	return v.push(&sort_transformation{
-		id: v.new_id(),
-		b:  v.current,
-		f:  f,
+		id:       v.new_id(),
+		upstream: v.current,
+		f:        f,
 	})
 }
 
 type sort_transformation struct {
-	id        string
-	b         transformation
-	f         SortFunc
-	SortedIds []string
-	Keys      map[string]Value
+	id         string
+	upstream   transformation
+	downstream []transformation
+	f          SortFunc
 }
 
 func (t *sort_transformation) Id() string {
 	return t.id
 }
 
-func (t *sort_transformation) Transform(txn transaction) {
-
-	for _, id := range txn.added {
-		val := t.b.Get(id)
-		key := t.f(Context{Id: id}, val)
-		t.Keys[id] = key
+func (t *sort_transformation) Chain() []transformation {
+	if t.upstream == nil {
+		return []transformation{t}
 	}
-
-	for _, id := range txn.updated {
-		val := t.b.Get(id)
-		key := t.f(Context{Id: id}, val)
-		t.Keys[id] = key
-	}
-
-	for _, id := range txn.removed {
-		delete(t.Keys, id)
-	}
-
-	ids := make([]string, 0, len(t.Keys))
-	for id := range t.Keys {
-		ids = append(ids, id)
-	}
-	t.SortedIds = ids
-
-	sort.Sort(t)
+	return append(t.upstream.Chain(), t)
 }
 
-func (s *sort_transformation) Len() int {
+func (t *sort_transformation) Dependencies() []transformation {
+	if t.upstream == nil {
+		return []transformation{}
+	}
+	return append(t.upstream.Dependencies(), t.upstream)
+}
+
+func (t *sort_transformation) PushDownstream(d transformation) {
+	t.downstream = append(t.downstream, d)
+}
+
+func (t *sort_transformation) Transform(upstream upstream_state, txn *transaction) {
+	var (
+		state = upstream.NewState(t.id)
+		info  = &sort_transformation_state{}
+	)
+
+	info.upstream = upstream
+	state.Info = info
+	txn.Restore(state)
+
+	if info.Keys == nil {
+		info.Keys = make(map[string]Value)
+	}
+
+	{
+		state.added = upstream.Added()
+		state.changed = upstream.Changed()
+		state.removed = upstream.Removed()
+
+		for _, id := range upstream.Added() {
+			val := upstream.Get(id)
+			key := t.f(Context{Id: id}, val)
+			info.Keys[id] = key
+		}
+
+		for _, id := range upstream.Changed() {
+			val := upstream.Get(id)
+			key := t.f(Context{Id: id}, val)
+			info.Keys[id] = key
+		}
+
+		for _, id := range upstream.Removed() {
+			delete(info.Keys, id)
+		}
+
+		ids := make([]string, 0, len(info.Keys))
+		for id := range info.Keys {
+			ids = append(ids, id)
+		}
+		info.SortedIds = ids
+
+		sort.Sort(info)
+	}
+
+	txn.Save(state)
+	txn.Propagate(t.downstream, state)
+}
+
+type sort_transformation_state struct {
+	upstream  upstream_state
+	SortedIds []string
+	Keys      map[string]Value
+}
+
+func (s *sort_transformation_state) Len() int {
 	return len(s.SortedIds)
 }
 
-func (s *sort_transformation) Less(i, j int) bool {
+func (s *sort_transformation_state) Less(i, j int) bool {
 	m, n := s.SortedIds[i], s.SortedIds[j]
 	x, y := s.Keys[m], s.Keys[n]
 	return Compair(x, y) == -1
 }
 
-func (s *sort_transformation) Swap(i, j int) {
+func (s *sort_transformation_state) Swap(i, j int) {
 	s.SortedIds[j], s.SortedIds[i] = s.SortedIds[i], s.SortedIds[j]
 }
 
-func (t *sort_transformation) Restore(txn transaction) {
-	txn.state.Restore(t.id, t)
+func (s *sort_transformation_state) Ids() []string {
+	return s.SortedIds
 }
 
-func (t *sort_transformation) Save(txn transaction) {
-	txn.state.Save(t.id, t)
-}
-
-func (t *sort_transformation) Ids() []string {
-	return t.SortedIds
-}
-
-func (t *sort_transformation) Get(id string) Value {
-	return t.b.Get(id)
+func (s *sort_transformation_state) Get(id string) Value {
+	return s.upstream.Get(id)
 }

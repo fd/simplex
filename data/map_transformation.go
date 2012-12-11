@@ -8,48 +8,82 @@ func Map(f MapFunc) View {
 
 func (v View) Map(f MapFunc) View {
 	return v.push(&map_transformation{
-		transformation_info: &transformation_info{},
-		base:                v.current.Info().Id,
-		f:                   f,
+		id:       v.new_id(),
+		upstream: v.current,
+		f:        f,
 	})
 }
 
 type map_transformation struct {
-	*transformation_info
-	base string
-	f    MapFunc
+	id         string
+	upstream   transformation
+	downstream []transformation
+	f          MapFunc
+}
+
+func (t *map_transformation) Id() string {
+	return t.id
+}
+
+func (t *map_transformation) Chain() []transformation {
+	if t.upstream == nil {
+		return []transformation{t}
+	}
+	return append(t.upstream.Chain(), t)
+}
+
+func (t *map_transformation) Dependencies() []transformation {
+	if t.upstream == nil {
+		return []transformation{}
+	}
+	return append(t.upstream.Dependencies(), t.upstream)
+}
+
+func (t *map_transformation) PushDownstream(d transformation) {
+	t.downstream = append(t.downstream, d)
+}
+
+func (t *map_transformation) Transform(upstream upstream_state, txn *transaction) {
+	var (
+		state = upstream.NewState(t.id)
+		info  = &map_transformation_state{}
+	)
+
+	info.upstream = upstream
+	state.Info = info
+	txn.Restore(state)
+
+	if info.Values == nil {
+		info.Values = make(map[string]Value)
+	}
+
+	{
+		for _, id := range upstream.Added() {
+			val := upstream.Get(id)
+			info.Values[id] = t.f(Context{Id: id}, val)
+		}
+
+		for _, id := range upstream.Changed() {
+			val := upstream.Get(id)
+			info.Values[id] = t.f(Context{Id: id}, val)
+		}
+
+		for _, id := range upstream.Removed() {
+			delete(info.Values, id)
+		}
+	}
+
+	txn.Save(state)
+	txn.Propagate(t.downstream, state)
 }
 
 type map_transformation_state struct {
-	base   transformation_state
-	Values map[string]Value
-}
-
-func (t *map_transformation) Transform(txn transaction) {
-	state := &map_transformation_state{
-		base: txn.GetStore(t.base),
-	}
-	txn.Restore(t.Id, &state)
-
-	for _, id := range state.base.Added() {
-		val := state.base.Get(id)
-		state.Values[id] = t.f(Context{Id: id}, val)
-	}
-
-	for _, id := range state.base.Updated() {
-		val := state.base.Get(id)
-		state.Values[id] = t.f(Context{Id: id}, val)
-	}
-
-	for _, id := range state.base.Removed() {
-		delete(state.Values, id)
-	}
-
-	txn.Save(t.Id, &state)
+	upstream upstream_state
+	Values   map[string]Value
 }
 
 func (t *map_transformation_state) Ids() []string {
-	return t.base.Ids()
+	return t.upstream.Ids()
 }
 
 func (t *map_transformation_state) Get(id string) Value {

@@ -1,53 +1,53 @@
 package data
 
-import (
-	"github.com/fd/w/data/storage/coded/driver"
-	"github.com/fd/w/data/storage/coded/prefixed"
-	"github.com/fd/w/data/storage/coded/storage"
-	raw "github.com/fd/w/data/storage/raw/driver"
-)
+type upstream_state interface {
+	Ids() []string
+	Get(id string) Value
 
-type State struct {
-	driver driver.I
+	Added() []string
+	Changed() []string
+	Removed() []string
+
+	NewState(segment ...string) *state
 }
 
-func NewState(s raw.I) *State {
-	return &State{
-		driver: &prefixed.S{
-			Prefix: "state/",
-			Driver: &storage.S{
-				Coder:  &storage.GobCoder{},
-				Driver: s,
-			},
-		},
-	}
+type state struct {
+	Id []string
+
+	Info transformation_state
+
+	added   []string
+	changed []string
+	removed []string
 }
 
-func (s *State) Ids() []string {
-	ids, err := s.driver.Ids()
-	if err != nil {
-		panic(err)
-	}
-	return ids
+type transformation_state interface {
+	Ids() []string
+	Get(id string) Value
 }
 
-func (s *State) Get(id string) Value {
-	val, err := s.driver.Get(id)
-	if err != nil {
-		panic(err)
-	}
-	return Value(val)
+func (s *state) Ids() []string {
+	return s.Info.Ids()
 }
 
-func (s *State) Commit(set map[string]Value, del []string) {
-	n := make(map[string]interface{}, len(set))
+func (s *state) Get(id string) Value {
+	return s.Info.Get(id)
+}
 
-	for id, val := range set {
-		n[id] = interface{}(val)
-	}
+func (s *state) Added() []string {
+	return s.added
+}
 
-	err := s.driver.Commit(n, del)
-	if err != nil {
-		panic(err)
+func (s *state) Changed() []string {
+	return s.changed
+}
+
+func (s *state) Removed() []string {
+	return s.removed
+}
+
+func (s *state) NewState(segment ...string) *state {
+	return &state{
+		Id: append(s.Id, segment...),
 	}
 }
