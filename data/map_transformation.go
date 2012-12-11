@@ -7,35 +7,51 @@ func Map(f MapFunc) View {
 }
 
 func (v View) Map(f MapFunc) View {
-	return v.add_transformation(&map_transformation{
-		f: f,
+	return v.push(&map_transformation{
+		transformation_info: &transformation_info{},
+		base:                v.current.Info().Id,
+		f:                   f,
 	})
 }
 
 type map_transformation struct {
-	f MapFunc
-	s *map_state
+	*transformation_info
+	base string
+	f    MapFunc
 }
 
-type map_state struct {
+type map_transformation_state struct {
+	base   transformation_state
 	Values map[string]Value
 }
 
 func (t *map_transformation) Transform(txn transaction) {
-	upstream := txn.upstream_states[0]
+	state := &map_transformation_state{
+		base: txn.GetStore(t.base),
+	}
+	txn.Restore(t.Id, &state)
 
-	for _, id := range txn.added {
-		val := upstream.Get(id)
-		t.s.Values[id] = t.f(Context{Id: id}, val)
+	for _, id := range state.base.Added() {
+		val := state.base.Get(id)
+		state.Values[id] = t.f(Context{Id: id}, val)
 	}
 
-	for _, id := range txn.updated {
-		val := upstream.Get(id)
-		t.s.Values[id] = t.f(Context{Id: id}, val)
+	for _, id := range state.base.Updated() {
+		val := state.base.Get(id)
+		state.Values[id] = t.f(Context{Id: id}, val)
 	}
 
-	for _, id := range txn.removed {
-		delete(t.s.Values, id)
+	for _, id := range state.base.Removed() {
+		delete(state.Values, id)
 	}
 
+	txn.Save(t.Id, &state)
+}
+
+func (t *map_transformation_state) Ids() []string {
+	return t.base.Ids()
+}
+
+func (t *map_transformation_state) Get(id string) Value {
+	return t.Values[id]
 }

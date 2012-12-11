@@ -11,8 +11,6 @@ type Engine struct {
 	source *Source
 	target *Target
 	state  *State
-
-	transformations map[string]*transformation_decl
 }
 
 type Changes struct {

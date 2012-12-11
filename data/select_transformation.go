@@ -7,30 +7,33 @@ func Select(f SelectFunc) View {
 }
 
 func (v View) Select(f SelectFunc) View {
-	return v.add_transformation(&select_transformation{
-		f: f,
+	return v.push(&select_transformation{
+		id: v.new_id(),
+		b:  v.current,
+		f:  f,
 	})
 }
 
 type select_transformation struct {
-	f SelectFunc
-	s *select_state
+	id          string
+	b           transformation
+	f           SelectFunc
+	SelectedIds []string
 }
 
-type select_state struct {
-	Ids []string
+func (t *select_transformation) Id() string {
+	return t.id
 }
 
 func (t *select_transformation) Transform(txn transaction) {
-	selected := make(map[string]bool, len(t.s.Ids))
-	upstream := txn.upstream_states[0]
+	selected := make(map[string]bool, len(t.SelectedIds))
 
-	for _, id := range t.s.Ids {
+	for _, id := range t.SelectedIds {
 		selected[id] = true
 	}
 
 	for _, id := range txn.added {
-		val := upstream.Get(id)
+		val := t.b.Get(id)
 
 		if t.f(Context{Id: id}, val) {
 			selected[id] = true
@@ -38,7 +41,7 @@ func (t *select_transformation) Transform(txn transaction) {
 	}
 
 	for _, id := range txn.updated {
-		val := upstream.Get(id)
+		val := t.b.Get(id)
 		selected[id] = t.f(Context{Id: id}, val)
 	}
 
@@ -48,11 +51,27 @@ func (t *select_transformation) Transform(txn transaction) {
 
 	ids := make([]string, 0, len(selected))
 
-	for _, id := range upstream.Ids() {
+	for _, id := range t.b.Ids() {
 		if selected[id] {
 			ids = append(ids, id)
 		}
 	}
 
-	t.s.Ids = ids
+	t.SelectedIds = ids
+}
+
+func (t *select_transformation) Restore(txn transaction) {
+	txn.state.Restore(t.id, t)
+}
+
+func (t *select_transformation) Save(txn transaction) {
+	txn.state.Save(t.id, t)
+}
+
+func (t *select_transformation) Ids() []string {
+	return t.SelectedIds
+}
+
+func (t *select_transformation) Get(id string) Value {
+	return t.b.Get(id)
 }

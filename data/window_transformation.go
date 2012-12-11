@@ -5,7 +5,9 @@ func Window(offset, limit int) View {
 }
 
 func (v View) Window(offset, limit int) View {
-	return v.add_transformation(&window_transformation{
+	return v.push(&window_transformation{
+		id:     v.new_id(),
+		b:      v.current,
 		offset: offset,
 		limit:  limit,
 	})
@@ -20,19 +22,19 @@ func (v View) Limit(n int) View {
 }
 
 type window_transformation struct {
-	offset int
-	limit  int
-	s      *window_state
+	id          string
+	b           transformation
+	offset      int
+	limit       int
+	SelectedIds []string
 }
 
-type window_state struct {
-	Ids []string
+func (t *window_transformation) Id() string {
+	return t.id
 }
 
 func (t *window_transformation) Transform(txn transaction) {
-	upstream := txn.upstream_states[0]
-
-	ids := upstream.Ids()
+	ids := t.b.Ids()
 
 	if t.limit == 0 {
 		ids = ids[t.offset:]
@@ -40,5 +42,20 @@ func (t *window_transformation) Transform(txn transaction) {
 		ids = ids[t.offset:t.limit]
 	}
 
-	t.s.Ids = ids
+	t.SelectedIds = ids
+}
+func (t *window_transformation) Restore(txn transaction) {
+	txn.state.Restore(t.id, t)
+}
+
+func (t *window_transformation) Save(txn transaction) {
+	txn.state.Save(t.id, t)
+}
+
+func (t *window_transformation) Ids() []string {
+	return t.SelectedIds
+}
+
+func (t *window_transformation) Get(id string) Value {
+	return t.Get(id)
 }

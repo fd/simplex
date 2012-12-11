@@ -9,45 +9,51 @@ var data_view_counters = map[string]int{}
 
 type View struct {
 	engine  *Engine
-	current *transformation_decl
+	current transformation
 }
 
-type transformation_decl struct {
-	id string
+type transformation_info struct {
+	Id          string
+	Downstreams []string
+}
 
-	upstream       []string
-	transformation transformation
-	downstream     []string
+func (i *transformation_info) Info() *transformation_info {
+	return i
 }
 
 type transformation interface {
+	Info() *transformation_info
+
 	Transform(txn transaction)
 }
 
-func (v View) add_transformation(t transformation) View {
+type transformation_state interface {
+	StoreReader
+
+	Created() []string
+	Updated() []string
+	Destroyed() []string
+}
+
+func (v View) push(t transformation) View {
+	ti := t.Info()
+	ti.Id = v.new_id()
+
+	if v.current != nil {
+		ci := v.current.Info()
+		ci.Downstreams = append(ci.Downstreams, ti.Id)
+	}
+
+	v.engine.transformations[ti.Id] = t
+
+	v.current = t
+	return v
+}
+
+func (v View) new_id() string {
 	pkg := util.InitializingPackage()
 	data_view_counters[pkg] += 1
-
-	c := &transformation_decl{transformation: t}
-	c.id = fmt.Sprintf("%s:%d", pkg, data_view_counters[pkg])
-
-	fmt.Printf("View[%s]\n", c.id)
-
-	// bind dependencies
-	if v.current != nil {
-		c.upstream = append(c.upstream, v.current.id)
-		v.current.downstream = append(v.current.downstream, c.id)
-	}
-
-	// register with engine
-	if v.engine.transformations == nil {
-		v.engine.transformations = map[string]*transformation_decl{}
-	}
-	v.engine.transformations[c.id] = c
-
-	// update view
-	v.current = c
-	return v
+	return fmt.Sprintf("%s:%d", pkg, data_view_counters[pkg])
 }
 
 /*

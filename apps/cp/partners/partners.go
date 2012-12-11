@@ -1,15 +1,10 @@
-package locations
+package partners
 
 import (
 	"github.com/fd/w/data"
 )
 
-var All = data.Select(of_type("location")).Sort(by_property("name"))
-var ByEvent = All.Map(by_event)
-
-func by_event(ctx data.Context, val data.Value) data.Value {
-	return val
-}
+var All = data.Select(of_type("partner")).Sort(by_property("name"))
 
 func of_type(type_name string) data.SelectFunc {
 	return func(ctx data.Context, val data.Value) bool {
