@@ -1,140 +1,160 @@
 package data
 
+import (
+	"bytes"
+	"encoding/binary"
+)
+
 func Compair(a, b Value) int {
-	val_a, type_a := type_index_for_compair(a)
-	val_b, type_b := type_index_for_compair(b)
-
-	if type_a != type_b {
-		return simple_compair_result(type_a, type_b)
+	cmp_a := CompairString(a)
+	cmp_b := CompairString(b)
+	if cmp_a < cmp_b {
+		return 1
 	}
-
-	switch type_a {
-	case 1: // nil is always nil
-		return 0
-
-	case 2:
-		var (
-			a_a bool
-			a_b bool
-		)
-		a_a = val_a.(bool)
-		a_b = val_b.(bool)
-
-		if a_a == a_b {
-			return 0
-		}
-		if a_a == false {
-			return 1
-		}
+	if cmp_a > cmp_b {
 		return -1
-
-	case 3:
-		var (
-			a_a float64
-			a_b float64
-		)
-		a_a = val_a.(float64)
-		a_b = val_b.(float64)
-
-		if a_a < a_b {
-			return 1
-		}
-		if a_a > a_b {
-			return -1
-		}
-		return 0
-
-	case 4:
-		var (
-			a_a string
-			a_b string
-		)
-		a_a = val_a.(string)
-		a_b = val_b.(string)
-
-		if a_a < a_b {
-			return 1
-		}
-		if a_a > a_b {
-			return -1
-		}
-		return 0
-
-	case 5:
-		var (
-			a_a []interface{}
-			a_b []interface{}
-			l_a int
-			l_b int
-			l   int
-		)
-		a_a = val_a.([]interface{})
-		a_b = val_b.([]interface{})
-		l_a = len(a_a)
-		l_b = len(a_b)
-
-		if l_a > l_b {
-			l = l_b
-		} else {
-			l = l_a
-		}
-
-		for i := 0; i < l; i++ {
-			c := Compair(a_a[i], a_b[i])
-			if c != 0 {
-				return c
-			}
-		}
-
-		if l_a < l_b {
-			return 1
-		}
-		if l_a > l_b {
-			return -1
-		}
-		return 0
-
-	case 6:
-		// TODO
-
 	}
-
-	panic("Uncompairable type")
+	return 0
 }
 
-func type_index_for_compair(v Value) (Value, int) {
+func CompairString(v Value) string {
+	l := compair_string_len(v)
+	buf := bytes.NewBuffer(make([]byte, 0, l))
+	write_compair_string(v, buf)
+	return string(buf.Bytes())
+}
+
+func write_compair_string(v Value, buf *bytes.Buffer) {
 	if v == nil {
-		return nil, 1
+		buf.WriteByte(0)
+		buf.WriteByte(0)
+		return
 	}
 
 	switch a := v.(type) {
 	case bool:
-		return v, 2
+		if a == false {
+			buf.WriteByte(0)
+			buf.WriteByte(1)
+		} else {
+			buf.WriteByte(0)
+			buf.WriteByte(2)
+		}
+
 	case int:
-		return float64(a), 3
+		buf.WriteByte(0)
+		buf.WriteByte(3)
+		binary.Write(buf, binary.BigEndian, float64(a))
+
 	case float64:
-		return v, 3
+		buf.WriteByte(0)
+		buf.WriteByte(3)
+		binary.Write(buf, binary.BigEndian, a)
+
 	case string:
-		return v, 4
+		buf.WriteByte(0)
+		buf.WriteByte(4)
+		buf.WriteString(a)
+
 	case []byte:
-		return string(a), 4
-	case []rune:
-		return string(a), 4
+		buf.WriteByte(0)
+		buf.WriteByte(4)
+		buf.Write(a)
+
 	case []interface{}:
-		return v, 5
+		buf.WriteByte(0)
+		buf.WriteByte(5)
+
+		for _, v := range a {
+			write_compair_string(v, buf)
+		}
+	case []Value:
+		buf.WriteByte(0)
+		buf.WriteByte(5)
+
+		for _, v := range a {
+			write_compair_string(v, buf)
+		}
+
 	case map[string]interface{}:
-		return v, 6
+		buf.WriteByte(0)
+		buf.WriteByte(6)
+
+		ks := make([]string, 0, len(a))
+		for k := range a {
+			ks = append(ks, k)
+		}
+		for _, k := range ks {
+			write_compair_string(k, buf)
+		}
+		for _, k := range ks {
+			write_compair_string(a[k], buf)
+		}
+
+	case map[string]Value:
+		buf.WriteByte(0)
+		buf.WriteByte(6)
+
+		ks := make([]string, 0, len(a))
+		for k := range a {
+			ks = append(ks, k)
+		}
+		for _, k := range ks {
+			write_compair_string(k, buf)
+		}
+		for _, k := range ks {
+			write_compair_string(a[k], buf)
+		}
+
+	default:
+		panic("Uncompairable type")
+
+	}
+}
+
+func compair_string_len(v Value) int {
+	if v == nil {
+		return 2
+	}
+
+	switch a := v.(type) {
+	case bool:
+		return 2
+	case int:
+		return 10
+	case float64:
+		return 10
+	case string:
+		return 2 + len(a)
+	case []byte:
+		return 2 + len(a)
+	case []Value:
+		c := 2
+		for _, v := range a {
+			c += compair_string_len(v)
+		}
+		return c
+	case []interface{}:
+		c := 2
+		for _, v := range a {
+			c += compair_string_len(v)
+		}
+		return c
+	case map[string]interface{}:
+		c := 2
+		for k, v := range a {
+			c += compair_string_len(k)
+			c += compair_string_len(v)
+		}
+		return c
+	case map[string]Value:
+		c := 2
+		for k, v := range a {
+			c += compair_string_len(k)
+			c += compair_string_len(v)
+		}
+		return c
 	}
 
 	panic("Uncompairable type")
-}
-
-func simple_compair_result(a, b int) int {
-	if a > b {
-		return -1
-	}
-	if a < b {
-		return 1
-	}
-	return 0
 }

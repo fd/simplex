@@ -47,23 +47,40 @@ func Run() {
 	fmt.Printf("=======================================\n")
 	fmt.Printf("== Hello there                       ==\n")
 
-	c := data.Changes{
-		Create: map[string]data.Value{
-			"hello": data.Object{
-				"_id":   "hello",
-				"_type": "location",
-				"name":  "Hello World",
-			},
-			"hi": data.Object{
-				"_id":   "hi",
-				"_type": "location",
-				"name":  "Hi World",
-			},
+	c := data.Changes{}
+
+	/*
+	   c.Update = map[string]data.Value{
+	     "hello": data.Object{
+	       "_id":   "hello",
+	       "_type": "location",
+	       "name":  "Hello World!",
+	     },
+	     "hi": data.Object{
+	       "_id":   "hi",
+	       "_type": "location",
+	       "name":  "Hi World!",
+	     },
+	   }
+	*/
+
+	///*
+	c.Create = map[string]data.Value{
+		"hello": data.Object{
+			"_id":   "hello",
+			"_type": "location",
+			"name":  "Hello World",
+		},
+		"hi": data.Object{
+			"_id":   "hi",
+			"_type": "location",
+			"name":  "Hi World",
 		},
 	}
 
 	// for i := 0; i < 1000000; i++ {
-	for i := 0; i < 100000; i++ {
+	//for i := 0; i < 100000; i++ {
+	for i := 0; i < 10000; i++ {
 		n := fmt.Sprintf("name-%d", i)
 		c.Create[n] = data.Object{
 			"_id":   n,
@@ -71,6 +88,7 @@ func Run() {
 			"name":  n,
 		}
 	}
+	//*/
 
 	fmt.Printf("=======================================\n")
 

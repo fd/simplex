@@ -54,11 +54,11 @@ func (t *sort_transformation) Transform(upstream upstream_state, txn *transactio
 	)
 
 	info.upstream = upstream
+	txn.Restore(state, &info)
 	state.Info = info
-	txn.Restore(state)
 
 	if info.Keys == nil {
-		info.Keys = make(map[string]Value)
+		info.Keys = make(map[string]string)
 	}
 
 	{
@@ -68,14 +68,16 @@ func (t *sort_transformation) Transform(upstream upstream_state, txn *transactio
 
 		for _, id := range upstream.Added() {
 			val := upstream.Get(id)
-			key := t.f(Context{Id: id}, val)
-			info.Keys[id] = key
+			key_val := t.f(Context{Id: id}, val)
+			key_str := CompairString(key_val)
+			info.Keys[id] = key_str
 		}
 
 		for _, id := range upstream.Changed() {
 			val := upstream.Get(id)
-			key := t.f(Context{Id: id}, val)
-			info.Keys[id] = key
+			key_val := t.f(Context{Id: id}, val)
+			key_str := CompairString(key_val)
+			info.Keys[id] = key_str
 		}
 
 		for _, id := range upstream.Removed() {
@@ -87,7 +89,6 @@ func (t *sort_transformation) Transform(upstream upstream_state, txn *transactio
 			ids = append(ids, id)
 		}
 		info.SortedIds = ids
-
 		sort.Sort(info)
 	}
 
@@ -98,7 +99,7 @@ func (t *sort_transformation) Transform(upstream upstream_state, txn *transactio
 type sort_transformation_state struct {
 	upstream  upstream_state
 	SortedIds []string
-	Keys      map[string]Value
+	Keys      map[string]string
 }
 
 func (s *sort_transformation_state) Len() int {
@@ -108,7 +109,10 @@ func (s *sort_transformation_state) Len() int {
 func (s *sort_transformation_state) Less(i, j int) bool {
 	m, n := s.SortedIds[i], s.SortedIds[j]
 	x, y := s.Keys[m], s.Keys[n]
-	return Compair(x, y) == -1
+	if x == y {
+		return m < n
+	}
+	return x < y
 }
 
 func (s *sort_transformation_state) Swap(i, j int) {

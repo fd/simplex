@@ -8,12 +8,12 @@ import (
 	"net/http"
 )
 
-type TargetTable struct {
+type target_table struct {
 	driver driver.I
 }
 
-func NewTargetTable(s raw.I) *TargetTable {
-	return &TargetTable{
+func new_target_table(s raw.I) *target_table {
+	return &target_table{
 		driver: &prefixed.S{
 			Prefix: "target/",
 			Driver: &storage.S{
@@ -24,7 +24,7 @@ func NewTargetTable(s raw.I) *TargetTable {
 	}
 }
 
-func (s *TargetTable) Ids() []string {
+func (s *target_table) Ids() []string {
 	ids, err := s.driver.Ids()
 	if err != nil {
 		panic(err)
@@ -32,7 +32,7 @@ func (s *TargetTable) Ids() []string {
 	return ids
 }
 
-func (s *TargetTable) Get(id string) Artefact {
+func (s *target_table) Get(id string) Artefact {
 	val, err := s.driver.Get(id)
 	if err != nil {
 		panic(err)
@@ -43,7 +43,7 @@ func (s *TargetTable) Get(id string) Artefact {
 	panic("unable to convert to Artefact")
 }
 
-func (s *TargetTable) Commit(set map[string]Artefact, del []string) {
+func (s *target_table) Commit(set map[string]Artefact, del []string) {
 	n := make(map[string]interface{}, len(set))
 
 	for id, val := range set {

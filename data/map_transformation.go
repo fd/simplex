@@ -50,8 +50,8 @@ func (t *map_transformation) Transform(upstream upstream_state, txn *transaction
 	)
 
 	info.upstream = upstream
+	txn.Restore(state, &info)
 	state.Info = info
-	txn.Restore(state)
 
 	if info.Values == nil {
 		info.Values = make(map[string]Value)

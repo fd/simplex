@@ -50,8 +50,8 @@ func (t *select_transformation) Transform(upstream upstream_state, txn *transact
 	)
 
 	info.upstream = upstream
+	txn.Restore(state, &info)
 	state.Info = info
-	txn.Restore(state)
 
 	{
 		selected := make(map[string]bool, len(info.SelectedIds))

@@ -21,7 +21,7 @@ func (s *S) Ids() ([]string, error) {
 
 	for _, id := range all {
 		if strings.HasPrefix(id, s.Prefix) {
-			ids = append(ids, id[0:l])
+			ids = append(ids, id[l:])
 		}
 	}
 

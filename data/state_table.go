@@ -7,12 +7,12 @@ import (
 	raw "github.com/fd/w/data/storage/raw/driver"
 )
 
-type StateTable struct {
+type state_table struct {
 	driver driver.I
 }
 
-func NewStateTable(s raw.I) *StateTable {
-	return &StateTable{
+func new_state_table(s raw.I) *state_table {
+	return &state_table{
 		driver: &prefixed.S{
 			Prefix: "state/",
 			Driver: &storage.S{
@@ -23,7 +23,7 @@ func NewStateTable(s raw.I) *StateTable {
 	}
 }
 
-func (s *StateTable) Ids() []string {
+func (s *state_table) Ids() []string {
 	ids, err := s.driver.Ids()
 	if err != nil {
 		panic(err)
@@ -31,14 +31,14 @@ func (s *StateTable) Ids() []string {
 	return ids
 }
 
-func (s *StateTable) Restore(id string, state interface{}) {
+func (s *state_table) Restore(id string, state interface{}) {
 	err := s.driver.Restore(id, state)
 	if err != nil {
 		panic(err)
 	}
 }
 
-func (s *StateTable) Commit(set map[string]Value, del []string) {
+func (s *state_table) Commit(set map[string]Value, del []string) {
 	n := make(map[string]interface{}, len(set))
 
 	for id, val := range set {

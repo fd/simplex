@@ -7,12 +7,13 @@ import (
 	raw "github.com/fd/w/data/storage/raw/driver"
 )
 
-type SourceTable struct {
+type source_table struct {
 	driver driver.I
+	ids    []string
 }
 
-func NewSourceTable(s raw.I) *SourceTable {
-	return &SourceTable{
+func new_source_table(s raw.I) *source_table {
+	return &source_table{
 		driver: &prefixed.S{
 			Prefix: "source/",
 			Driver: &storage.S{
@@ -23,15 +24,21 @@ func NewSourceTable(s raw.I) *SourceTable {
 	}
 }
 
-func (s *SourceTable) Ids() []string {
+func (s *source_table) Ids() []string {
+	if len(s.ids) != 0 {
+		return s.ids
+	}
+
 	ids, err := s.driver.Ids()
 	if err != nil {
 		panic(err)
 	}
+
+	s.ids = ids
 	return ids
 }
 
-func (s *SourceTable) Get(id string) Value {
+func (s *source_table) Get(id string) Value {
 	val, err := s.driver.Get(id)
 	if err != nil {
 		panic(err)
@@ -39,7 +46,7 @@ func (s *SourceTable) Get(id string) Value {
 	return Value(val)
 }
 
-func (s *SourceTable) Commit(set map[string]Value, del []string) {
+func (s *source_table) Commit(set map[string]Value, del []string) {
 	n := make(map[string]interface{}, len(set))
 
 	for id, val := range set {

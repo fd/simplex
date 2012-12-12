@@ -29,12 +29,44 @@ func new_transaction(e *Engine, changes Changes) *transaction {
 	}
 }
 
-func (txn *transaction) Restore(s *state) {
-	txn.engine.StateTable.Restore(strings.Join(s.Id(), "/"), &s.Info)
+func (txn *transaction) Restore(s *state, info interface{}) {
+	txn.engine.state_table.Restore(strings.Join(s.Id(), "/"), info)
 }
 
 func (txn *transaction) Save(s *state) {
 	txn.saved_states[strings.Join(s.Id(), "/")] = s.Info
+}
+
+func (txn *transaction) Commit() {
+	{
+		set := map[string]Value{}
+		del := []string{}
+
+		for id, val := range txn.changes.Create {
+			set[id] = val
+		}
+
+		for id, val := range txn.changes.Update {
+			set[id] = val
+		}
+
+		for _, id := range txn.changes.Destroy {
+			del = append(del, id)
+		}
+
+		txn.engine.source_table.Commit(set, del)
+	}
+
+	{
+		set := map[string]Value{}
+		del := []string{}
+
+		for id, val := range txn.saved_states {
+			set[id] = val
+		}
+
+		txn.engine.state_table.Commit(set, del)
+	}
 }
 
 func (txn *transaction) Propagate(ts []transformation, s *state) {
@@ -61,13 +93,21 @@ func (txn *transaction) project() {
 	}
 
 	fmt.Printf("txn: %f\n", float64(time.Now().Sub(now).Nanoseconds())/1000000)
+	txn.Commit()
+	fmt.Printf("txn: %f\n", float64(time.Now().Sub(now).Nanoseconds())/1000000)
 }
 
 func (txn *transaction) transform(t transformation) {
 	states := txn.upstream_states[t.Id()]
 
 	for _, state := range states {
-		//fmt.Printf("A=>B: %s\n    %s\n    %+v\n", t.Id(), state.Id(), state)
+		now := time.Now()
+
+		c := len(state.Added()) + len(state.Changed()) + len(state.Removed())
+		fmt.Printf("beg A=>B: %s\n    %s\n    %d\n", t.Id(), state.Id(), c)
+
 		t.Transform(state, txn)
+
+		fmt.Printf("end A=>B: %f\n", float64(time.Now().Sub(now).Nanoseconds())/1000000)
 	}
 }

@@ -3,6 +3,7 @@ package data
 import (
 	"fmt"
 	"github.com/fd/w/data/storage/raw"
+	"github.com/fd/w/data/storage/raw/compress"
 	"github.com/fd/w/util"
 )
 
@@ -33,9 +34,9 @@ func Run() {
 }
 
 type Engine struct {
-	SourceTable *SourceTable
-	StateTable  *StateTable
-	TargetTable *TargetTable
+	source_table *source_table
+	state_table  *state_table
+	target_table *target_table
 
 	transactions chan *transaction
 	done         chan bool
@@ -69,9 +70,9 @@ func (e *Engine) Setup(source, state, target string) error {
 		return err
 	}
 
-	e.SourceTable = NewSourceTable(raw_source)
-	e.StateTable = NewStateTable(raw_state)
-	e.TargetTable = NewTargetTable(raw_target)
+	e.source_table = new_source_table(raw_source)
+	e.state_table = new_state_table(&compress.S{raw_state})
+	e.target_table = new_target_table(raw_target)
 
 	return nil
 }

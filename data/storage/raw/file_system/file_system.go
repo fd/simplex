@@ -57,7 +57,7 @@ func (f *S) ids_for_dir(dir, prefix string) ([]string, error) {
 		if fi.IsDir() {
 			pref := name
 			if prefix != "" {
-				pref = path.Join(prefix, pref)
+				pref = path.Join(prefix, name)
 			}
 			i, err := f.ids_for_dir(path.Join(dir, name), pref)
 			if err != nil {
@@ -72,7 +72,7 @@ func (f *S) ids_for_dir(dir, prefix string) ([]string, error) {
 		}
 
 		id := name[:len(name)-4]
-		ids = append(ids, string(id))
+		ids = append(ids, path.Join(prefix, id))
 	}
 
 	return ids, nil
@@ -118,7 +118,7 @@ func (f *S) Commit(set map[string][]byte, del []string) error {
 
 	for id, data := range set {
 		pat := path.Join(f.Root, id+".dat")
-		os.MkdirAll(pat, 0755)
+		os.MkdirAll(path.Dir(pat), 0755)
 		err := ioutil.WriteFile(pat, data, 0644)
 		if err != nil {
 			return err

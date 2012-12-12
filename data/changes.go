@@ -32,7 +32,7 @@ func (c Changes) Removed() []string {
 }
 
 func (c Changes) Ids() []string {
-	s_ids := c.engine.SourceTable.Ids()
+	s_ids := c.engine.source_table.Ids()
 
 	rem := make(map[string]bool, len(c.Destroy))
 	for _, id := range c.Destroy {
@@ -69,7 +69,7 @@ func (c Changes) Get(id string) Value {
 		}
 	}
 
-	return c.engine.SourceTable.Get(id)
+	return c.engine.source_table.Get(id)
 }
 
 func (c Changes) NewState(segment ...string) *state {
