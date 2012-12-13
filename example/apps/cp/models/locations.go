@@ -1,11 +1,11 @@
-package locations
+package models
 
 import (
 	"github.com/fd/w/data"
 )
 
-var All = data.Select(of_type("location")).Sort(by_property("name"))
-var ByEvent = All.GroupN(by_event)
+var Locations = data.Select(of_type("location")).Sort(by_property("name"))
+var ByEvent = Locations.GroupN(by_event)
 
 func by_event(ctx data.Context, val data.Value) []data.Value {
 	object, ok := val.(data.Object)

@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 
-db="file://$PWD/db"
+dir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+db="file://$dir/db"
+
+cd $dir
+
 export SOURCE=$db
 export STATE=$db
 export TARGET=$db

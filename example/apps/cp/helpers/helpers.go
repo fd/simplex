@@ -1,4 +1,4 @@
-package cp
+package helpers
 
 type HTML string
 

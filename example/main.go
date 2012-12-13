@@ -7,8 +7,7 @@ import (
 
 // Apps
 import (
-	_ "github.com/fd/w/apps/cp/locations"
-	_ "github.com/fd/w/apps/cp/partners"
+	_ "github.com/fd/w/example/apps/cp/models"
 )
 
 func main() {
