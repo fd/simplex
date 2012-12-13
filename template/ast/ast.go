@@ -17,16 +17,15 @@ const (
 
 type Node interface {
 	NodeInfo() Info
+	String() string
 }
 
 type Statement interface {
 	Node
-	String() string
 }
 
 type Expression interface {
 	Node
-	String() string
 }
 
 type Info struct {

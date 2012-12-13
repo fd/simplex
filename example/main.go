@@ -7,7 +7,7 @@ import (
 
 // Apps
 import (
-	_ "github.com/fd/w/example/apps/cp/models"
+	_ "github.com/fd/w/example/apps/orakel/models"
 )
 
 func main() {

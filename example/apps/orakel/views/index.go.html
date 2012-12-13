@@ -1,0 +1,34 @@
+{{#render "layout", title=long_title }}
+
+<div class="content">
+  <ul>
+
+    {{#each Products }}
+      <li>
+        <a href={{ ProductURL $ }} title="">
+          {{#if images.first}}
+            <img alt={{ name }} src={{ thumbnail }} />
+          {{else}}
+            <img alt={{ name }} src="/missing.png" />
+          {{/if}}
+          <span>{{ name }}</span>
+        </a>
+      </li>
+    {{/each}}
+
+  </ul>
+
+  <h2>{{ title }}</h2>
+  {{{ body }}}
+
+</div>
+
+<aside>
+
+  {{#each sidebar_item_ids.(SidebarItems) }}
+    {{ render template_name, $ }}
+  {{/each}}
+
+</aside>
+
+{{/render}}

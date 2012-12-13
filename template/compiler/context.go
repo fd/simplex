@@ -3,13 +3,11 @@ package compiler
 import (
 	"fmt"
 	w_ast "github.com/fd/w/template/ast"
-	w_parser "github.com/fd/w/template/parser"
 	go_ast "go/ast"
 	go_build "go/build"
 	go_parser "go/parser"
 	go_token "go/token"
 	"os"
-	"path"
 	"strings"
 )
 
@@ -20,8 +18,10 @@ type Context struct {
 	RenderFuncs map[string]*RenderFunc
 	Helpers     map[string]*go_ast.FuncDecl
 
-	go_ctx *go_build.Context
-	fset   *go_token.FileSet
+	go_ctx            *go_build.Context
+	go_fset           *go_token.FileSet
+	go_ast_packages   map[string]*go_ast.Package
+	go_build_packages map[string]*go_build.Package
 }
 
 type RenderFunc struct {
@@ -29,6 +29,7 @@ type RenderFunc struct {
 	ImportPath string
 	Template   *w_ast.Template
 	Export     bool
+	Golang     string
 }
 
 func (f *RenderFunc) FunctionName() string {
@@ -58,6 +59,20 @@ func (n *Include) String() string {
 	return "{{include}}"
 }
 
+type Errors []error
+
+func (errs Errors) Error() string {
+	s := "Errors:\n"
+	for _, err := range errs {
+		s += " - " + err.Error() + "\n"
+	}
+	return s
+}
+
+func (n *Include) Visit(b w_ast.Visitor) {
+	// do nothing
+}
+
 func (ctx *Context) Analyze(dir string) error {
 	if ctx.go_ctx == nil {
 		// copy the context
@@ -66,8 +81,16 @@ func (ctx *Context) Analyze(dir string) error {
 		ctx.go_ctx.CgoEnabled = false
 	}
 
-	if ctx.fset == nil {
-		ctx.fset = go_token.NewFileSet()
+	if ctx.go_fset == nil {
+		ctx.go_fset = go_token.NewFileSet()
+	}
+
+	if ctx.go_ast_packages == nil {
+		ctx.go_ast_packages = make(map[string]*go_ast.Package)
+	}
+
+	if ctx.go_build_packages == nil {
+		ctx.go_build_packages = make(map[string]*go_build.Package)
 	}
 
 	if ctx.Helpers == nil {
@@ -87,14 +110,12 @@ func (ctx *Context) Analyze(dir string) error {
 		return err
 	}
 
-	err = ctx.FindFunctions(build_pkg.ImportPath, ast_pkg)
-	if err != nil {
-		return err
+	if build_pkg != nil && ast_pkg != nil {
+		ctx.go_ast_packages[build_pkg.ImportPath] = ast_pkg
 	}
 
-	err = ctx.ParseTemplates(build_pkg.ImportPath, build_pkg.Dir)
-	if err != nil {
-		return err
+	if build_pkg != nil {
+		ctx.go_build_packages[build_pkg.ImportPath] = build_pkg
 	}
 
 	return nil
@@ -103,10 +124,14 @@ func (ctx *Context) Analyze(dir string) error {
 func (ctx *Context) ParsePackage(dir string) (*go_build.Package, *go_ast.Package, error) {
 	pkg, err := ctx.go_ctx.Import(dir, ctx.WROOT, 0)
 	if err != nil {
+		if strings.HasPrefix(err.Error(), "no Go source files in") {
+			err = nil
+			return pkg, nil, nil
+		}
 		return nil, nil, err
 	}
 
-	pkgs, err := go_parser.ParseDir(ctx.fset, pkg.Dir, go_file_filter(pkg), go_parser.SpuriousErrors)
+	pkgs, err := go_parser.ParseDir(ctx.go_fset, pkg.Dir, go_file_filter(pkg), go_parser.SpuriousErrors)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -132,80 +157,4 @@ func go_file_filter(pkg *go_build.Package) func(os.FileInfo) bool {
 
 		return false
 	}
-}
-
-func (ctx *Context) FindFunctions(path string, pkg *go_ast.Package) error {
-	finder := &FuncFinder{
-		Helpers:      ctx.Helpers,
-		package_name: path,
-	}
-	go_ast.Walk(finder, pkg)
-	return nil
-}
-
-type FuncFinder struct {
-	Helpers map[string]*go_ast.FuncDecl
-
-	package_name string
-}
-
-func (v *FuncFinder) Visit(n go_ast.Node) go_ast.Visitor {
-	if f, ok := n.(*go_ast.FuncDecl); ok {
-		v.AnalyzeFunc(f)
-		return nil
-	}
-	return v
-}
-
-func (v *FuncFinder) AnalyzeFunc(f *go_ast.FuncDecl) {
-
-	// helpers must have no receiver
-	if f.Recv != nil {
-		return
-	}
-
-	// helpers must be exported
-	if !f.Name.IsExported() {
-		return
-	}
-
-	fullname := fmt.Sprintf("\"%s\".%s", v.package_name, f.Name.String())
-	v.Helpers[fullname] = f
-}
-
-func (ctx *Context) ParseTemplates(import_path, dir string) error {
-	d, err := os.Open(dir)
-	if err != nil {
-		return err
-	}
-
-	entries, err := d.Readdir(0)
-	if err != nil {
-		return err
-	}
-
-	for _, fi := range entries {
-		base := fi.Name()
-
-		if !strings.HasSuffix(base, ".go.html") {
-			continue
-		}
-
-		tmpl, err := w_parser.ParseFile(path.Join(dir, base))
-		if err != nil {
-			return err
-		}
-
-		base = base[:len(base)-8]
-
-		name := fmt.Sprintf("\"%s\".%s", import_path, base)
-		ctx.RenderFuncs[name] = &RenderFunc{
-			Name:       base,
-			ImportPath: import_path,
-			Template:   tmpl,
-			Export:     true,
-		}
-	}
-
-	return nil
 }

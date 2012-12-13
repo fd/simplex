@@ -21,7 +21,10 @@ func TestContext(t *testing.T) {
 		t.Error(err)
 	}
 
-	ctx.UnfoldRenderFuncions()
+	ctx.GolangFindFunctions()
+	ctx.ParseTemplates()
+	ctx.LookupFunctionCalls()
+	ctx.UnfoldRenderFunctions()
 	ctx.CleanTemplates()
 
 	var n string

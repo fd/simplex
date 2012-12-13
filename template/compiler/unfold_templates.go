@@ -6,7 +6,7 @@ import (
 	"strconv"
 )
 
-func (ctx *Context) UnfoldRenderFuncions() {
+func (ctx *Context) UnfoldRenderFunctions() {
 	for _, render := range ctx.RenderFuncs {
 		v := &unfold_templates{
 			render_func: render,

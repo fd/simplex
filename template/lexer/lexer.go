@@ -410,6 +410,8 @@ func lexInsideAction(l *lexer) stateFn {
 			l.emit(ItemRightParen)
 		case r == ',':
 			l.emit(ItemComma)
+		case r == '$':
+			l.emit(ItemIdentifier)
 		case r == '"':
 			return lexQuote
 		case r == '+' || r == '-' || '0' <= r && r <= '9':
