@@ -46,23 +46,16 @@ func Build(args []string) {
 }
 
 func compile_templates(pwd string) error {
-	ctx := &compiler.Context{WROOT: pwd}
+	ctx := compiler.NewContext(pwd)
 
-	err := ctx.Analyze("./apps/orakel/helpers")
+	err := ctx.ImportPackages()
 	if err != nil {
 		return err
 	}
-
-	err = ctx.Analyze("./apps/orakel/models")
+	err = ctx.ParsePackages()
 	if err != nil {
 		return err
 	}
-
-	err = ctx.Analyze("./apps/orakel/views")
-	if err != nil {
-		return err
-	}
-
 	ctx.GolangFindFunctions()
 	err = ctx.ParseTemplates()
 	if err != nil {

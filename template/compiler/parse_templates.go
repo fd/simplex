@@ -19,7 +19,7 @@ func (ctx *Context) ParseTemplates() error {
 		}
 	}
 
-	return errs
+	return errs.Any()
 }
 
 func (ctx *Context) parse_templates_in_dir(import_path, dir string) error {
