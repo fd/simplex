@@ -48,23 +48,10 @@ func Build(args []string) {
 func compile_templates(pwd string) error {
 	ctx := compiler.NewContext(pwd)
 
-	err := ctx.ImportPackages()
+	err := ctx.Compile()
 	if err != nil {
 		return err
 	}
-	err = ctx.ParsePackages()
-	if err != nil {
-		return err
-	}
-	ctx.GolangFindFunctions()
-	err = ctx.ParseTemplates()
-	if err != nil {
-		return err
-	}
-	ctx.LookupFunctionCalls()
-	ctx.UnfoldRenderFunctions()
-	ctx.CleanTemplates()
-	ctx.PrintRenderFunctions()
 
 	fmt.Printf("Helpers:\n")
 	for n := range ctx.Helpers {

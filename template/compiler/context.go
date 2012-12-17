@@ -113,3 +113,31 @@ func NewContext(wroot string) *Context {
 
 	return ctx
 }
+
+func (ctx *Context) Compile() error {
+	var err error
+
+	err = ctx.ImportPackages()
+	if err != nil {
+		return err
+	}
+
+	ctx.GolangFindFunctions()
+
+	err = ctx.ParseTemplates()
+	if err != nil {
+		return err
+	}
+
+	ctx.LookupFunctionCalls()
+
+	ctx.NormalizeGetExpresions()
+
+	ctx.UnfoldRenderFunctions()
+
+	ctx.CleanTemplates()
+
+	ctx.PrintRenderFunctions()
+
+	return nil
+}

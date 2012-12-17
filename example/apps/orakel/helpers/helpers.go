@@ -15,6 +15,6 @@ func Tag(name string, attr map[string]string) HTML {
 	return ""
 }
 
-func ProductURL(subject data.Value) URL {
+func ProductURL(subject data.Value) string {
 	return ""
 }

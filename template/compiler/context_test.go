@@ -14,18 +14,10 @@ func TestContext(t *testing.T) {
 
 	ctx := NewContext(pwd + "/_test")
 
-	err = ctx.ImportPackages()
+	err = ctx.Compile()
 	if err != nil {
 		t.Error(err)
 	}
-	ctx.GolangFindFunctions()
-	err = ctx.ParseTemplates()
-	if err != nil {
-		t.Error(err)
-	}
-	ctx.LookupFunctionCalls()
-	ctx.UnfoldRenderFunctions()
-	ctx.CleanTemplates()
 
 	var n string
 

@@ -7,7 +7,7 @@
       <li>
         <a href={{ ProductURL $ }} title="">
           {{#if images.first}}
-            <img alt={{ name }} src={{ thumbnail }} />
+            <img alt={{ name }} src={{ thumbnail.url }} />
           {{else}}
             <img alt={{ name }} src="/missing.png" />
           {{/if}}
@@ -25,7 +25,7 @@
 
 <aside>
 
-  {{#each sidebar_item_ids.(SidebarItems) }}
+  {{#each sidebar_item_ids }}
     {{ render template_name, $ }}
   {{/each}}
 
