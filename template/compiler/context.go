@@ -1,6 +1,7 @@
 package compiler
 
 import (
+	"fmt"
 	w_ast "github.com/fd/w/template/ast"
 	go_ast "go/ast"
 	go_build "go/build"
@@ -14,6 +15,7 @@ type Context struct {
 	DataViews   map[string]*DataView
 	RenderFuncs map[string]*RenderFunc
 	Helpers     map[string]*go_ast.FuncDecl
+	Imports     map[string]*Imports
 
 	go_ctx            *go_build.Context
 	go_fset           *go_token.FileSet
@@ -78,6 +80,25 @@ func (errs Errors) Any() error {
 	return errs
 }
 
+type Imports struct {
+	next_id int
+	imports map[string]string
+}
+
+func (i *Imports) Register(import_path string) string {
+	if i.imports == nil {
+		i.imports = map[string]string{}
+	}
+
+	name, p := i.imports[import_path]
+	if !p {
+		i.next_id += 1
+		name = fmt.Sprintf("import_%d", i.next_id)
+		i.imports[import_path] = name
+	}
+	return name
+}
+
 func NewContext(wroot string) *Context {
 	ctx := &Context{WROOT: wroot}
 
@@ -90,26 +111,12 @@ func NewContext(wroot string) *Context {
 
 	ctx.go_fset = go_token.NewFileSet()
 	ctx.go_universe = go_ast.NewScope(nil)
-
-	if ctx.go_ast_packages == nil {
-		ctx.go_ast_packages = make(map[string]*go_ast.Package)
-	}
-
-	if ctx.go_build_packages == nil {
-		ctx.go_build_packages = make(map[string]*go_build.Package)
-	}
-
-	if ctx.Helpers == nil {
-		ctx.Helpers = make(map[string]*go_ast.FuncDecl)
-	}
-
-	if ctx.RenderFuncs == nil {
-		ctx.RenderFuncs = make(map[string]*RenderFunc)
-	}
-
-	if ctx.DataViews == nil {
-		ctx.DataViews = make(map[string]*DataView)
-	}
+	ctx.go_ast_packages = make(map[string]*go_ast.Package)
+	ctx.go_build_packages = make(map[string]*go_build.Package)
+	ctx.Helpers = make(map[string]*go_ast.FuncDecl)
+	ctx.RenderFuncs = make(map[string]*RenderFunc)
+	ctx.DataViews = make(map[string]*DataView)
+	ctx.Imports = make(map[string]*Imports)
 
 	return ctx
 }
@@ -140,4 +147,13 @@ func (ctx *Context) Compile() error {
 	ctx.PrintRenderFunctions()
 
 	return nil
+}
+
+func (ctx *Context) ImportsFor(pkg string) *Imports {
+	i, p := ctx.Imports[pkg]
+	if !p {
+		i = &Imports{}
+		ctx.Imports[pkg] = i
+	}
+	return i
 }

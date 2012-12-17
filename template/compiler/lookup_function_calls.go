@@ -94,7 +94,9 @@ func (visitor *lookup_function_calls) resolve_function_name(pkg_name, func_name 
 		fullname := fmt.Sprintf("\"%s\".%s", pkg_path, func_name)
 
 		if _, p := visitor.ctx.Helpers[fullname]; p {
-			return fullname
+			i := visitor.ctx.ImportsFor(visitor.import_path)
+			name := i.Register(pkg_path)
+			return name + "." + func_name
 		}
 
 		base = path.Dir(base)
@@ -113,7 +115,9 @@ func (visitor *lookup_function_calls) lookup_function_name(pkg_name, func_name s
 	fullname := fmt.Sprintf("\"%s\".%s", pkg_path, func_name)
 
 	if _, p := visitor.ctx.Helpers[fullname]; p {
-		return fullname
+		i := visitor.ctx.ImportsFor(visitor.import_path)
+		name := i.Register(pkg_path)
+		return name + "." + func_name
 	}
 
 	return ""

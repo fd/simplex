@@ -14,9 +14,10 @@ func (ctx *Context) PrintRenderFunctions() {
 		var buf bytes.Buffer
 
 		ast.Walk(&print_render_function{
-
-			name: render.FunctionName(),
-			buf:  &buf,
+			render_func: render,
+			ctx:         ctx,
+			name:        render.FunctionName(),
+			buf:         &buf,
 		}, render.Template)
 
 		render.Golang = buf.String()
@@ -24,6 +25,9 @@ func (ctx *Context) PrintRenderFunctions() {
 }
 
 type print_render_function struct {
+	ctx         *Context
+	render_func *RenderFunc
+
 	name string
 	buf  *bytes.Buffer
 
@@ -32,30 +36,29 @@ type print_render_function struct {
 }
 
 func (visitor *print_render_function) Visit(n ast.Node) ast.Visitor {
-	defer func() {
-		if e := recover(); e != nil {
-			fmt.Printf("e: %s\n", e)
-			fmt.Printf("n: %s\n", n)
-			panic(e)
-		}
-	}()
+	imports := visitor.ctx.ImportsFor(visitor.render_func.ImportPath)
 
 	switch v := n.(type) {
 	case *ast.Template:
+		data_pkg := imports.Register("github.com/fd/w/data")
+		runtime_pkg := imports.Register("github.com/fd/w/runtime")
+
 		visitor.printf(
-			"func %s(ctx Context, val Value)Value{\n",
+			"func %s(ctx %s.Context, val %s.Value) *%s.Buffer {\n",
 			visitor.name,
+			data_pkg, data_pkg, runtime_pkg,
 		)
 		visitor.print_debug_info(n)
 		visitor.printf(
-			"var buf bytes.Buffer\n",
+			"buf := new(%s.Buffer)\n",
+			runtime_pkg,
 		)
 
 		ast.Walk(&ast.Skip{visitor, 1}, n)
 
 		visitor.print_debug_info(n)
 		visitor.printf(
-			"return buf.String()\n}\n\n",
+			"return buf\n}\n\n",
 		)
 
 		return nil
@@ -67,25 +70,41 @@ func (visitor *print_render_function) Visit(n ast.Node) ast.Visitor {
 
 		visitor.print_debug_info(n)
 		visitor.printf(
-			"runtime.WriteHtml(&buf, %s)\n",
+			"buf.Write(%s)\n",
 			val,
 		)
 		return nil
 
 	case *ast.Comment:
+		runtime_pkg := imports.Register("github.com/fd/w/runtime")
+
 		visitor.print_debug_info(n)
 		visitor.printf(
-			"runtime.WriteHtml(&buf, runtime.HTML(%s))\n",
+			"buf.Write(%s.HTML(%s))\n",
+			runtime_pkg,
 			strconv.Quote("<!-- "+v.Content+" -->"),
 		)
 		return nil
 
 	case *ast.Literal:
 		visitor.print_debug_info(n)
-		visitor.printf(
-			"runtime.WriteHtml(&buf, runtime.HTML(%s))\n",
-			strconv.Quote(v.Content),
-		)
+		s := v.Content
+		for len(s) > 0 {
+			runtime_pkg := imports.Register("github.com/fd/w/runtime")
+			c := ""
+			if len(s) >= 100 {
+				c = s[:100]
+				s = s[100:]
+			} else {
+				c = s[:len(s)]
+				s = ""
+			}
+			visitor.printf(
+				"buf.Write(%s.HTML(%s))\n",
+				runtime_pkg,
+				strconv.Quote(c),
+			)
+		}
 		return nil
 
 	case *ast.IntegerLiteral:

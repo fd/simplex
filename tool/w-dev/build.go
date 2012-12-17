@@ -53,6 +53,11 @@ func compile_templates(pwd string) error {
 		return err
 	}
 
+	err = ctx.WriteTemplateFiles()
+	if err != nil {
+		return err
+	}
+
 	fmt.Printf("Helpers:\n")
 	for n := range ctx.Helpers {
 		fmt.Printf("- %s\n", n)
@@ -64,9 +69,8 @@ func compile_templates(pwd string) error {
 	}
 
 	fmt.Printf("RenderFuncs:\n")
-	for n, r := range ctx.RenderFuncs {
+	for n, _ := range ctx.RenderFuncs {
 		fmt.Printf("- %s\n", n)
-		fmt.Printf("%s\n", r.Golang)
 	}
 
 	return nil

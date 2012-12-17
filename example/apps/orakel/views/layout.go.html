@@ -26,7 +26,7 @@
 </head>
 <body data-active-nav-keys="locale-en page-1" class="default home home">
 
-  {{render "header"}}
+  {{render "header", title=yield("title") }}
   <div id="wrapper">
     {{ yield }}
   </div>
