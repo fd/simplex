@@ -168,7 +168,7 @@ func words() [][]byte {
 		panic(err)
 	}
 
-	v_words := bytes.Split(w, []byte{'\n'})
+	v_words := bytes.Split(w, []byte{' '})
 
 	return v_words
 }
