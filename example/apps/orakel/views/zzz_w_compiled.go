@@ -8,15 +8,15 @@ import (
 
 func Footer(ctx import_2.Context, val import_2.Value) *import_3.Buffer {
 	/*
-	  file:
-	  line:   0
-	  column: 0
+	   file:
+	   line:   0
+	   column: 0
 	*/
 	buf := new(import_3.Buffer)
 	/*
-	  file:
-	  line:   1
-	  column: 1
+	   file:
+	   line:   1
+	   column: 1
 	*/
 	buf.Write(import_3.HTML("  <footer>\n\n  <div data-role=\"row\" class=\"row keypoints\">\n\n    <div class=\"wrapper keypoints\">\n     "))
 	buf.Write(import_3.HTML(" <div data-role=\"column\" class=\"quality\">\n        <h4>Service</h4>\n        <p style=\"text-align: cen"))
@@ -73,24 +73,24 @@ func Footer(ctx import_2.Context, val import_2.Value) *import_3.Buffer {
 	buf.Write(import_3.HTML("gle-analytics.com/ga.js';\n    var s = document.getElementsByTagName('script')[0]; s.parentNode.inser"))
 	buf.Write(import_3.HTML("tBefore(ga, s);\n  })();\n</script>\n"))
 	/*
-	  file:
-	  line:   0
-	  column: 0
+	   file:
+	   line:   0
+	   column: 0
 	*/
 	return buf
 }
 
 func Header(ctx import_2.Context, val import_2.Value) *import_3.Buffer {
 	/*
-	  file:
-	  line:   0
-	  column: 0
+	   file:
+	   line:   0
+	   column: 0
 	*/
 	buf := new(import_3.Buffer)
 	/*
-	  file:
-	  line:   1
-	  column: 1
+	   file:
+	   line:   1
+	   column: 1
 	*/
 	buf.Write(import_3.HTML("\n  <header>\n\n  <div data-role=\"row\" class=\"row top\">\n\n    <div class=\"wrapper\">\n\n      <nav data-rol"))
 	buf.Write(import_3.HTML("e=\"column\" class=\"column metanav\">\n        <ul>\n\n<li data-nav-key=\"page-4\" class=\"parent\">\n  <span>A"))
@@ -134,414 +134,414 @@ func Header(ctx import_2.Context, val import_2.Value) *import_3.Buffer {
 	buf.Write(import_3.HTML("=\"page-103\">Cups</a>\n\n        <a href=\"/products/playpool-balls\" data-nav-key=\"page-138\">Playpool Ba"))
 	buf.Write(import_3.HTML("lls</a>\n\n      </nav>\n    </div>\n\n  </div>\n\n</header>\n"))
 	/*
-	  file:
-	  line:   0
-	  column: 0
+	   file:
+	   line:   0
+	   column: 0
 	*/
 	return buf
 }
 
 func Index(ctx import_2.Context, val import_2.Value) *import_3.Buffer {
 	/*
-	  file:
-	  line:   0
-	  column: 0
+	   file:
+	   line:   0
+	   column: 0
 	*/
 	buf := new(import_3.Buffer)
 	/*
-	  file:
-	  line:   1
-	  column: 1
+	   file:
+	   line:   1
+	   column: 1
 	*/
 	/*
-	  Unhandled:
-	    {{include}}
+	   Unhandled:
+	     {{include}}
 	*/
 	/*
-	  file:
-	  line:   34
-	  column: 12
+	   file:
+	   line:   34
+	   column: 12
 	*/
 	buf.Write(import_3.HTML("\n"))
 	/*
-	  file:
-	  line:   0
-	  column: 0
+	   file:
+	   line:   0
+	   column: 0
 	*/
 	return buf
 }
 
 func index_1(ctx import_2.Context, val import_2.Value) *import_3.Buffer {
 	/*
-	  file:
-	  line:   0
-	  column: 0
+	   file:
+	   line:   0
+	   column: 0
 	*/
 	buf := new(import_3.Buffer)
 	/*
-	  file:
-	  line:   1
-	  column: 40
+	   file:
+	   line:   1
+	   column: 40
 	*/
 	buf.Write(import_3.HTML("\n\n<div class=\"content\">\n  <ul>\n\n    "))
 	/*
-	  file:
-	  line:   6
-	  column: 5
+	   file:
+	   line:   6
+	   column: 5
 	*/
 	/*
-	  Unhandled:
-	    {{include}}
+	   Unhandled:
+	     {{include}}
 	*/
 	/*
-	  file:
-	  line:   17
-	  column: 14
+	   file:
+	   line:   17
+	   column: 14
 	*/
 	buf.Write(import_3.HTML("\n\n  </ul>\n\n  <h2>"))
 	/*
-	  file:
-	  line:   0
-	  column: 0
+	   file:
+	   line:   0
+	   column: 0
 	*/
 	var value_1 = val
 	/*
-	  file:
-	  line:   0
-	  column: 0
+	   file:
+	   line:   0
+	   column: 0
 	*/
 	value_2 := Get(value_1, "title")
 	/*
-	  file:
-	  line:   21
-	  column: 7
+	   file:
+	   line:   21
+	   column: 7
 	*/
 	buf.Write(value_2)
 	/*
-	  file:
-	  line:   21
-	  column: 18
+	   file:
+	   line:   21
+	   column: 18
 	*/
 	buf.Write(import_3.HTML("</h2>\n  "))
 	/*
-	  file:
-	  line:   0
-	  column: 0
+	   file:
+	   line:   0
+	   column: 0
 	*/
 	var value_3 = val
 	/*
-	  file:
-	  line:   0
-	  column: 0
+	   file:
+	   line:   0
+	   column: 0
 	*/
 	value_4 := Get(value_3, "body")
 	/*
-	  file:
-	  line:   22
-	  column: 3
+	   file:
+	   line:   22
+	   column: 3
 	*/
 	buf.Write(value_4)
 	/*
-	  file:
-	  line:   22
-	  column: 15
+	   file:
+	   line:   22
+	   column: 15
 	*/
 	buf.Write(import_3.HTML("\n\n</div>\n\n<aside>\n\n  "))
 	/*
-	  file:
-	  line:   28
-	  column: 3
+	   file:
+	   line:   28
+	   column: 3
 	*/
 	/*
-	  Unhandled:
-	    {{include}}
+	   Unhandled:
+	     {{include}}
 	*/
 	/*
-	  file:
-	  line:   30
-	  column: 12
+	   file:
+	   line:   30
+	   column: 12
 	*/
 	buf.Write(import_3.HTML("\n\n</aside>\n\n"))
 	/*
-	  file:
-	  line:   0
-	  column: 0
+	   file:
+	   line:   0
+	   column: 0
 	*/
 	return buf
 }
 
 func index_1_1(ctx import_2.Context, val import_2.Value) *import_3.Buffer {
 	/*
-	  file:
-	  line:   0
-	  column: 0
+	   file:
+	   line:   0
+	   column: 0
 	*/
 	buf := new(import_3.Buffer)
 	/*
-	  file:
-	  line:   6
-	  column: 24
+	   file:
+	   line:   6
+	   column: 24
 	*/
 	buf.Write(import_3.HTML("\n      <li>\n        <a href="))
 	/*
-	  file:
-	  line:   0
-	  column: 0
+	   file:
+	   line:   0
+	   column: 0
 	*/
 	var value_1 = val
 	/*
-	  file:
-	  line:   0
-	  column: 0
+	   file:
+	   line:   0
+	   column: 0
 	*/
 	value_2 := import_1.ProductURL(value_1)
 	/*
-	  file:
-	  line:   8
-	  column: 17
+	   file:
+	   line:   8
+	   column: 17
 	*/
 	buf.Write(value_2)
 	/*
-	  file:
-	  line:   8
-	  column: 35
+	   file:
+	   line:   8
+	   column: 35
 	*/
 	buf.Write(import_3.HTML(" title=\"\">\n          "))
 	/*
-	  file:
-	  line:   9
-	  column: 11
+	   file:
+	   line:   9
+	   column: 11
 	*/
 	/*
-	  Unhandled:
-	    {{include}}
+	   Unhandled:
+	     {{include}}
 	*/
 	/*
-	  file:
-	  line:   13
-	  column: 18
+	   file:
+	   line:   13
+	   column: 18
 	*/
 	buf.Write(import_3.HTML("\n          <span>"))
 	/*
-	  file:
-	  line:   0
-	  column: 0
+	   file:
+	   line:   0
+	   column: 0
 	*/
 	var value_3 = val
 	/*
-	  file:
-	  line:   0
-	  column: 0
+	   file:
+	   line:   0
+	   column: 0
 	*/
 	value_4 := Get(value_3, "name")
 	/*
-	  file:
-	  line:   14
-	  column: 17
+	   file:
+	   line:   14
+	   column: 17
 	*/
 	buf.Write(value_4)
 	/*
-	  file:
-	  line:   14
-	  column: 27
+	   file:
+	   line:   14
+	   column: 27
 	*/
 	buf.Write(import_3.HTML("</span>\n        </a>\n      </li>\n    "))
 	/*
-	  file:
-	  line:   0
-	  column: 0
+	   file:
+	   line:   0
+	   column: 0
 	*/
 	return buf
 }
 
 func index_1_1_1(ctx import_2.Context, val import_2.Value) *import_3.Buffer {
 	/*
-	  file:
-	  line:   0
-	  column: 0
+	   file:
+	   line:   0
+	   column: 0
 	*/
 	buf := new(import_3.Buffer)
 	/*
-	  file:
-	  line:   9
-	  column: 31
+	   file:
+	   line:   9
+	   column: 31
 	*/
 	buf.Write(import_3.HTML("\n            <img alt="))
 	/*
-	  file:
-	  line:   0
-	  column: 0
+	   file:
+	   line:   0
+	   column: 0
 	*/
 	var value_1 = val
 	/*
-	  file:
-	  line:   0
-	  column: 0
+	   file:
+	   line:   0
+	   column: 0
 	*/
 	value_2 := Get(value_1, "name")
 	/*
-	  file:
-	  line:   10
-	  column: 22
+	   file:
+	   line:   10
+	   column: 22
 	*/
 	buf.Write(value_2)
 	/*
-	  file:
-	  line:   10
-	  column: 32
+	   file:
+	   line:   10
+	   column: 32
 	*/
 	buf.Write(import_3.HTML(" src="))
 	/*
-	  file:
-	  line:   0
-	  column: 0
+	   file:
+	   line:   0
+	   column: 0
 	*/
 	var value_3 = val
 	/*
-	  file:
-	  line:   0
-	  column: 0
+	   file:
+	   line:   0
+	   column: 0
 	*/
 	value_4 := Get(value_3, "thumbnail")
 	/*
-	  file:
-	  line:   10
-	  column: 50
+	   file:
+	   line:   10
+	   column: 50
 	*/
 	value_5 := Get(value_4, "url")
 	/*
-	  file:
-	  line:   10
-	  column: 37
+	   file:
+	   line:   10
+	   column: 37
 	*/
 	buf.Write(value_5)
 	/*
-	  file:
-	  line:   10
-	  column: 56
+	   file:
+	   line:   10
+	   column: 56
 	*/
 	buf.Write(import_3.HTML(" />\n          "))
 	/*
-	  file:
-	  line:   0
-	  column: 0
+	   file:
+	   line:   0
+	   column: 0
 	*/
 	return buf
 }
 
 func index_1_1_2(ctx import_2.Context, val import_2.Value) *import_3.Buffer {
 	/*
-	  file:
-	  line:   0
-	  column: 0
+	   file:
+	   line:   0
+	   column: 0
 	*/
 	buf := new(import_3.Buffer)
 	/*
-	  file:
-	  line:   11
-	  column: 19
+	   file:
+	   line:   11
+	   column: 19
 	*/
 	buf.Write(import_3.HTML("\n            <img alt="))
 	/*
-	  file:
-	  line:   0
-	  column: 0
+	   file:
+	   line:   0
+	   column: 0
 	*/
 	var value_1 = val
 	/*
-	  file:
-	  line:   0
-	  column: 0
+	   file:
+	   line:   0
+	   column: 0
 	*/
 	value_2 := Get(value_1, "name")
 	/*
-	  file:
-	  line:   12
-	  column: 22
+	   file:
+	   line:   12
+	   column: 22
 	*/
 	buf.Write(value_2)
 	/*
-	  file:
-	  line:   12
-	  column: 32
+	   file:
+	   line:   12
+	   column: 32
 	*/
 	buf.Write(import_3.HTML(" src=\"/missing.png\" />\n          "))
 	/*
-	  file:
-	  line:   0
-	  column: 0
+	   file:
+	   line:   0
+	   column: 0
 	*/
 	return buf
 }
 
 func index_1_2(ctx import_2.Context, val import_2.Value) *import_3.Buffer {
 	/*
-	  file:
-	  line:   0
-	  column: 0
+	   file:
+	   line:   0
+	   column: 0
 	*/
 	buf := new(import_3.Buffer)
 	/*
-	  file:
-	  line:   28
-	  column: 30
+	   file:
+	   line:   28
+	   column: 30
 	*/
 	buf.Write(import_3.HTML("\n    "))
 	/*
-	  file:
-	  line:   0
-	  column: 0
+	   file:
+	   line:   0
+	   column: 0
 	*/
 	var value_1 = val
 	/*
-	  file:
-	  line:   0
-	  column: 0
+	   file:
+	   line:   0
+	   column: 0
 	*/
 	value_2 := Get(value_1, "template_name")
 	/*
-	  file:
-	  line:   0
-	  column: 0
+	   file:
+	   line:   0
+	   column: 0
 	*/
 	var value_3 = val
 	/*
-	  file:
-	  line:   0
-	  column: 0
+	   file:
+	   line:   0
+	   column: 0
 	*/
 	value_4 := render(value_2, value_3)
 	/*
-	  file:
-	  line:   29
-	  column: 5
+	   file:
+	   line:   29
+	   column: 5
 	*/
 	buf.Write(value_4)
 	/*
-	  file:
-	  line:   29
-	  column: 34
+	   file:
+	   line:   29
+	   column: 34
 	*/
 	buf.Write(import_3.HTML("\n  "))
 	/*
-	  file:
-	  line:   0
-	  column: 0
+	   file:
+	   line:   0
+	   column: 0
 	*/
 	return buf
 }
 
 func Layout(ctx import_2.Context, val import_2.Value) *import_3.Buffer {
 	/*
-	  file:
-	  line:   0
-	  column: 0
+	   file:
+	   line:   0
+	   column: 0
 	*/
 	buf := new(import_3.Buffer)
 	/*
-	  file:
-	  line:   1
-	  column: 1
+	   file:
+	   line:   1
+	   column: 1
 	*/
 	buf.Write(import_3.HTML("<!doctype html>\n<!--[if lt IE 7]> <html class=\"no-js lt-ie9 lt-ie8 lt-ie7\" lang=\"en\"> <![endif]-->\n<"))
 	buf.Write(import_3.HTML("!--[if IE 7]>    <html class=\"no-js lt-ie9 lt-ie8\" lang=\"en\"> <![endif]-->\n<!--[if IE 8]>    <html c"))
@@ -549,27 +549,27 @@ func Layout(ctx import_2.Context, val import_2.Value) *import_3.Buffer {
 	buf.Write(import_3.HTML("line -->\n<!--[if gt IE 8]><!--> <html class=\"no-js\" lang=\"en\"> <!--<![endif]-->\n<head>\n  <meta chars"))
 	buf.Write(import_3.HTML("et=\"utf-8\" />\n  <meta http-equiv=\"X-UA-Compatible\" content=\"IE=EmulateIE7,chrome=1\" />\n\n  <title>"))
 	/*
-	  file:
-	  line:   11
-	  column: 19
+	   file:
+	   line:   11
+	   column: 19
 	*/
 	var value_1 string = "title"
 	/*
-	  file:
-	  line:   0
-	  column: 0
+	   file:
+	   line:   0
+	   column: 0
 	*/
 	value_2 := yield(value_1)
 	/*
-	  file:
-	  line:   11
-	  column: 10
+	   file:
+	   line:   11
+	   column: 10
 	*/
 	buf.Write(value_2)
 	/*
-	  file:
-	  line:   11
-	  column: 29
+	   file:
+	   line:   11
+	   column: 29
 	*/
 	buf.Write(import_3.HTML("</title>\n\n\n  <meta name=\"viewport\" content=\"width=device-width,initial-scale=.8\" />\n  <link rel=\"sho"))
 	buf.Write(import_3.HTML("rtcut icon\" type=\"image/x-icon\" href=\"/favicon.png\" />\n\n  <link rel=\"stylesheet\" href=\"/stylesheets/"))
@@ -580,99 +580,99 @@ func Layout(ctx import_2.Context, val import_2.Value) *import_3.Buffer {
 	buf.Write(import_3.HTML("t/javascript\">try{Typekit.load();}catch(e){}</script>\n\n</head>\n<body data-active-nav-keys=\"locale-en"))
 	buf.Write(import_3.HTML(" page-1\" class=\"default home home\">\n\n  "))
 	/*
-	  file:
-	  line:   29
-	  column: 12
+	   file:
+	   line:   29
+	   column: 12
 	*/
 	var value_3 string = "header"
 	/*
-	  file:
-	  line:   29
-	  column: 34
+	   file:
+	   line:   29
+	   column: 34
 	*/
 	var value_4 string = "title"
 	/*
-	  file:
-	  line:   0
-	  column: 0
+	   file:
+	   line:   0
+	   column: 0
 	*/
 	value_5 := yield(value_4)
 	/*
-	  file:
-	  line:   0
-	  column: 0
+	   file:
+	   line:   0
+	   column: 0
 	*/
 	value_6 := map[string]interface{}{"title": value_5}
 	/*
-	  file:
-	  line:   0
-	  column: 0
+	   file:
+	   line:   0
+	   column: 0
 	*/
 	value_7 := render(value_3, value_6)
 	/*
-	  file:
-	  line:   29
-	  column: 3
+	   file:
+	   line:   29
+	   column: 3
 	*/
 	buf.Write(value_7)
 	/*
-	  file:
-	  line:   29
-	  column: 45
+	   file:
+	   line:   29
+	   column: 45
 	*/
 	buf.Write(import_3.HTML("\n  <div id=\"wrapper\">\n    "))
 	/*
-	  file:
-	  line:   0
-	  column: 0
+	   file:
+	   line:   0
+	   column: 0
 	*/
 	var value_8 = val
 	/*
-	  file:
-	  line:   0
-	  column: 0
+	   file:
+	   line:   0
+	   column: 0
 	*/
 	value_9 := Get(value_8, "yield")
 	/*
-	  file:
-	  line:   31
-	  column: 5
+	   file:
+	   line:   31
+	   column: 5
 	*/
 	buf.Write(value_9)
 	/*
-	  file:
-	  line:   31
-	  column: 16
+	   file:
+	   line:   31
+	   column: 16
 	*/
 	buf.Write(import_3.HTML("\n  </div>\n  "))
 	/*
-	  file:
-	  line:   33
-	  column: 13
+	   file:
+	   line:   33
+	   column: 13
 	*/
 	var value_10 string = "footer"
 	/*
-	  file:
-	  line:   0
-	  column: 0
+	   file:
+	   line:   0
+	   column: 0
 	*/
 	value_11 := render(value_10)
 	/*
-	  file:
-	  line:   33
-	  column: 3
+	   file:
+	   line:   33
+	   column: 3
 	*/
 	buf.Write(value_11)
 	/*
-	  file:
-	  line:   33
-	  column: 24
+	   file:
+	   line:   33
+	   column: 24
 	*/
 	buf.Write(import_3.HTML("\n\n</body>\n</html>\n"))
 	/*
-	  file:
-	  line:   0
-	  column: 0
+	   file:
+	   line:   0
+	   column: 0
 	*/
 	return buf
 }

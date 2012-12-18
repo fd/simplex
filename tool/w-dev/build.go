@@ -69,7 +69,7 @@ func compile_templates(pwd string) error {
 	}
 
 	fmt.Printf("RenderFuncs:\n")
-	for n, _ := range ctx.RenderFuncs {
+	for n := range ctx.RenderFuncs {
 		fmt.Printf("- %s\n", n)
 	}
 
