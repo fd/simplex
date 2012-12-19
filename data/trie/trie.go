@@ -18,6 +18,7 @@ func New() *T {
 }
 
 type node_t struct {
+	set      bool
 	chunk    []byte
 	children []*node_t
 	value    interface{}
@@ -62,7 +63,7 @@ func (n *node_t) String() string {
 		for _, c := range n.children {
 			cs = append(cs, strings.Replace(c.String(), "\n", "\n  ", -1))
 		}
-		return fmt.Sprintf("{\n  K: %s,\n  V: %+v\n  %s\n}", string(n.chunk), n.value, strings.Join(cs, "\n  "))
+		return fmt.Sprintf("{\n  K: %s,\n  V: %+v,\n  %s\n}", string(n.chunk), n.value, strings.Join(cs, "\n  "))
 	}
 	return fmt.Sprintf("{ K: %s, V: %+v }", string(n.chunk), n.value)
 }
@@ -76,6 +77,8 @@ const (
 )
 
 func exec(node *node_t, suffix []byte, op operation, val interface{}) (interface{}, bool) {
+	var found bool
+
 	if node == nil {
 		return nil, false
 	}
@@ -83,13 +86,18 @@ func exec(node *node_t, suffix []byte, op operation, val interface{}) (interface
 	if len(suffix) == 0 {
 		switch op {
 		case insert:
+			found, node.set = true, true
 			val, node.value = node.value, val
 		case remove:
+			found, node.set = node.set, false
 			val, node.value = node.value, nil
 		case lookup:
+			found = node.set
 			val = node.value
 		}
-		return val, true
+		// CASE 1.A 1.B 1.C
+		//fmt.Println("CASE 1x")
+		return val, found
 	}
 
 	var n *node_t
@@ -111,10 +119,15 @@ func exec(node *node_t, suffix []byte, op operation, val interface{}) (interface
 	if n == nil {
 		if op == insert {
 			c := push(node, suffix)
+			found, c.set = true, true
 			val, c.value = c.value, val
 
-			return val, true
+			// CASE 2
+			//fmt.Println("CASE 2")
+			return val, found
 		} else {
+			// CASE 3A 3B
+			//fmt.Println("CASE 3x")
 			return nil, false
 		}
 	}
@@ -128,9 +141,13 @@ func exec(node *node_t, suffix []byte, op operation, val interface{}) (interface
 		if i >= l_s {
 			if op == insert {
 				c := split(node, n, n_idx, i)
+				// CASE 4
+				//fmt.Println("CASE 4")
 				return exec(c, suffix[i:], op, val)
 
 			} else {
+				// CASE 5A 5B
+				//fmt.Println("CASE 5x")
 				return nil, false
 			}
 		}
@@ -138,9 +155,13 @@ func exec(node *node_t, suffix []byte, op operation, val interface{}) (interface
 		if suffix[i] != chunk[i] {
 			if op == insert {
 				c := split(node, n, n_idx, i)
+				// CASE 6
+				//fmt.Println("CASE 6")
 				return exec(c, suffix[i:], op, val)
 
 			} else {
+				// CASE 7A 7B
+				//fmt.Println("CASE 7x")
 				return nil, false
 			}
 		}
@@ -150,39 +171,30 @@ func exec(node *node_t, suffix []byte, op operation, val interface{}) (interface
 	if l_s == l_c {
 		switch op {
 		case insert:
+			// CASE 8
+			//fmt.Println("CASE 8")
 			return exec(n, suffix[l_c:], op, val)
 
 		case remove:
 			val, n.value = n.value, nil
-
-			if len(n.children) == 0 {
-				l_t := len(node.children)
-				copy(node.children[n_idx:], node.children[n_idx+1:])
-				node.children = node.children[:l_t-1]
-			}
-
-			if len(n.children) == 1 {
-				c := n.children[0]
-				c.chunk = append(n.chunk, c.chunk...)
-				node.children[n_idx] = c
-			}
-
-			return val, true
+			found, n.set = n.set, false
+			optimize(node, n, n_idx)
+			// CASE 9A -> no optimize
+			//      9B -> optimize (remove leaf)
+			//      9C -> optimize (remove branch)
+			//fmt.Println("CASE 9x")
+			return val, found
 
 		case lookup:
-			return n.value, true
+			// CASE 10
+			//fmt.Println("CASE 10")
+			return n.value, n.set
 
 		}
-
-	} else if l_s < l_c {
-		if op == insert {
-			c := split(node, n, n_idx, len(suffix))
-			return exec(c, suffix[l_s:], op, val)
-		}
-
-		return nil, true
 
 	} else if l_s > l_c {
+		// CASE 11
+		//fmt.Println("CASE 11 (cont)")
 		return exec(n, suffix[l_c:], op, val)
 
 	}
@@ -190,13 +202,25 @@ func exec(node *node_t, suffix []byte, op operation, val interface{}) (interface
 	panic("not reached")
 }
 
+func optimize(p, a *node_t, a_idx int) {
+	if len(a.children) == 0 {
+		l := len(p.children)
+		copy(p.children[a_idx:], p.children[a_idx+1:])
+		p.children = p.children[:l-1]
+	}
+
+	if len(a.children) == 1 {
+		c := a.children[0]
+		c.chunk = append(a.chunk, c.chunk...)
+		p.children[a_idx] = c
+	}
+}
+
 func split(p, a *node_t, a_idx int, offset int) *node_t {
 	b := &node_t{}
 
 	// update b node
 	b.chunk = a.chunk[:offset]
-	b.value = nil
-	b.children = nil
 	b.children = append(b.children, a)
 
 	// update a node
