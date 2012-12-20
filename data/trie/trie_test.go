@@ -2,6 +2,7 @@ package trie
 
 import (
 	"bytes"
+	"encoding/gob"
 	"fmt"
 	"io/ioutil"
 	"testing"
@@ -490,6 +491,70 @@ func TestWordList(t *testing.T) {
 	fmt.Printf("mem: %f (%f / N)\n", float64(m)/1024/1024, float64(m)/float64(len(words)))
 }
 
+func TestGobEncodeDecodeRoundtripSmall(t *testing.T) {
+
+	trie_a := New()
+	var trie_b *T
+
+	trie_a.Insert([]byte("foo"), "a")
+	trie_a.Insert([]byte("foo"), "b")
+	trie_a.Insert([]byte("foos"), "c")
+	trie_a.Insert([]byte("foor"), "f")
+	trie_a.Insert([]byte("foe"), "d")
+	trie_a.Insert([]byte("fo"), "e")
+	trie_a.Insert([]byte("f"), "g")
+
+	buf := bytes.Buffer{}
+
+	err := gob.NewEncoder(&buf).Encode(trie_a)
+	if err != nil {
+		t.Fatalf("err: encode: %s", err)
+	}
+
+	fmt.Printf("trie: %f\n", float64(len(buf.Bytes()))/1024/1024)
+
+	err = gob.NewDecoder(&buf).Decode(&trie_b)
+	if err != nil {
+		t.Fatalf("err: decode: %s", err)
+	}
+}
+
+func TestGobEncodeDecodeRoundtrip(t *testing.T) {
+
+	words := words()
+	trie_a := New()
+	var trie_b *T
+
+	for i, word := range words {
+		trie_a.Insert(word, i)
+	}
+
+	buf := bytes.Buffer{}
+
+	err := gob.NewEncoder(&buf).Encode(trie_a)
+	if err != nil {
+		t.Fatalf("err: encode: %s", err)
+	}
+
+	fmt.Printf("list: %f <=> trie: %f\n", float64(v_words_len)/1024/1024, float64(len(buf.Bytes()))/1024/1024)
+
+	err = gob.NewDecoder(&buf).Decode(&trie_b)
+	if err != nil {
+		t.Fatalf("err: decode: %s", err)
+	}
+
+	for i, word := range words {
+		if val, f := trie_b.Lookup(word); !f {
+			t.Fatalf("is supposed to find `%s`", word)
+		} else if s, ok := val.(int); !ok {
+			t.Fatalf("is supposed to find a int but was a %T", val)
+		} else if s != i {
+			t.Fatalf("is supposed to find `%d` instead of %+v", i, val)
+		}
+	}
+
+}
+
 func BenchmarkInsert(b *testing.B) {
 	b.StopTimer()
 
@@ -596,6 +661,7 @@ func BenchmarkRemove(b *testing.B) {
 }
 
 var v_words [][]byte
+var v_words_len int
 
 func words() [][]byte {
 	if len(v_words) > 0 {
@@ -607,7 +673,8 @@ func words() [][]byte {
 		panic(err)
 	}
 
-	v_words := bytes.Split(w, []byte{' '})
+	v_words_len = len(w)
+	v_words = bytes.Split(w, []byte{' '})
 
 	return v_words
 }

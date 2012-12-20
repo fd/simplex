@@ -18,10 +18,10 @@ func New() *T {
 }
 
 type node_t struct {
-	set      bool
-	chunk    []byte
-	children []*node_t
-	value    interface{}
+	Set      bool
+	Chunk    []byte
+	Children []*node_t
+	Value    interface{}
 }
 
 func (t *T) Lookup(key []byte) (val interface{}, found bool) {
@@ -45,9 +45,9 @@ func (t *T) ConsumedMemory() uintptr {
 
 func (n *node_t) ConsumedMemory() uintptr {
 	m := unsafe.Sizeof(node_t{})
-	m += uintptr(len(n.chunk))
-	m += uintptr(cap(n.children)) * unsafe.Sizeof(&node_t{})
-	for _, c := range n.children {
+	m += uintptr(len(n.Chunk))
+	m += uintptr(cap(n.Children)) * unsafe.Sizeof(&node_t{})
+	for _, c := range n.Children {
 		m += c.ConsumedMemory()
 	}
 	return m
@@ -58,14 +58,14 @@ func (t *T) String() string {
 }
 
 func (n *node_t) String() string {
-	if len(n.children) > 0 {
+	if len(n.Children) > 0 {
 		cs := []string{}
-		for _, c := range n.children {
+		for _, c := range n.Children {
 			cs = append(cs, strings.Replace(c.String(), "\n", "\n  ", -1))
 		}
-		return fmt.Sprintf("{\n  K: %s,\n  V: %+v,\n  %s\n}", string(n.chunk), n.value, strings.Join(cs, "\n  "))
+		return fmt.Sprintf("{\n  K: %s,\n  V: %+v,\n  %s\n}", string(n.Chunk), n.Value, strings.Join(cs, "\n  "))
 	}
-	return fmt.Sprintf("{ K: %s, V: %+v }", string(n.chunk), n.value)
+	return fmt.Sprintf("{ K: %s, V: %+v }", string(n.Chunk), n.Value)
 }
 
 type operation byte
@@ -86,14 +86,14 @@ func exec(node *node_t, suffix []byte, op operation, val interface{}) (interface
 	if len(suffix) == 0 {
 		switch op {
 		case insert:
-			found, node.set = true, true
-			val, node.value = node.value, val
+			found, node.Set = true, true
+			val, node.Value = node.Value, val
 		case remove:
-			found, node.set = node.set, false
-			val, node.value = node.value, nil
+			found, node.Set = node.Set, false
+			val, node.Value = node.Value, nil
 		case lookup:
-			found = node.set
-			val = node.value
+			found = node.Set
+			val = node.Value
 		}
 		// CASE 1.A 1.B 1.C
 		//fmt.Println("CASE 1x")
@@ -104,12 +104,12 @@ func exec(node *node_t, suffix []byte, op operation, val interface{}) (interface
 	var n_idx int
 
 	// look for the branch to continue on
-	for i, c := range node.children {
-		if len(c.chunk) == 0 {
+	for i, c := range node.Children {
+		if len(c.Chunk) == 0 {
 			panic("zero length prefixes must be merged with self")
 		}
 
-		if c.chunk[0] == suffix[0] {
+		if c.Chunk[0] == suffix[0] {
 			n = c
 			n_idx = i
 		}
@@ -119,8 +119,8 @@ func exec(node *node_t, suffix []byte, op operation, val interface{}) (interface
 	if n == nil {
 		if op == insert {
 			c := push(node, suffix)
-			found, c.set = true, true
-			val, c.value = c.value, val
+			found, c.Set = true, true
+			val, c.Value = c.Value, val
 
 			// CASE 2
 			//fmt.Println("CASE 2")
@@ -132,7 +132,7 @@ func exec(node *node_t, suffix []byte, op operation, val interface{}) (interface
 		}
 	}
 
-	chunk := n.chunk
+	chunk := n.Chunk
 	l_s := len(suffix)
 	l_c := len(chunk)
 
@@ -176,8 +176,8 @@ func exec(node *node_t, suffix []byte, op operation, val interface{}) (interface
 			return exec(n, suffix[l_c:], op, val)
 
 		case remove:
-			val, n.value = n.value, nil
-			found, n.set = n.set, false
+			val, n.Value = n.Value, nil
+			found, n.Set = n.Set, false
 			optimize(node, n, n_idx)
 			// CASE 9A -> no optimize
 			//      9B -> optimize (remove leaf)
@@ -188,7 +188,7 @@ func exec(node *node_t, suffix []byte, op operation, val interface{}) (interface
 		case lookup:
 			// CASE 10
 			//fmt.Println("CASE 10")
-			return n.value, n.set
+			return n.Value, n.Set
 
 		}
 
@@ -203,16 +203,16 @@ func exec(node *node_t, suffix []byte, op operation, val interface{}) (interface
 }
 
 func optimize(p, a *node_t, a_idx int) {
-	if len(a.children) == 0 {
-		l := len(p.children)
-		copy(p.children[a_idx:], p.children[a_idx+1:])
-		p.children = p.children[:l-1]
+	if len(a.Children) == 0 {
+		l := len(p.Children)
+		copy(p.Children[a_idx:], p.Children[a_idx+1:])
+		p.Children = p.Children[:l-1]
 	}
 
-	if len(a.children) == 1 {
-		c := a.children[0]
-		c.chunk = append(a.chunk, c.chunk...)
-		p.children[a_idx] = c
+	if len(a.Children) == 1 {
+		c := a.Children[0]
+		c.Chunk = append(a.Chunk, c.Chunk...)
+		p.Children[a_idx] = c
 	}
 }
 
@@ -220,14 +220,14 @@ func split(p, a *node_t, a_idx int, offset int) *node_t {
 	b := &node_t{}
 
 	// update b node
-	b.chunk = a.chunk[:offset]
-	b.children = append(b.children, a)
+	b.Chunk = a.Chunk[:offset]
+	b.Children = append(b.Children, a)
 
 	// update a node
-	a.chunk = a.chunk[offset:]
+	a.Chunk = a.Chunk[offset:]
 
 	// update p node
-	p.children[a_idx] = b
+	p.Children[a_idx] = b
 
 	return b
 }
@@ -235,11 +235,11 @@ func split(p, a *node_t, a_idx int, offset int) *node_t {
 func push(a *node_t, suffix []byte) *node_t {
 	b := &node_t{}
 
-	b.chunk = make([]byte, len(suffix))
-	copy(b.chunk, suffix)
+	b.Chunk = make([]byte, len(suffix))
+	copy(b.Chunk, suffix)
 
-	a.children = append(a.children, b)
-	sort.Sort(t_sort(a.children))
+	a.Children = append(a.Children, b)
+	sort.Sort(t_sort(a.Children))
 
 	return b
 }
@@ -251,7 +251,7 @@ func (l t_sort) Len() int {
 }
 
 func (l t_sort) Less(x, y int) bool {
-	return l[x].chunk[0] < l[y].chunk[0]
+	return l[x].Chunk[0] < l[y].Chunk[0]
 }
 
 func (l t_sort) Swap(x, y int) {
