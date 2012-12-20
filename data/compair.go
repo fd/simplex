@@ -17,11 +17,15 @@ func Compair(a, b Value) int {
 	return 0
 }
 
-func CompairString(v Value) string {
+func CompairBytes(v Value) []byte {
 	l := compair_string_len(v)
 	buf := bytes.NewBuffer(make([]byte, 0, l))
 	write_compair_string(v, buf)
-	return string(buf.Bytes())
+	return buf.Bytes()
+}
+
+func CompairString(v Value) string {
+	return string(CompairBytes(v))
 }
 
 func write_compair_string(v Value, buf *bytes.Buffer) {

@@ -41,20 +41,20 @@ func Compile(pwd string) error {
 	// run tests
 
 	/*
-	  fmt.Printf("Helpers:\n")
-	  for n := range ctx.Helpers {
-	    fmt.Printf("- %s\n", n)
-	  }
+	   fmt.Printf("Helpers:\n")
+	   for n := range ctx.Helpers {
+	     fmt.Printf("- %s\n", n)
+	   }
 
-	  fmt.Printf("DataViews:\n")
-	  for n := range ctx.DataViews {
-	    fmt.Printf("- %s\n", n)
-	  }
+	   fmt.Printf("DataViews:\n")
+	   for n := range ctx.DataViews {
+	     fmt.Printf("- %s\n", n)
+	   }
 
-	  fmt.Printf("RenderFuncs:\n")
-	  for n := range ctx.RenderFuncs {
-	    fmt.Printf("- %s\n", n)
-	  }
+	   fmt.Printf("RenderFuncs:\n")
+	   for n := range ctx.RenderFuncs {
+	     fmt.Printf("- %s\n", n)
+	   }
 	*/
 
 	return nil

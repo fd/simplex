@@ -45,7 +45,7 @@ func RemoveContainerWrapper(ctx *template.Context) error {
 
 func PrintContainerWrapper(ctx *template.Context) string {
 	apps := []string{}
-	for app, _ := range ctx.Applications {
+	for app := range ctx.Applications {
 		apps = append(apps, fmt.Sprintf("  _ %s", strconv.Quote(app)))
 	}
 
