@@ -160,9 +160,12 @@ func (visitor *print_render_function) Visit(n ast.Node) ast.Visitor {
 		val2 := visitor.push_value_stack()
 
 		visitor.print_debug_info(n)
+
+		value_pkg := imports.Register("github.com/fd/w/data/value")
 		visitor.printf(
-			"%s := Get(%s, %s)\n",
+			"var %s = %s.Get(%s, %s)\n",
 			val2,
+			value_pkg,
 			val1,
 			strconv.Quote(v.Name.Value),
 		)
