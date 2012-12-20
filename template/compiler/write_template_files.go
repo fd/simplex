@@ -3,6 +3,7 @@ package compiler
 import (
 	"fmt"
 	"io/ioutil"
+	"os"
 	"path"
 	"sort"
 	"strconv"
@@ -56,16 +57,28 @@ func (ctx *Context) WriteTemplateFiles() error {
 	}
 
 	{ // write files
+		ctx.TemplateFiles = nil
 		for n, c := range files {
 			content := strings.Join(c, "\n")
 			build_pkg := ctx.go_build_packages[n]
 			filename := path.Join(build_pkg.Dir, "zzz_w_compiled.go")
+
+			ctx.TemplateFiles = append(ctx.TemplateFiles, filename)
+
 			err := ioutil.WriteFile(filename, []byte(content), 0644)
 			if err != nil {
 				return err
 			}
+
+			os.Chtimes(filename, ctx.Times[n], ctx.Times[n])
 		}
 	}
 
 	return nil
+}
+
+func (ctx *Context) RemoveTemplateFiles() {
+	for _, f := range ctx.TemplateFiles {
+		os.Remove(f)
+	}
 }

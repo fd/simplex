@@ -9,4 +9,4 @@ export SOURCE=$db
 export STATE=$db
 export TARGET=$db
 
-exec go run main.go -p 3000
+exec go run wrapper.go -p 3000

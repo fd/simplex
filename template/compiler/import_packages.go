@@ -23,8 +23,16 @@ func (ctx *Context) ImportPackages() error {
 			return nil
 		}
 
-		_, _, err = ctx.go_import_package(".", path)
-		return err
+		build_pkg, _, err := ctx.go_import_package(".", path)
+		if err != nil {
+			return err
+		}
+
+		if filepath.Base(filepath.Dir(build_pkg.ImportPath)) == "apps" {
+			ctx.Applications[build_pkg.ImportPath] = true
+		}
+
+		return nil
 	})
 	if err != nil {
 		return err

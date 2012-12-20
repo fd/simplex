@@ -40,6 +40,8 @@ func (ctx *Context) parse_templates_in_dir(import_path, dir string) error {
 			continue
 		}
 
+		ctx.ModifiedTimeFor(import_path, fi.ModTime())
+
 		tmpl, err := w_parser.ParseFile(path.Join(dir, base))
 		if err != nil {
 			return err

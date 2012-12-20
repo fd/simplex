@@ -7,15 +7,19 @@ import (
 	go_build "go/build"
 	go_token "go/token"
 	"strings"
+	"time"
 )
 
 type Context struct {
 	WROOT string
 
-	DataViews   map[string]*DataView
-	RenderFuncs map[string]*RenderFunc
-	Helpers     map[string]*go_ast.FuncDecl
-	Imports     map[string]*Imports
+	Applications  map[string]bool
+	DataViews     map[string]*DataView
+	RenderFuncs   map[string]*RenderFunc
+	Helpers       map[string]*go_ast.FuncDecl
+	Imports       map[string]*Imports
+	Times         map[string]time.Time
+	TemplateFiles []string
 
 	go_ctx            *go_build.Context
 	go_fset           *go_token.FileSet
@@ -113,10 +117,12 @@ func NewContext(wroot string) *Context {
 	ctx.go_universe = go_ast.NewScope(nil)
 	ctx.go_ast_packages = make(map[string]*go_ast.Package)
 	ctx.go_build_packages = make(map[string]*go_build.Package)
+	ctx.Applications = make(map[string]bool)
 	ctx.Helpers = make(map[string]*go_ast.FuncDecl)
 	ctx.RenderFuncs = make(map[string]*RenderFunc)
 	ctx.DataViews = make(map[string]*DataView)
 	ctx.Imports = make(map[string]*Imports)
+	ctx.Times = make(map[string]time.Time)
 
 	return ctx
 }
@@ -156,4 +162,15 @@ func (ctx *Context) ImportsFor(pkg string) *Imports {
 		ctx.Imports[pkg] = i
 	}
 	return i
+}
+
+func (ctx *Context) ModifiedTimeFor(pkg string, mtime time.Time) {
+	t, p := ctx.Times[pkg]
+	if !p {
+		ctx.Times[pkg] = mtime
+		return
+	}
+	if t.Before(mtime) {
+		ctx.Times[pkg] = mtime
+	}
 }
