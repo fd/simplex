@@ -514,6 +514,34 @@ func BenchmarkInsert(b *testing.B) {
 	}
 }
 
+func BenchmarkInsertExisting(b *testing.B) {
+	b.StopTimer()
+
+	words := words()
+
+	n := 20
+	b.N = len(words) * n
+	tries := make([]*T, n)
+	for i := 0; i < n; i++ {
+		trie := New()
+		tries[i] = trie
+		for i, word := range words {
+			trie.Insert(word, i)
+		}
+	}
+
+	b.StartTimer()
+
+	for _, trie := range tries {
+		for i, word := range words {
+			v, f := trie.Insert(word, i)
+			if !f {
+				fmt.Printf("v: %+v f: %+v\n", v, f)
+			}
+		}
+	}
+}
+
 func BenchmarkLookup(b *testing.B) {
 	b.StopTimer()
 
