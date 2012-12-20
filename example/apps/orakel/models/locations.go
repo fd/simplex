@@ -4,7 +4,7 @@ import (
 	"github.com/fd/w/data"
 )
 
-var Locations = data.Select(of_type("location")).Sort(by_property("name"))
+var Locations = data.Where(of_type("location")).Sort(by_property("name"))
 var ByEvent = Locations.GroupN(by_event)
 
 func by_event(ctx data.Context, val data.Value) []data.Value {
@@ -26,7 +26,7 @@ func by_event(ctx data.Context, val data.Value) []data.Value {
 	return ids
 }
 
-func of_type(type_name string) data.SelectFunc {
+func of_type(type_name string) data.WhereFunc {
 	return func(ctx data.Context, val data.Value) bool {
 		object, ok := val.(data.Object)
 		if !ok {

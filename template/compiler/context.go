@@ -142,6 +142,8 @@ func (ctx *Context) Compile() error {
 		return err
 	}
 
+	ctx.SpecialHelpers()
+
 	ctx.LookupFunctionCalls()
 
 	ctx.NormalizeGetExpresions()

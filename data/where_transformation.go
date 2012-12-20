@@ -1,52 +1,52 @@
 package data
 
-type SelectFunc func(Context, Value) bool
+type WhereFunc func(Context, Value) bool
 
-func Select(f SelectFunc) View {
-	return current_engine.ScopedView().Select(f)
+func Where(f WhereFunc) View {
+	return current_engine.ScopedView().Where(f)
 }
 
-func (v View) Select(f SelectFunc) View {
-	return v.push(&select_transformation{
-		id:       v.new_id() + ":Select",
+func (v View) Where(f WhereFunc) View {
+	return v.push(&where_transformation{
+		id:       v.new_id() + ":Where",
 		upstream: v.current,
 		f:        f,
 	})
 }
 
-type select_transformation struct {
+type where_transformation struct {
 	id         string
 	upstream   transformation
 	downstream []transformation
-	f          SelectFunc
+	f          WhereFunc
 }
 
-func (t *select_transformation) Id() string {
+func (t *where_transformation) Id() string {
 	return t.id
 }
 
-func (t *select_transformation) Chain() []transformation {
+func (t *where_transformation) Chain() []transformation {
 	if t.upstream == nil {
 		return []transformation{t}
 	}
 	return append(t.upstream.Chain(), t)
 }
 
-func (t *select_transformation) Dependencies() []transformation {
+func (t *where_transformation) Dependencies() []transformation {
 	if t.upstream == nil {
 		return []transformation{}
 	}
 	return append(t.upstream.Dependencies(), t.upstream)
 }
 
-func (t *select_transformation) PushDownstream(d transformation) {
+func (t *where_transformation) PushDownstream(d transformation) {
 	t.downstream = append(t.downstream, d)
 }
 
-func (t *select_transformation) Transform(upstream upstream_state, txn *transaction) {
+func (t *where_transformation) Transform(upstream upstream_state, txn *transaction) {
 	var (
 		state = upstream.NewState(t.id)
-		info  = &select_transformation_state{}
+		info  = &where_transformation_state{}
 	)
 
 	info.upstream = upstream
@@ -104,15 +104,15 @@ func (t *select_transformation) Transform(upstream upstream_state, txn *transact
 	txn.Propagate(t.downstream, state)
 }
 
-type select_transformation_state struct {
+type where_transformation_state struct {
 	upstream    upstream_state
 	SelectedIds []string
 }
 
-func (s *select_transformation_state) Ids() []string {
+func (s *where_transformation_state) Ids() []string {
 	return s.SelectedIds
 }
 
-func (s *select_transformation_state) Get(id string) Value {
+func (s *where_transformation_state) Get(id string) Value {
 	return s.upstream.Get(id)
 }
