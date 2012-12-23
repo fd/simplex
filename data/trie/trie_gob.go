@@ -17,6 +17,10 @@ func (t *T) GobDecode(data []byte) error {
 
 	err = gob.NewDecoder(comp).Decode(&t.root)
 
+	if t.root != nil {
+		t.root.set_parents()
+	}
+
 	return err
 }
 
@@ -34,4 +38,11 @@ func (t *T) GobEncode() ([]byte, error) {
 	comp.Close()
 
 	return buf.Bytes(), err
+}
+
+func (n *node_t) set_parents() {
+	for _, c := range n.Children {
+		c.parent = n
+		c.set_parents()
+	}
 }

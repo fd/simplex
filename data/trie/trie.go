@@ -18,10 +18,12 @@ func New() *T {
 }
 
 type node_t struct {
+	parent   *node_t
 	Set      bool
 	Chunk    []byte
 	Children []*node_t
 	Value    interface{}
+	Len      int
 }
 
 func (t *T) Lookup(key []byte) (val interface{}, found bool) {
@@ -34,6 +36,63 @@ func (t *T) Insert(key []byte, val interface{}) (old_val interface{}, found bool
 
 func (t *T) Remove(key []byte) (old_val interface{}, found bool) {
 	return exec(t.root, key, remove, nil)
+}
+
+func (t *T) Len() int {
+	return t.root.Len
+}
+
+func (t *T) At(index int) (key []byte, val interface{}, found bool) {
+	node, found := t.root.At(index)
+
+	if found {
+		c := 0
+
+		n := node
+		for n != nil {
+			c += len(n.Chunk)
+			n = n.parent
+		}
+
+		key = make([]byte, c)
+
+		n = node
+		for n != nil {
+			c -= len(n.Chunk)
+			copy(key[c:], n.Chunk)
+			n = n.parent
+		}
+	}
+
+	return key, node.Value, found
+}
+
+func (n *node_t) At(index int) (*node_t, bool) {
+	min := 0
+	max := 0
+
+	if index >= n.Len {
+		return nil, false
+	}
+
+	if n.Set && index == 0 {
+		return n, true
+	}
+
+	if n.Set {
+		min = 1
+		max = 1
+	}
+
+	for _, c := range n.Children {
+		max = min + c.Len
+		if index < max {
+			return c.At(index - min)
+		}
+		min = max
+	}
+
+	return nil, false
 }
 
 func (t *T) ConsumedMemory() uintptr {
@@ -68,6 +127,25 @@ func (n *node_t) String() string {
 	return fmt.Sprintf("{ K: %s, V: %+v }", string(n.Chunk), n.Value)
 }
 
+func (t *T) Values() []interface{} {
+	l := make([]interface{}, t.Len())
+	t.root.Values(l)
+	return l
+}
+
+func (n *node_t) Values(tip []interface{}) []interface{} {
+	if n.Set {
+		tip[0] = n.Value
+		tip = tip[1:]
+	}
+
+	for _, c := range n.Children {
+		tip = c.Values(tip)
+	}
+
+	return tip
+}
+
 type operation byte
 
 const (
@@ -77,27 +155,56 @@ const (
 )
 
 func exec(node *node_t, suffix []byte, op operation, val interface{}) (interface{}, bool) {
-	var found bool
+	node, found := exec_node(node, suffix, op)
+
+	if !found {
+		return nil, false
+	}
+
+	switch op {
+	case insert:
+		// update counts
+		if !node.Set {
+			n := node
+			for n != nil {
+				n.Len += 1
+				n = n.parent
+			}
+		}
+
+		found, node.Set = true, true
+		val, node.Value = node.Value, val
+
+	case remove:
+		// update counts
+		if node.Set {
+			n := node
+			for n != nil {
+				n.Len -= 1
+				n = n.parent
+			}
+		}
+
+		found, node.Set = node.Set, false
+		val, node.Value = node.Value, nil
+
+	case lookup:
+		found = node.Set
+		val = node.Value
+
+	}
+
+	return val, found
+}
+
+func exec_node(node *node_t, suffix []byte, op operation) (*node_t, bool) {
 
 	if node == nil {
 		return nil, false
 	}
 
 	if len(suffix) == 0 {
-		switch op {
-		case insert:
-			found, node.Set = true, true
-			val, node.Value = node.Value, val
-		case remove:
-			found, node.Set = node.Set, false
-			val, node.Value = node.Value, nil
-		case lookup:
-			found = node.Set
-			val = node.Value
-		}
-		// CASE 1.A 1.B 1.C
-		//fmt.Println("CASE 1x")
-		return val, found
+		return node, true
 	}
 
 	var n *node_t
@@ -112,6 +219,7 @@ func exec(node *node_t, suffix []byte, op operation, val interface{}) (interface
 		if c.Chunk[0] == suffix[0] {
 			n = c
 			n_idx = i
+			break
 		}
 	}
 
@@ -119,12 +227,9 @@ func exec(node *node_t, suffix []byte, op operation, val interface{}) (interface
 	if n == nil {
 		if op == insert {
 			c := push(node, suffix)
-			found, c.Set = true, true
-			val, c.Value = c.Value, val
-
 			// CASE 2
 			//fmt.Println("CASE 2")
-			return val, found
+			return c, true
 		} else {
 			// CASE 3A 3B
 			//fmt.Println("CASE 3x")
@@ -143,7 +248,7 @@ func exec(node *node_t, suffix []byte, op operation, val interface{}) (interface
 				c := split(node, n, n_idx, i)
 				// CASE 4
 				//fmt.Println("CASE 4")
-				return exec(c, suffix[i:], op, val)
+				return c, true
 
 			} else {
 				// CASE 5A 5B
@@ -157,7 +262,7 @@ func exec(node *node_t, suffix []byte, op operation, val interface{}) (interface
 				c := split(node, n, n_idx, i)
 				// CASE 6
 				//fmt.Println("CASE 6")
-				return exec(c, suffix[i:], op, val)
+				return exec_node(c, suffix[i:], op)
 
 			} else {
 				// CASE 7A 7B
@@ -173,29 +278,27 @@ func exec(node *node_t, suffix []byte, op operation, val interface{}) (interface
 		case insert:
 			// CASE 8
 			//fmt.Println("CASE 8")
-			return exec(n, suffix[l_c:], op, val)
+			return n, true
 
 		case remove:
-			val, n.Value = n.Value, nil
-			found, n.Set = n.Set, false
-			optimize(node, n, n_idx)
 			// CASE 9A -> no optimize
 			//      9B -> optimize (remove leaf)
 			//      9C -> optimize (remove branch)
 			//fmt.Println("CASE 9x")
-			return val, found
+			optimize(node, n, n_idx)
+			return n, true
 
 		case lookup:
 			// CASE 10
 			//fmt.Println("CASE 10")
-			return n.Value, n.Set
+			return n, true
 
 		}
 
 	} else if l_s > l_c {
 		// CASE 11
 		//fmt.Println("CASE 11 (cont)")
-		return exec(n, suffix[l_c:], op, val)
+		return exec_node(n, suffix[l_c:], op)
 
 	}
 
@@ -212,6 +315,7 @@ func optimize(p, a *node_t, a_idx int) {
 	if len(a.Children) == 1 {
 		c := a.Children[0]
 		c.Chunk = append(a.Chunk, c.Chunk...)
+		c.parent = p
 		p.Children[a_idx] = c
 	}
 }
@@ -220,11 +324,14 @@ func split(p, a *node_t, a_idx int, offset int) *node_t {
 	b := &node_t{}
 
 	// update b node
+	b.parent = p
 	b.Chunk = a.Chunk[:offset]
 	b.Children = append(b.Children, a)
+	b.Len = a.Len
 
 	// update a node
 	a.Chunk = a.Chunk[offset:]
+	a.parent = b
 
 	// update p node
 	p.Children[a_idx] = b
@@ -235,6 +342,7 @@ func split(p, a *node_t, a_idx int, offset int) *node_t {
 func push(a *node_t, suffix []byte) *node_t {
 	b := &node_t{}
 
+	b.parent = a
 	b.Chunk = make([]byte, len(suffix))
 	copy(b.Chunk, suffix)
 

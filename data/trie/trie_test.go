@@ -11,6 +11,7 @@ import (
 func TestInsert(t *testing.T) {
 	trie := New()
 	var k, v string
+	var i int
 
 	trie.Insert([]byte("foo"), "a")
 	trie.Insert([]byte("foo"), "b")
@@ -20,9 +21,54 @@ func TestInsert(t *testing.T) {
 	trie.Insert([]byte("fo"), "e")
 	trie.Insert([]byte("f"), "g")
 
-	fmt.Printf("trie: %v\n", trie)
+	fmt.Printf("trie: %v, %d\n", trie, trie.Len())
 
-	k, v = "foo", "b"
+	if trie.Len() != 6 {
+		t.Errorf("is supposed to be `%d` (instead of) %d", 6, trie.Len())
+	}
+
+	i, k, v = 0, "f", "g"
+	if key, val, f := trie.At(i); !f {
+		t.Errorf("is supposed to find at `%d`", i)
+	} else if string(key) != k {
+		t.Errorf("is supposed to find `%s` instead of `%s`", k, key)
+	} else if s, ok := val.(string); !ok {
+		t.Errorf("is supposed to find a string")
+	} else if s != v {
+		t.Errorf("is supposed to find `%s` instead of %+v", v, val)
+	}
+	i, k, v = 1, "fo", "e"
+	if key, val, f := trie.At(i); !f {
+		t.Errorf("is supposed to find at `%d`", i)
+	} else if string(key) != k {
+		t.Errorf("is supposed to find `%s` instead of `%s`", k, key)
+	} else if s, ok := val.(string); !ok {
+		t.Errorf("is supposed to find a string")
+	} else if s != v {
+		t.Errorf("is supposed to find `%s` instead of %+v", v, val)
+	}
+	i, k, v = 2, "foe", "d"
+	if key, val, f := trie.At(i); !f {
+		t.Errorf("is supposed to find at `%d`", i)
+	} else if string(key) != k {
+		t.Errorf("is supposed to find `%s` instead of `%s`", k, key)
+	} else if s, ok := val.(string); !ok {
+		t.Errorf("is supposed to find a string")
+	} else if s != v {
+		t.Errorf("is supposed to find `%s` instead of %+v", v, val)
+	}
+	i, k, v = 3, "foo", "b"
+	if key, val, f := trie.At(i); !f {
+		t.Errorf("is supposed to find at `%d`", i)
+	} else if string(key) != k {
+		t.Errorf("is supposed to find `%s` instead of `%s`", k, key)
+	} else if s, ok := val.(string); !ok {
+		t.Errorf("is supposed to find a string")
+	} else if s != v {
+		t.Errorf("is supposed to find `%s` instead of %+v", v, val)
+	}
+
+	k, v = "foor", "f"
 	if val, f := trie.Lookup([]byte(k)); !f {
 		t.Errorf("is supposed to find `%s`", k)
 	} else if s, ok := val.(string); !ok {
@@ -560,7 +606,7 @@ func BenchmarkInsert(b *testing.B) {
 
 	words := words()
 
-	n := 20
+	n := 40
 	b.N = len(words) * n
 	tries := make([]*T, n)
 	for i := 0; i < n; i++ {
@@ -584,7 +630,7 @@ func BenchmarkInsertExisting(b *testing.B) {
 
 	words := words()
 
-	n := 20
+	n := 40
 	b.N = len(words) * n
 	tries := make([]*T, n)
 	for i := 0; i < n; i++ {
@@ -612,7 +658,7 @@ func BenchmarkLookup(b *testing.B) {
 
 	words := words()
 
-	n := 20
+	n := 40
 	b.N = len(words) * n
 	tries := make([]*T, n)
 	for i := 0; i < n; i++ {
@@ -640,7 +686,7 @@ func BenchmarkRemove(b *testing.B) {
 
 	words := words()
 
-	n := 20
+	n := 40
 	b.N = len(words) * n
 	tries := make([]*T, n)
 	for i := 0; i < n; i++ {
@@ -656,6 +702,31 @@ func BenchmarkRemove(b *testing.B) {
 	for _, trie := range tries {
 		for _, word := range words {
 			trie.Remove(word)
+		}
+	}
+}
+
+func BenchmarkAt(b *testing.B) {
+	b.StopTimer()
+
+	words := words()
+
+	n := 40
+	b.N = len(words) * n
+	tries := make([]*T, n)
+	for i := 0; i < n; i++ {
+		trie := New()
+		tries[i] = trie
+		for i, word := range words {
+			trie.Insert(word, i)
+		}
+	}
+
+	b.StartTimer()
+
+	for _, trie := range tries {
+		for i := 0; i < len(words); i++ {
+			trie.At(i)
 		}
 	}
 }

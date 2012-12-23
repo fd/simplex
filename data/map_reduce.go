@@ -42,29 +42,32 @@ type MapReduceTransaction struct {
 	Removed []SHA
 }
 
-func (mr *MapReduce) Run(txn MapReduceTransaction, store Store) {
+func (mr *MapReduce) Run(txn MapReduceTransaction, store Store) (added, removed []SHA) {
 	var (
-		source   *Collection // needed?
-		previous *Collection
-		found    bool
+		state *MapReduceState
+		found bool
 	)
 
-	// needed?
-	found = store.Get(txn.SourceSHA, &source)
+	found = store.Get(txn.PreviousSHA, &state)
 	if !found {
-		panic(fmt.Sprintf("MapReduce requires a source collection (not found: %s)", txn.SourceSHA))
-	}
-
-	found = store.Get(txn.PreviousSHA, &previous)
-	if !found {
-		previous = &Collection{}
+		state = &MapReduceState{
+			MapStage:    trie.New(),
+			ReduceStage: trie.New(),
+		}
 		txn.Removed = nil
 
-		// currently we only need source here
+		// load all source kvs
+		var source Collection
+
+		found = store.Get(txn.SourceSHA, &source)
+		if !found {
+			panic(fmt.Sprintf("MapReduce requires a source collection (not found: %s)", txn.SourceSHA))
+		}
+
 		txn.Added = source.MemberSHAs()
 	}
 
-	previous.SHA = HashValue([]SHA{txn.SourceSHA, mr.Id})
+	state.SHA = HashValue([]SHA{txn.SourceSHA, mr.Id})
 
 	var (
 		need_reduce   map[string]bool
@@ -109,14 +112,14 @@ func (mr *MapReduce) Run(txn MapReduceTransaction, store Store) {
 			kv_sha := store.Set(kv)
 			reduce_key_str := CompairBytes(pair.Key)
 
-			reduce_bucket_i, found := previous.MapStage.Lookup(reduce_key_str)
+			reduce_bucket_i, found := state.MapStage.Lookup(reduce_key_str)
 			reduce_bucket, ok := reduce_bucket_i.(*trie.T)
 			if !ok {
 				panic(fmt.Sprintf("corrupted datastore: Invalid reduce bucket (%v)", pair.Key))
 			}
 			if !found {
 				reduce_bucket = trie.New()
-				previous.MapStage.Insert(reduce_key_str, reduce_bucket)
+				state.MapStage.Insert(reduce_key_str, reduce_bucket)
 			}
 			reduce_bucket.Insert(map_key_str, kv_sha)
 
@@ -156,7 +159,7 @@ func (mr *MapReduce) Run(txn MapReduceTransaction, store Store) {
 		for _, pair := range emiter.pairs {
 			reduce_key_str := CompairBytes(pair.Key)
 
-			reduce_bucket_i, found := previous.MapStage.Lookup(reduce_key_str)
+			reduce_bucket_i, found := state.MapStage.Lookup(reduce_key_str)
 			if !found {
 				remove_reduce[string(reduce_key_str)] = true
 				continue // ignore
@@ -170,7 +173,7 @@ func (mr *MapReduce) Run(txn MapReduceTransaction, store Store) {
 			reduce_bucket.Remove(map_key_str)
 
 			if reduce_bucket.Len() == 0 {
-				previous.MapStage.Remove(reduce_key_str)
+				state.MapStage.Remove(reduce_key_str)
 				remove_reduce[string(reduce_key_str)] = true
 				continue
 			}
@@ -181,10 +184,15 @@ func (mr *MapReduce) Run(txn MapReduceTransaction, store Store) {
 
 	for reduce_key_str := range remove_reduce {
 		delete(need_reduce, reduce_key_str)
-		previous.ReduceStage.Remove([]byte(reduce_key_str))
+		old_kv_sha_i, f := state.ReduceStage.Remove([]byte(reduce_key_str))
+		old_kv_sha, _ := old_kv_sha_i.(SHA)
+		if f {
+			removed = append(removed, old_kv_sha)
+		}
 	}
 
-	for reduce_key_str, _full := range need_reduce {
+	// for reduce_key_str, _full := range need_reduce {
+	for reduce_key_str := range need_reduce {
 		var (
 			key        Value
 			val_sha_is []interface{}
@@ -200,7 +208,7 @@ func (mr *MapReduce) Run(txn MapReduceTransaction, store Store) {
 			panic(fmt.Sprintf("corrupted datastore: missing Key(%s)", key_sha))
 		}
 
-		reduce_bucket_i, found := previous.MapStage.Lookup(reduce_key_bytes)
+		reduce_bucket_i, found := state.MapStage.Lookup(reduce_key_bytes)
 		reduce_bucket, ok := reduce_bucket_i.(*trie.T)
 		if !ok {
 			panic(fmt.Sprintf("corrupted datastore: Invalid reduce bucket (%v)", key))
@@ -236,9 +244,18 @@ func (mr *MapReduce) Run(txn MapReduceTransaction, store Store) {
 		}
 		kv_sha := store.Set(kv)
 
-		previous.ReduceStage.Insert(reduce_key_bytes, kv_sha)
+		old_kv_sha_i, f := state.ReduceStage.Insert(reduce_key_bytes, kv_sha)
+		old_kv_sha, _ := old_kv_sha_i.(SHA)
+		if old_kv_sha != kv_sha {
+			if f {
+				removed = append(removed, old_kv_sha)
+			}
+			added = append(added, kv_sha)
+		}
 	}
 
+	// continue with added and removed
+	return added, removed
 }
 
 type map_emiter struct {
@@ -271,14 +288,14 @@ func (e *reduce_emiter) Emit(key, val Value) {
 	e.set = true
 }
 
-type Collection struct {
+type MapReduceState struct {
 	SHA         SHA
 	MapStage    *trie.T
 	ReduceStage *trie.T
 }
 
-func (c *Collection) MemberSHAs() []SHA {
-	return nil
+type Collection interface {
+	MemberSHAs() []SHA
 }
 
 type Store interface {
@@ -287,5 +304,9 @@ type Store interface {
 }
 
 func HashValue(v interface{}) SHA {
+	return HashCompairBytes(CompairBytes(v))
+}
+
+func HashCompairBytes(v []byte) SHA {
 	return SHA{}
 }
