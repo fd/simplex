@@ -22,6 +22,14 @@ type (
 	ScalarMergeFunc  func(e Emiter, key Value, left, right []Value)
 )
 
+func IdentifyReduceFunc(e Emiter, key Value, values []Value) {
+	if len(values) == 1 {
+		e.Emit(key, values[0])
+	} else if len(values) > 1 {
+		panic(fmt.Sprintf("IdentifyReduceFunc: cannot be applied to multi-value keys (%v)", key))
+	}
+}
+
 type MapReduce struct {
 	Id     SHA
 	Map    ScalarMapFunc
