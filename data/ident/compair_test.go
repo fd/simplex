@@ -1,4 +1,4 @@
-package data
+package ident
 
 import (
 	"sort"
@@ -6,7 +6,7 @@ import (
 )
 
 func Test_compair(t *testing.T) {
-	v := []Value{
+	v := []interface{}{
 		// special values sort before all other types
 		nil,
 		false,
@@ -29,23 +29,23 @@ func Test_compair(t *testing.T) {
 
 		// then arrays. compared element by element until different.
 		// Longer arrays sort after their prefixes
-		[]Value{"a"},
-		[]Value{"b"},
-		[]Value{"b", "c"},
-		[]Value{"b", "c", "a"},
-		[]Value{"b", "d"},
-		[]Value{"b", "d", "e"},
+		[]interface{}{"a"},
+		[]interface{}{"b"},
+		[]interface{}{"b", "c"},
+		[]interface{}{"b", "c", "a"},
+		[]interface{}{"b", "d"},
+		[]interface{}{"b", "d", "e"},
 
 		// then object, compares each key value in the list until different.
 		// larger objects sort after their subset objects.
-		map[string]Value{"a": 1},
-		map[string]Value{"a": 2},
-		map[string]Value{"b": 1},
-		map[string]Value{"b": 2},
-		map[string]Value{"b": 2, "c": 2},
+		map[string]interface{}{"a": 1},
+		map[string]interface{}{"a": 2},
+		map[string]interface{}{"b": 1},
+		map[string]interface{}{"b": 2},
+		map[string]interface{}{"b": 2, "c": 2},
 	}
 
-	r := make([]Value, len(v))
+	r := make([]interface{}, len(v))
 	for i, e := range v {
 		r[len(v)-1-i] = e
 	}
@@ -54,13 +54,13 @@ func Test_compair(t *testing.T) {
 
 	for i, a := range r {
 		e := v[i]
-		if CompairString(a) != CompairString(e) {
+		if string(CompairBytes(a)) != string(CompairBytes(e)) {
 			t.Errorf("Expected %+v but was %+v", e, a)
 		}
 	}
 }
 
-type sort_slice []Value
+type sort_slice []interface{}
 
 func (s sort_slice) Len() int {
 	return len(s)
@@ -71,5 +71,5 @@ func (s sort_slice) Swap(i, j int) {
 }
 
 func (s sort_slice) Less(i, j int) bool {
-	return CompairString(s[i]) < CompairString(s[j])
+	return string(CompairBytes(s[i])) < string(CompairBytes(s[j]))
 }

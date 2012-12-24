@@ -2,8 +2,7 @@ package data
 
 import (
 	"fmt"
-	"github.com/fd/w/data/storage/raw"
-	"github.com/fd/w/data/storage/raw/compress"
+	"github.com/fd/w/data/storage"
 	"github.com/fd/w/util"
 )
 
@@ -55,23 +54,23 @@ func NewEngine() *Engine {
 }
 
 func (e *Engine) Setup(source, state, target string) error {
-	raw_source, err := raw.New(source)
+	raw_source, err := storage.New(source)
 	if err != nil {
 		return err
 	}
 
-	raw_state, err := raw.New(state)
+	raw_state, err := storage.New(state)
 	if err != nil {
 		return err
 	}
 
-	raw_target, err := raw.New(target)
+	raw_target, err := storage.New(target)
 	if err != nil {
 		return err
 	}
 
 	e.source_table = new_source_table(raw_source)
-	e.state_table = new_state_table(&compress.S{raw_state})
+	e.state_table = new_state_table(raw_state)
 	e.target_table = new_target_table(raw_target)
 
 	return nil

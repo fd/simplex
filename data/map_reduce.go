@@ -2,18 +2,17 @@ package data
 
 import (
 	"fmt"
+	"github.com/fd/w/data/ident"
 	"github.com/fd/w/data/trie"
 )
-
-type SHA [20]byte
 
 type Emiter interface {
 	Emit(key, value Value)
 }
 
 type KeyValue struct {
-	KeySHA   SHA
-	ValueSHA SHA
+	KeySHA   ident.SHA
+	ValueSHA ident.SHA
 }
 
 type (
@@ -31,26 +30,26 @@ func IdentifyReduceFunc(e Emiter, key Value, values []Value) {
 }
 
 type MapReduce struct {
-	Id     SHA
+	Id     ident.SHA
 	Map    ScalarMapFunc
 	Reduce ScalarReduceFunc
 }
 
 type MapReduceTransaction struct {
 	// the source collection
-	SourceSHA SHA
+	SourceSHA ident.SHA
 
 	// the previously calculated collection
-	PreviousSHA SHA
+	PreviousSHA ident.SHA
 
 	// SHA(SHA(key) + SHA(value)) of added members (in the source)
-	Added []SHA
+	Added []ident.SHA
 
 	// keys of removed members (in the source)
-	Removed []SHA
+	Removed []ident.SHA
 }
 
-func (mr *MapReduce) Run(txn MapReduceTransaction, store Store) (added, removed []SHA) {
+func (mr *MapReduce) Run(txn MapReduceTransaction, store Store) (added, removed []ident.SHA) {
 	var (
 		state *MapReduceState
 		found bool
@@ -75,7 +74,7 @@ func (mr *MapReduce) Run(txn MapReduceTransaction, store Store) (added, removed 
 		txn.Added = source.MemberSHAs()
 	}
 
-	state.SHA = HashValue([]SHA{txn.SourceSHA, mr.Id})
+	state.SHA = ident.Hash([]ident.SHA{txn.SourceSHA, mr.Id})
 
 	var (
 		need_reduce   map[string]bool
@@ -108,7 +107,7 @@ func (mr *MapReduce) Run(txn MapReduceTransaction, store Store) (added, removed 
 			panic(fmt.Sprintf("corrupted datastore: missing Value(%s)", kv.ValueSHA))
 		}
 
-		map_key_str = CompairBytes(key)
+		map_key_str = ident.CompairBytes(key)
 		mr.Map(emiter, key, val)
 
 		for _, pair := range emiter.pairs {
@@ -118,7 +117,7 @@ func (mr *MapReduce) Run(txn MapReduceTransaction, store Store) (added, removed 
 			}
 
 			kv_sha := store.Set(kv)
-			reduce_key_str := CompairBytes(pair.Key)
+			reduce_key_str := ident.CompairBytes(pair.Key)
 
 			reduce_bucket_i, found := state.MapStage.Lookup(reduce_key_str)
 			reduce_bucket, ok := reduce_bucket_i.(*trie.T)
@@ -161,11 +160,11 @@ func (mr *MapReduce) Run(txn MapReduceTransaction, store Store) (added, removed 
 			panic(fmt.Sprintf("corrupted datastore: missing Value(%s)", kv.ValueSHA))
 		}
 
-		map_key_str = CompairBytes(key)
+		map_key_str = ident.CompairBytes(key)
 		mr.Map(emiter, key, val)
 
 		for _, pair := range emiter.pairs {
-			reduce_key_str := CompairBytes(pair.Key)
+			reduce_key_str := ident.CompairBytes(pair.Key)
 
 			reduce_bucket_i, found := state.MapStage.Lookup(reduce_key_str)
 			if !found {
@@ -193,7 +192,7 @@ func (mr *MapReduce) Run(txn MapReduceTransaction, store Store) (added, removed 
 	for reduce_key_str := range remove_reduce {
 		delete(need_reduce, reduce_key_str)
 		old_kv_sha_i, f := state.ReduceStage.Remove([]byte(reduce_key_str))
-		old_kv_sha, _ := old_kv_sha_i.(SHA)
+		old_kv_sha, _ := old_kv_sha_i.(ident.SHA)
 		if f {
 			removed = append(removed, old_kv_sha)
 		}
@@ -208,7 +207,7 @@ func (mr *MapReduce) Run(txn MapReduceTransaction, store Store) (added, removed 
 			emiter     = &reduce_emiter{}
 
 			reduce_key_bytes = []byte(reduce_key_str)
-			key_sha          = HashCompairBytes(reduce_key_bytes)
+			key_sha          = ident.HashCompairBytes(reduce_key_bytes)
 		)
 
 		found = store.Get(key_sha, &key)
@@ -230,7 +229,7 @@ func (mr *MapReduce) Run(txn MapReduceTransaction, store Store) (added, removed 
 		for _, val_sha_i := range val_sha_is {
 			var val Value
 
-			val_sha, ok := val_sha_i.(SHA)
+			val_sha, ok := val_sha_i.(ident.SHA)
 			if !ok {
 				panic(fmt.Sprintf("corrupted datastore: Invalid reduce bucket (%v)", key))
 			}
@@ -253,7 +252,7 @@ func (mr *MapReduce) Run(txn MapReduceTransaction, store Store) (added, removed 
 		kv_sha := store.Set(kv)
 
 		old_kv_sha_i, f := state.ReduceStage.Insert(reduce_key_bytes, kv_sha)
-		old_kv_sha, _ := old_kv_sha_i.(SHA)
+		old_kv_sha, _ := old_kv_sha_i.(ident.SHA)
 		if old_kv_sha != kv_sha {
 			if f {
 				removed = append(removed, old_kv_sha)
@@ -297,24 +296,16 @@ func (e *reduce_emiter) Emit(key, val Value) {
 }
 
 type MapReduceState struct {
-	SHA         SHA
+	SHA         ident.SHA
 	MapStage    *trie.T
 	ReduceStage *trie.T
 }
 
 type Collection interface {
-	MemberSHAs() []SHA
+	MemberSHAs() []ident.SHA
 }
 
 type Store interface {
-	Get(sha SHA, value interface{}) bool
-	Set(value interface{}) SHA
-}
-
-func HashValue(v interface{}) SHA {
-	return HashCompairBytes(CompairBytes(v))
-}
-
-func HashCompairBytes(v []byte) SHA {
-	return SHA{}
+	Get(sha ident.SHA, value interface{}) bool
+	Set(value interface{}) ident.SHA
 }

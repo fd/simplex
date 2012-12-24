@@ -11,8 +11,7 @@ import (
 )
 
 import (
-	_ "github.com/fd/w/data/storage/raw/compress"
-	_ "github.com/fd/w/data/storage/raw/file_system"
+	_ "github.com/fd/w/data/storage/file_system"
 )
 
 var spec = options.MustParse(`

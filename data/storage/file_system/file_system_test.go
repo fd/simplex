@@ -17,7 +17,7 @@ func TestFileSystem(t *testing.T) {
 		os.RemoveAll(root)
 	}()
 
-	storageT.ValidateRawDriver(t, &S{
+	storageT.ValidateDriver(t, &S{
 		Root: root,
 	})
 }

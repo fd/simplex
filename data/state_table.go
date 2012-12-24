@@ -1,10 +1,7 @@
 package data
 
 import (
-	"github.com/fd/w/data/storage/coded/driver"
-	"github.com/fd/w/data/storage/coded/prefixed"
-	"github.com/fd/w/data/storage/coded/storage"
-	raw "github.com/fd/w/data/storage/raw/driver"
+	"github.com/fd/w/data/storage"
 )
 
 type state_table struct {
