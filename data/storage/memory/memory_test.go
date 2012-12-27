@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-func TestFileSystem(t *testing.T) {
+func TestMemory(t *testing.T) {
 	storageT.ValidateDriver(t, &S{
 		objects: map[string][]byte{},
 	})

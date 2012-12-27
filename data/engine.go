@@ -8,8 +8,8 @@ import (
 
 var current_engine = NewEngine()
 
-func Setup(source, state, target string) error {
-	return current_engine.Setup(source, state, target)
+func Setup(store_url string) error {
+	return current_engine.Setup(store_url)
 }
 
 func Update(c Changes) {
@@ -33,9 +33,7 @@ func Run() {
 }
 
 type Engine struct {
-	source_table *source_table
-	state_table  *state_table
-	target_table *target_table
+	store *storage.S
 
 	transactions chan *transaction
 	done         chan bool
@@ -53,26 +51,13 @@ func NewEngine() *Engine {
 	}
 }
 
-func (e *Engine) Setup(source, state, target string) error {
-	raw_source, err := storage.New(source)
+func (e *Engine) Setup(store_url string) error {
+	s, err := storage.New(store_url)
 	if err != nil {
 		return err
 	}
 
-	raw_state, err := storage.New(state)
-	if err != nil {
-		return err
-	}
-
-	raw_target, err := storage.New(target)
-	if err != nil {
-		return err
-	}
-
-	e.source_table = new_source_table(raw_source)
-	e.state_table = new_state_table(raw_state)
-	e.target_table = new_target_table(raw_target)
-
+	e.store = s
 	return nil
 }
 
