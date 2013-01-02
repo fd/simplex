@@ -33,11 +33,24 @@ func (pkg *Package) ResolvePackage() error {
 		return obj, nil
 	}
 
-	ast_pkg, err := ast.NewPackage(pkg.FileSet, pkg.Files, importer, GoUniverse)
+	ast_pkg, _ := ast.NewPackage(pkg.FileSet, pkg.Files, importer, GoUniverse)
+	pkg.AstPackage = ast_pkg
+
+	err := pkg.GenerateViews()
 	if err != nil {
 		return err
 	}
 
+	ast_pkg, err = ast.NewPackage(pkg.FileSet, pkg.Files, importer, GoUniverse)
+	if err != nil {
+		return err
+	}
 	pkg.AstPackage = ast_pkg
+
+	err = pkg.ResolveViews()
+	if err != nil {
+		return err
+	}
+
 	return nil
 }

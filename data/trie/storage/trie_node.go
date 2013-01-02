@@ -278,7 +278,7 @@ func (s *node_t) remove_from_parent() {
 		if c.node == s {
 			l := len(p.Children)
 
-			if i < (l - 1) {
+			if i < l-1 {
 				copy(p.Children[i:], p.Children[i+1:])
 			}
 

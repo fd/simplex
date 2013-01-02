@@ -21,23 +21,12 @@ type Package struct {
 	FileSet      *token.FileSet
 	Files        map[string]*ast.File
 	AstPackage   *ast.Package
-}
 
-type View interface {
-	ViewDecl() *ViewDecl
+	GeneratedFile *ast.File
 }
 
 type ViewDecl struct {
 	MemberType string
-	Where      *WhereDecl
-}
-
-type SourceDecl struct {
-	View *ViewDecl
-}
-
-type WhereDecl struct {
-	View *ViewDecl
 }
 
 func (pkg *Package) declareView(type_name string) (*ast.Object, error) {
@@ -52,45 +41,11 @@ func (pkg *Package) declareView(type_name string) (*ast.Object, error) {
 		}
 	}
 
-	obj = ast.NewObj(ast.Con, obj_name)
-	obj.Decl = &ViewDecl{MemberType: type_name}
-	pkg.AstPackage.Scope.Insert(obj)
+	obj = ast.NewObj(ast.Typ, obj_name)
+	obj.Data = &ViewDecl{MemberType: type_name}
+	pkg.GeneratedFile.Scope.Insert(obj)
 
-	return obj, nil
-}
+	fmt.Println("Generated view:", obj_name)
 
-func (pkg *Package) declareSource(type_name string) (*ast.Object, error) {
-	view, err := pkg.declareView(type_name)
-	if err != nil {
-		return nil, err
-	}
-
-	obj_name := type_name + "ViewSource"
-
-	obj := pkg.AstPackage.Scope.Lookup(obj_name)
-	if obj != nil {
-		if _, ok := obj.Decl.(*SourceDecl); ok {
-			return obj, nil
-		} else {
-			return nil, fmt.Errorf("%s is not a simplex.ViewSource", obj_name)
-		}
-	}
-
-	obj = ast.NewObj(ast.Fun, obj_name)
-	obj.Decl = &SourceDecl{view.Decl.(*ViewDecl)}
-	pkg.AstPackage.Scope.Insert(obj)
-
-	return obj, nil
-}
-
-func (pkg *Package) declareWhere(view *ViewDecl) (*ast.Object, error) {
-	obj_name := view.MemberType + "ViewSource"
-
-	if view.Where == nil {
-		view.Where = &WhereDecl{view}
-	}
-
-	obj := ast.NewObj(ast.Fun, "Where")
-	obj.Decl = view.Where
 	return obj, nil
 }

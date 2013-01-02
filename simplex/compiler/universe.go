@@ -102,7 +102,7 @@ func init() {
 	defFun("source")
 	defFun("where")
 	defFun("sort")
-	defFun("map")
+	defFun("collect")
 	defFun("group")
 	// ...
 }

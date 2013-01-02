@@ -4,12 +4,23 @@ package main
 type Location struct {
   name string
   website string
+  gps GPS
+}
+
+type GPS struct {
+  Lat, Lng float64
 }
 
 var Locations = source(Location).where(has_website)
+var LocationsWithWebsite = Locations.WithWebsite()
+var Coordinates = Locations.collect(gps)
 
 func has_website(loc Location) bool {
   return loc.website != ""
+}
+
+func gps(loc Location) GPS {
+  return loc.gps
 }
 
 func (v LocationView) WithWebsite () LocationView {

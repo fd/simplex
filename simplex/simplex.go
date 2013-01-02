@@ -3,14 +3,19 @@ package main
 import (
 	"fmt"
 	"github.com/fd/w/simplex/compiler"
+	"go/printer"
+	"os"
 )
 
 func main() {
-	_, err := compiler.ImportResolved(
+	pkg, err := compiler.ImportResolved(
 		"github.com/fd/w/simplex/example", ".")
 	if err != nil {
 		fmt.Println(err)
 	}
+
+	c := printer.Config{printer.TabIndent | printer.SourcePos, 8}
+	c.Fprint(os.Stdout, pkg.FileSet, pkg.Files["example.smplx"])
 }
 
 /*
