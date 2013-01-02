@@ -47,11 +47,11 @@ func load_kv(store *storage.S, kv_sha ident.SHA) (*KeyValue, value.Any, value.An
 }
 
 type bucket_t struct {
-	Key     ident.SHA
-	Value   ident.SHA
-	Mapped  ident.SHA
-	Reduced ident.SHA
+	KeyValue ident.SHA
+	Mapped   ident.SHA
+	Reduced  ident.SHA
 
+	kv      KeyValue
 	key     value.Any
 	mapped  trie.T
 	reduced trie.T
@@ -176,11 +176,20 @@ func sorter(mr_trie trie.T, in_chan <-chan map_emit_op, out_chan chan<- sort_emi
 
 func cleaner(mr_trie trie.T, in_chan <-chan sort_emit_op, out_chan chan<- sort_emit_op, removed chan<- ident.SHA) {
 	defer close(out_chan)
+	store := mr_trie.Store()
 
 	for op := range in_chan {
 		if op.bucket.mapped.Empty() {
-			mr_trie.Remove(op.r_key)
-			removed <- op.r_key
+			bucket_sha, found := mr_trie.Remove(op.r_key)
+			if found {
+				var bucket *bucket_t
+
+				if !store.Get(bucket_sha, &bucket) {
+					panic(fmt.Sprintf("corrupted datastore: Invalid map_reduce bucket (%s)", bucket_sha))
+				}
+
+				removed <- bucket.KeyValue
+			}
 		} else {
 			out_chan <- op
 		}
@@ -212,7 +221,7 @@ func load_state(mr *MapReduce, store *storage.S, action transaction.Action) trie
 	return state
 }
 
-func reducer(mr_trie trie.T, reducef ScalarReduceFunc, in_chan <-chan sort_emit_op, out_chan chan<- bool) {
+func reducer(mr_trie trie.T, reducef ScalarReduceFunc, in_chan <-chan sort_emit_op, added chan<- ident.SHA, removed chan<- ident.SHA, out_chan chan<- bool) {
 	defer func() {
 		out_chan <- true
 		close(out_chan)
@@ -254,9 +263,17 @@ func reducer(mr_trie trie.T, reducef ScalarReduceFunc, in_chan <-chan sort_emit_
 		})
 
 		// store reduce cache
+		old_kv_sha := op.bucket.KeyValue
 		op.bucket.Reduced = op.bucket.reduced.Commit()
-		op.bucket.Key = store.Set(op.bucket.key)
-		op.bucket.Value = val_sha
+		op.bucket.kv.KeySHA = store.Set(op.bucket.key)
+		op.bucket.kv.ValueSHA = val_sha
+		op.bucket.KeyValue = store.Set(&op.bucket.kv)
+		if old_kv_sha != ident.ZeroSHA {
+			removed <- op.bucket.KeyValue
+		}
+		if old_kv_sha != op.bucket.KeyValue {
+			added <- op.bucket.KeyValue
+		}
 
 		// store op.bucket
 		bucket_sha := store.Set(op.bucket)
@@ -313,7 +330,7 @@ func (mr *MapReduce) Run(action transaction.Action, store *storage.S) []transact
 
 		go cleaner(state, sorted_chan, cleaned_chan, removed_shas)
 
-		go reducer(state, mr.Reduce, cleaned_chan, done_chan)
+		go reducer(state, mr.Reduce, cleaned_chan, added_shas, removed_shas, done_chan)
 
 		go collect_shas(added_shas, &added)
 

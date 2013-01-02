@@ -4,46 +4,22 @@ import (
 	"github.com/fd/w/data"
 )
 
-var Locations = data.Where(of_type("location")).Sort(by_property("name"))
-var ByEvent = Locations.GroupN(by_event)
+type Location struct {
+	data.Type
 
-func by_event(ctx data.Context, val data.Value) []data.Value {
-	object, ok := val.(data.Object)
-	if !ok {
-		return []data.Value{}
-	}
+	Name    string
+	Address string
+	Website url.URL
 
-	ids_val, ok := object["event_ids"]
-	if !ok {
-		return []data.Value{}
-	}
-
-	ids, ok := ids_val.([]data.Value)
-	if !ok {
-		return []data.Value{}
-	}
-
-	return ids
-}
-
-func of_type(type_name string) data.WhereFunc {
-	return func(ctx data.Context, val data.Value) bool {
-		object, ok := val.(data.Object)
-		if !ok {
-			return false
+	GPS struct {
+		Coordinates struct {
+			Lng float64
+			Lat float64
 		}
 
-		return object["_type"] == type_name
+		MapUrl url.URL
 	}
 }
 
-func by_property(name string) data.SortFunc {
-	return func(ctx data.Context, val data.Value) data.Value {
-		object, ok := val.(data.Object)
-		if !ok {
-			return nil
-		}
-
-		return object[name]
-	}
-}
+var Locations = data.Where(M._type == "location").Sort(M.name)
+var ByEvent = Locations.GroupN(M.event_ids)

@@ -6,5 +6,17 @@
     "name":    {"type": "string", "required": true},
     "address": {"type": "string", "required": true},
     "website": {"type": "string", "required": true, "format": "uri"}
+
+    "gps": {
+      "type": "object",
+
+      "properties": {
+        "coordinates": { "type": "string", "computed": "$.Geolocate($.address)", "depends": ["$.address"] },
+        "map_url":     { "type": "string", "computed": "$.MapUrl($.gps.coordinates)", "depends": ["$.gps.coordinates"] }
+      }
+    }
   }
+
+
+
 }
