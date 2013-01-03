@@ -11,9 +11,9 @@ type GPS struct {
   Lat, Lng float64
 }
 
-var Locations = source(Location).where(has_website)
+var Locations = source(Location).where(has_website).sort(locations_gps_ne)
 var LocationsWithWebsite = Locations.WithWebsite()
-var Coordinates = Locations.collect(gps)
+var Coordinates = Locations.collect(gps).sort(gps_ne)
 
 func has_website(loc Location) bool {
   return loc.website != ""
@@ -21,6 +21,14 @@ func has_website(loc Location) bool {
 
 func gps(loc Location) GPS {
   return loc.gps
+}
+
+func locations_gps_ne(loc Location) []float64 {
+  return gps_ne(loc.gps)
+}
+
+func gps_ne(gps GPS) []float64 {
+  return []float64{ gps.Lat, gps.Lng }
 }
 
 func (v LocationView) WithWebsite () LocationView {

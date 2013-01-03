@@ -5,7 +5,9 @@ import (
 	"go/parser"
 	"go/token"
 	"io/ioutil"
+	"os"
 	"path"
+	"time"
 )
 
 func (pkg *Package) ParseFiles() error {
@@ -15,13 +17,23 @@ func (pkg *Package) ParseFiles() error {
 
 	pkg.FileSet = token.NewFileSet()
 	pkg.Files = map[string]*ast.File{}
+	pkg.ModTimes = map[string]time.Time{}
 
 	// Go files
 	for _, name := range pkg.BuildPackage.GoFiles {
+		if name == "smplx_generated.go" {
+			continue
+		}
+
 		l_name := path.Join(pkg.BuildPackage.ImportPath, name)
 		r_name := path.Join(pkg.BuildPackage.Dir, name)
 
 		source, err := ioutil.ReadFile(r_name)
+		if err != nil {
+			return err
+		}
+
+		stat, err := os.Stat(r_name)
 		if err != nil {
 			return err
 		}
@@ -36,7 +48,8 @@ func (pkg *Package) ParseFiles() error {
 			return err
 		}
 
-		pkg.Files[l_name] = f
+		pkg.ModTimes[name] = stat.ModTime()
+		pkg.Files[name] = f
 	}
 
 	// Simplex files
@@ -45,6 +58,11 @@ func (pkg *Package) ParseFiles() error {
 		r_name := path.Join(pkg.BuildPackage.Dir, name)
 
 		source, err := ioutil.ReadFile(r_name)
+		if err != nil {
+			return err
+		}
+
+		stat, err := os.Stat(r_name)
 		if err != nil {
 			return err
 		}
@@ -61,6 +79,7 @@ func (pkg *Package) ParseFiles() error {
 
 		resolve_simplex_file(f)
 
+		pkg.ModTimes[name] = stat.ModTime()
 		pkg.Files[name] = f
 	}
 

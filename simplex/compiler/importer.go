@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"go/build"
 	"os"
+	Path "path"
 	"strings"
 )
 
@@ -37,7 +38,12 @@ func Import(path string, srcDir string) (*Package, error) {
 
 	pkg := &Package{BuildPackage: build_pkg}
 
-	fmt.Println("import_path:", pkg.BuildPackage.ImportPath)
+	//fmt.Println("import_path:", pkg.BuildPackage.ImportPath)
+	if pkg.BuildPackage.IsCommand() {
+		fmt.Println("BinObj: ", Path.Join(pkg.BuildPackage.BinDir, Path.Base(pkg.BuildPackage.Dir)))
+	} else {
+		fmt.Println("PkgObj: ", pkg.BuildPackage.PkgObj)
+	}
 
 	err = pkg.find_simplex_files()
 	if err != nil {
@@ -60,6 +66,11 @@ func ImportResolved(path string, srcDir string) (*Package, error) {
 	}
 
 	err = pkg.ResolvePackage()
+	if err != nil {
+		return nil, err
+	}
+
+	err = pkg.MergeGeneratedFiles()
 	if err != nil {
 		return nil, err
 	}

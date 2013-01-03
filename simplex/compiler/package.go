@@ -5,6 +5,7 @@ import (
 	"go/ast"
 	"go/build"
 	"go/token"
+	"time"
 )
 
 var Context build.Context
@@ -20,6 +21,7 @@ type Package struct {
 	BuildPackage *build.Package
 	FileSet      *token.FileSet
 	Files        map[string]*ast.File
+	ModTimes     map[string]time.Time
 	AstPackage   *ast.Package
 
 	GeneratedFile *ast.File
@@ -45,7 +47,7 @@ func (pkg *Package) declareView(type_name string) (*ast.Object, error) {
 	obj.Data = &ViewDecl{MemberType: type_name}
 	pkg.GeneratedFile.Scope.Insert(obj)
 
-	fmt.Println("Generated view:", obj_name)
+	//fmt.Println("Generated view:", obj_name)
 
 	return obj, nil
 }
