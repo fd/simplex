@@ -25,6 +25,8 @@ type Package struct {
 	AstPackage   *ast.Package
 
 	GeneratedFile *ast.File
+	Imports       map[string]*Package
+	TargetPath    string
 }
 
 type ViewDecl struct {

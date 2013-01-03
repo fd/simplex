@@ -35,6 +35,7 @@ func (pkg *Package) MergeGeneratedFiles() error {
 	collect_imports_at_the_top(f)
 	orig_files["smplx_generated.go"] = f
 
+	pkg.GeneratedFile = f
 	pkg.AstPackage.Files = orig_files
 	pkg.SimplexFiles = nil
 	pkg.Files = orig_files

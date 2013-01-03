@@ -9,6 +9,8 @@ func (pkg *Package) ResolvePackage() error {
 		return nil
 	}
 
+	deps := map[string]*Package{}
+
 	importer := func(imports map[string]*ast.Object, dir string) (*ast.Object, error) {
 
 		if dir == "unsafe" {
@@ -23,6 +25,8 @@ func (pkg *Package) ResolvePackage() error {
 		if err != nil {
 			return nil, err
 		}
+
+		deps[pkg.BuildPackage.ImportPath] = pkg
 
 		obj := ast.NewObj(ast.Pkg, pkg.BuildPackage.Name)
 		obj.Decl = pkg.BuildPackage
@@ -51,6 +55,8 @@ func (pkg *Package) ResolvePackage() error {
 	if err != nil {
 		return err
 	}
+
+	pkg.Imports = deps
 
 	return nil
 }

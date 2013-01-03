@@ -1,17 +1,16 @@
 package compiler
 
 import (
-	"fmt"
 	"go/build"
 	"os"
-	Path "path"
+	"path"
 	"strings"
 )
 
-func Import(path string, srcDir string) (*Package, error) {
+func Import(dir string, srcDir string) (*Package, error) {
 
 	{ // lookup in memory
-		build_pkg, err := Context.Import(path, srcDir, build.FindOnly)
+		build_pkg, err := Context.Import(dir, srcDir, build.FindOnly)
 
 		if _, ok := err.(*build.NoGoError); ok {
 			err = nil
@@ -26,7 +25,7 @@ func Import(path string, srcDir string) (*Package, error) {
 		}
 	}
 
-	build_pkg, err := Context.Import(path, srcDir, 0)
+	build_pkg, err := Context.Import(dir, srcDir, 0)
 
 	if _, ok := err.(*build.NoGoError); ok {
 		err = nil
@@ -38,11 +37,10 @@ func Import(path string, srcDir string) (*Package, error) {
 
 	pkg := &Package{BuildPackage: build_pkg}
 
-	//fmt.Println("import_path:", pkg.BuildPackage.ImportPath)
 	if pkg.BuildPackage.IsCommand() {
-		fmt.Println("BinObj: ", Path.Join(pkg.BuildPackage.BinDir, Path.Base(pkg.BuildPackage.Dir)))
+		pkg.TargetPath = path.Join(pkg.BuildPackage.BinDir, path.Base(pkg.BuildPackage.Dir))
 	} else {
-		fmt.Println("PkgObj: ", pkg.BuildPackage.PkgObj)
+		pkg.TargetPath = pkg.BuildPackage.PkgObj
 	}
 
 	err = pkg.find_simplex_files()
@@ -54,8 +52,8 @@ func Import(path string, srcDir string) (*Package, error) {
 	return pkg, nil
 }
 
-func ImportResolved(path string, srcDir string) (*Package, error) {
-	pkg, err := Import(path, srcDir)
+func ImportResolved(dir string, srcDir string) (*Package, error) {
+	pkg, err := Import(dir, srcDir)
 	if err != nil {
 		return nil, err
 	}
