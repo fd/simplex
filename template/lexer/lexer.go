@@ -23,17 +23,12 @@ const (
 	ItemLeftMetaPound              //  9: {{#
 	ItemLeftMetaSlash              // 10: {{/
 	ItemLeftMetaBang               // 11: {{!
-	ItemLeftMeta2                  // 12: {{
-	ItemRightMeta3                 // 13: }}}
-	ItemRightMeta2                 // 14: }}
-	ItemDot                        // 15: .
-	ItemEqual                      // 16: =
-	ItemLeftParen                  // 17: (
-	ItemRightParen                 // 18: )
-	ItemComma                      // 19: ,
-	ItemNumber                     // 20: 42
-	ItemString                     // 21: "hello"
-	ItemIdentifier                 // 22: hello
+	ItemLeftMetaColon              // 12: {{!
+	ItemLeftMeta2                  // 13: {{
+	ItemRightMeta3                 // 14: }}}
+	ItemRightMeta2                 // 15: }}
+	ItemIdentifier                 // 16: hello
+	ItemExpression                 // 17: go lang expression
 )
 
 const (
@@ -48,6 +43,7 @@ const (
 	leftMetaPound    = "{{#"
 	leftMetaSlash    = "{{/"
 	leftMetaBang     = "{{!"
+	leftMetaColon    = "{{:"
 	leftMeta2        = "{{"
 	leftXmlDeclTag   = "<?xml"
 	leftDocTypeTag   = "<!DOCTYPE"
@@ -209,6 +205,12 @@ func lexHtmlText(l *lexer) stateFn {
 			}
 			return lexLeftMetaBang // Next state.
 		}
+		if strings.HasPrefix(l.input[l.pos:], leftMetaColon) {
+			if l.pos > l.start {
+				l.emit(ItemHtmlText)
+			}
+			return lexLeftMetaColon // Next state.
+		}
 		if strings.HasPrefix(l.input[l.pos:], leftMeta2) {
 			if l.pos > l.start {
 				l.emit(ItemHtmlText)
@@ -268,7 +270,7 @@ func lexLeftMetaPound(l *lexer) stateFn {
 	l.pos += len(leftMetaPound)
 	l.col += len(leftMetaPound)
 	l.emit(ItemLeftMetaPound)
-	return lexInsideAction // Now inside {{# }}.
+	return lexInsideBlockAction // Now inside {{# }}.
 }
 
 func lexLeftMetaSlash(l *lexer) stateFn {
@@ -283,6 +285,13 @@ func lexLeftMetaBang(l *lexer) stateFn {
 	l.col += len(leftMetaBang)
 	l.emit(ItemLeftMetaBang)
 	return lexInsideComment // Now inside {{! }}.
+}
+
+func lexLeftMetaColon(l *lexer) stateFn {
+	l.pos += len(leftMetaColon)
+	l.col += len(leftMetaColon)
+	l.emit(ItemLeftMetaColon)
+	return lexInsideMacroAction // Now inside {{: }}.
 }
 
 func lexLeftMeta2(l *lexer) stateFn {
@@ -384,44 +393,51 @@ func lexInsideAttrAssignInterp(l *lexer) stateFn {
 	return l.errorf("unclosed string")
 }
 
+func lexInsideBlockAction(l *lexer) stateFn {
+	for {
+		r := l.next()
+		if r == eof {
+			return l.errorf("unexpected EOF")
+		}
+		if isSpace(r) {
+			l.ignore()
+		}
+		break
+	}
+
+	return lexIdentifier
+}
+
+func lexInsideMacroAction(l *lexer) stateFn {
+	for {
+		r := l.next()
+		if r == eof {
+			return l.errorf("unexpected EOF")
+		}
+		if isSpace(r) {
+			l.ignore()
+		}
+		break
+	}
+
+	return lexIdentifier
+}
+
 func lexInsideAction(l *lexer) stateFn {
 	// Either number, quoted string, or identifier.
 	// Spaces separate and are ignored.
 	// Equal symbols separate and are emitted.
 	for {
 		if strings.HasPrefix(l.input[l.pos:], rightMeta3) {
+			l.emit(ItemExpression)
 			return lexRightMeta3
 		}
 		if strings.HasPrefix(l.input[l.pos:], rightMeta2) {
+			l.emit(ItemExpression)
 			return lexRightMeta2
 		}
-		switch r := l.next(); {
-		case r == eof:
-			return l.errorf("unclosed action")
-		case isSpace(r):
-			l.ignore()
-		case r == '.':
-			l.emit(ItemDot)
-		case r == '=':
-			l.emit(ItemEqual)
-		case r == '(':
-			l.emit(ItemLeftParen)
-		case r == ')':
-			l.emit(ItemRightParen)
-		case r == ',':
-			l.emit(ItemComma)
-		case r == '$':
-			l.emit(ItemIdentifier)
-		case r == '"':
-			return lexQuote
-		case r == '+' || r == '-' || '0' <= r && r <= '9':
-			l.backup()
-			return lexNumber
-		case isAlphaNumeric(r):
-			l.backup()
-			return lexIdentifier
-		default:
-			l.errorf("unexpected character '%s'", string([]rune{r}))
+		if l.next() == eof {
+			return l.errorf("unexpected EOF")
 		}
 	}
 
@@ -530,57 +546,6 @@ func lexIdentifier(l *lexer) stateFn {
 }
 
 func lexDot(l *lexer) stateFn {
-	return lexInsideAction
-}
-
-func lexQuote(l *lexer) stateFn {
-	for {
-		r := l.next()
-
-		if r == eof {
-			break
-		}
-
-		if r == '\\' {
-			if l.next() == eof {
-				break
-			}
-			continue
-		}
-
-		if r == '"' {
-			l.emit(ItemString)
-			return lexInsideAction
-		}
-	}
-
-	return l.errorf("unclosed string")
-}
-
-func lexNumber(l *lexer) stateFn {
-	// Optional leading sign.
-	l.accept("+-")
-	// Is it hex?
-	digits := "0123456789"
-	if l.accept("0") && l.accept("xX") {
-		digits = "0123456789abcdefABCDEF"
-	}
-	l.acceptRun(digits)
-	if l.accept(".") {
-		l.acceptRun(digits)
-	}
-	if l.accept("eE") {
-		l.accept("+-")
-		l.acceptRun("0123456789")
-	}
-	// Is it imaginary?
-	l.accept("i")
-	// Next thing mustn't be alphanumeric.
-	if isAlphaNumeric(l.peek()) {
-		l.next()
-		return l.errorf("bad number syntax: %q", l.input[l.start:l.pos])
-	}
-	l.emit(ItemNumber)
 	return lexInsideAction
 }
 

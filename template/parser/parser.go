@@ -5,7 +5,6 @@ import (
 	"github.com/fd/w/template/ast"
 	"github.com/fd/w/template/lexer"
 	"io/ioutil"
-	"strconv"
 )
 
 func ParseFile(path string) (*ast.Template, error) {
@@ -122,6 +121,14 @@ func (p *parser) parseTemplate() (*ast.Template, error) {
 			}
 			tmpl.Statements = append(tmpl.Statements, stmt)
 
+		case lexer.ItemLeftMetaColon:
+			p.push(token)
+			stmt, err := p.parseMacro()
+			if err != nil {
+				return nil, err
+			}
+			tmpl.Statements = append(tmpl.Statements, stmt)
+
 		case lexer.ItemLeftMetaPound:
 			p.push(token)
 			stmt, err := p.parseBlock()
@@ -147,9 +154,13 @@ func (p *parser) parseHtmlAttr() (ast.Statement, error) {
 	// ={{
 	info := ast.Info{Line: token.Line, Column: token.Column + 1}
 
-	expr, err := p.parseExpression()
-	if err != nil {
-		return nil, err
+	token = p.pop()
+	if token.Type != lexer.ItemExpression {
+		return nil, p.unexpected_token(token)
+	}
+	expr := &ast.Expression{
+		ast.Info{Line: token.Line, Column: token.Column},
+		token.Value,
 	}
 
 	if token := p.pop(); token.Type != lexer.ItemRightMeta2 {
@@ -196,9 +207,13 @@ func (p *parser) parseInterpolation(ctx ast.Context) (ast.Statement, error) {
 	}
 	info := ast.Info{Line: token.Line, Column: token.Column}
 
-	expr, err := p.parseExpression()
-	if err != nil {
-		return nil, err
+	token = p.pop()
+	if token.Type != lexer.ItemExpression {
+		return nil, p.unexpected_token(token)
+	}
+	expr := &ast.Expression{
+		ast.Info{Line: token.Line, Column: token.Column},
+		token.Value,
 	}
 
 	if raw {
@@ -214,6 +229,40 @@ func (p *parser) parseInterpolation(ctx ast.Context) (ast.Statement, error) {
 	return &ast.Interpolation{info, expr, raw, ctx}, nil
 }
 
+func (p *parser) parseMacro() (ast.Statement, error) {
+	var token lexer.Item
+
+	token = p.pop()
+	if token.Type != lexer.ItemLeftMetaColon {
+		return nil, p.unexpected_token(token)
+	}
+	info := ast.Info{Line: token.Line, Column: token.Column}
+
+	token = p.pop()
+	if token.Type != lexer.ItemIdentifier {
+		return nil, p.unexpected_token(token)
+	}
+	macro := &ast.Identifier{
+		ast.Info{Line: token.Line, Column: token.Column},
+		token.Value,
+	}
+
+	token = p.pop()
+	if token.Type != lexer.ItemExpression {
+		return nil, p.unexpected_token(token)
+	}
+	expr := &ast.Expression{
+		ast.Info{Line: token.Line, Column: token.Column},
+		token.Value,
+	}
+
+	if token := p.pop(); token.Type != lexer.ItemRightMeta2 {
+		return nil, p.unexpected_token(token)
+	}
+
+	return &ast.Macro{info, macro, expr}, nil
+}
+
 func (p *parser) parseBlock() (ast.Statement, error) {
 	var token lexer.Item
 
@@ -227,12 +276,18 @@ func (p *parser) parseBlock() (ast.Statement, error) {
 	if token.Type != lexer.ItemIdentifier {
 		return nil, p.unexpected_token(token)
 	}
-	name := token.Value
-	p.push(token)
+	macro := &ast.Identifier{
+		ast.Info{Line: token.Line, Column: token.Column},
+		token.Value,
+	}
 
-	expr, err := p.parseExpression()
-	if err != nil {
-		return nil, err
+	token = p.pop()
+	if token.Type != lexer.ItemExpression {
+		return nil, p.unexpected_token(token)
+	}
+	expr := &ast.Expression{
+		ast.Info{Line: token.Line, Column: token.Column},
+		token.Value,
 	}
 
 	if t := p.pop(); t.Type != lexer.ItemRightMeta2 {
@@ -274,190 +329,13 @@ func (p *parser) parseBlock() (ast.Statement, error) {
 	if t := p.pop(); t.Type != lexer.ItemRightMeta2 {
 		return nil, p.unexpected_token(t)
 	}
-	if token.Value != "end" && token.Value != name {
+	if token.Value != "end" && token.Value != macro.Value {
 		return nil, fmt.Errorf("Unmatched block close tag: {{/%s}}", token.Value)
 	}
 
-	return &ast.Block{info, expr, t_main, t_else}, nil
-}
-
-func (p *parser) parseExpression() (ast.Expression, error) {
-	t := p.pop()
-
-	switch t.Type {
-	case lexer.ItemNumber:
-		p.push(t)
-		return p.parseNumberExpression()
-
-	case lexer.ItemString:
-		p.push(t)
-		return p.parseStringExpression()
-
-	case lexer.ItemIdentifier:
-		p.push(t)
-		return p.parseIdentifierExpression()
-
-	}
-
-	return nil, p.unexpected_token(t)
-}
-
-func (p *parser) parseNumberExpression() (ast.Expression, error) {
-	t := p.pop()
-	info := ast.Info{Line: t.Line, Column: t.Column}
-
-	if i, err := strconv.Atoi(t.Value); err == nil {
-		return &ast.IntegerLiteral{info, i}, nil
-	}
-
-	if f, err := strconv.ParseFloat(t.Value, 64); err == nil {
-		return &ast.FloatLiteral{info, f}, nil
-	}
-
-	return nil, fmt.Errorf("Invalid number literal: %s", t.Value)
-}
-
-func (p *parser) parseStringExpression() (ast.Expression, error) {
-	t := p.pop()
-	info := ast.Info{Line: t.Line, Column: t.Column}
-
-	if s, err := strconv.Unquote(t.Value); err == nil {
-		return &ast.StringLiteral{info, s}, nil
-	}
-
-	return nil, fmt.Errorf("Invalid string literal: %s", t.Value)
-}
-
-func (p *parser) parseAfterExpression(expr ast.Expression) (ast.Expression, error) {
-	t := p.pop()
-
-	if p.level > 1 {
-		switch t.Type {
-		case lexer.ItemDot:
-			return p.parseGetExpression(expr)
-
-		case lexer.ItemLeftParen:
-			return p.parseFunctionCallExpression(expr, false)
-
-		}
-
-	} else {
-
-		switch t.Type {
-		case lexer.ItemDot:
-			return p.parseGetExpression(expr)
-
-		case lexer.ItemLeftParen, lexer.ItemString, lexer.ItemNumber, lexer.ItemIdentifier:
-			bare := t.Type != lexer.ItemLeftParen
-			if bare {
-				p.push(t)
-			}
-			return p.parseFunctionCallExpression(expr, bare)
-
-		}
-	}
-
-	p.push(t)
-
-	return expr, nil
-}
-
-func (p *parser) parseIdentifierExpression() (ast.Expression, error) {
-	t := p.pop()
-	expr := &ast.Identifier{Value: t.Value}
-	return p.parseAfterExpression(expr)
-}
-
-func (p *parser) parseGetExpression(base ast.Expression) (ast.Expression, error) {
-	t := p.pop()
-	if t.Type != lexer.ItemIdentifier {
-		return nil, p.unexpected_token(t)
-	}
-
-	info := ast.Info{Line: t.Line, Column: t.Column}
-	expr := &ast.Get{info, base, &ast.Identifier{Value: t.Value}}
-	return p.parseAfterExpression(expr)
-}
-
-func (p *parser) parseFunctionCallExpression(base ast.Expression, bare bool) (ast.Expression, error) {
-	first := true
-	args := []ast.Expression{}
-	opts := map[string]ast.Expression{}
-	name := ""
-	var info ast.Info
-
-	// reclaim identifer
-	switch v := base.(type) {
-	case *ast.Identifier:
-		info = v.Info
-		name = v.Value
-		base = nil
-	case *ast.Get:
-		info = v.Name.Info
-		name = v.Name.Value
-		base = v.From
-	}
-
-	p.level += 1
-
-	for {
-		t1 := p.pop()
-
-		if !bare {
-			if t1.Type == lexer.ItemRightParen {
-				break
-			}
-		} else {
-			if t1.Type == lexer.ItemRightMeta2 || t1.Type == lexer.ItemRightMeta3 {
-				p.push(t1)
-				break
-			}
-		}
-
-		if !first {
-			if t1.Type != lexer.ItemComma {
-				return nil, p.unexpected_token(t1)
-			}
-
-			t1 = p.pop()
-		}
-		first = false
-
-		regular := true
-
-		if t1.Type == lexer.ItemIdentifier {
-			t2 := p.pop()
-
-			if t2.Type == lexer.ItemEqual {
-				expr, err := p.parseExpression()
-				if err != nil {
-					return nil, err
-				}
-				opts[t1.Value] = expr
-				regular = false
-			} else {
-				p.push(t2)
-				p.push(t1)
-			}
-		} else {
-			p.push(t1)
-		}
-
-		if regular {
-			expr, err := p.parseExpression()
-			if err != nil {
-				return nil, err
-			}
-			args = append(args, expr)
-		}
-	}
-
-	expr := &ast.FunctionCall{Info: info, From: base, Name: name, Args: args, Options: opts}
-
-	p.level -= 1
-	return p.parseAfterExpression(expr)
+	return &ast.Block{info, macro, expr, t_main, t_else}, nil
 }
 
 func (p *parser) unexpected_token(token lexer.Item) error {
-	return fmt.Errorf("%d:%d unexpected token: '%s'", token.Line, token.Column, token.Value)
+	return fmt.Errorf("%d:%d unexpected token: '%s' (%v)", token.Line, token.Column, token.Value, token.Type)
 }

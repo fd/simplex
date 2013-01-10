@@ -1,8 +1,8 @@
 package compiler
 
 import (
-	"fmt"
-	"go/ast"
+	sx_ast "github.com/fd/w/simplex/ast"
+	go_ast "go/ast"
 	"go/build"
 	"go/token"
 	"time"
@@ -17,39 +17,28 @@ func init() {
 }
 
 type Package struct {
-	SimplexFiles []string
-	BuildPackage *build.Package
-	FileSet      *token.FileSet
-	Files        map[string]*ast.File
-	ModTimes     map[string]time.Time
-	AstPackage   *ast.Package
+	TargetPath         string
+	Imports            map[string]*Package
+	SmplxTemplateFiles []string
+	BuildPackage       *build.Package
+	FileSet            *token.FileSet
+	Files              map[string]*go_ast.File
+	SmplxFiles         map[string]*sx_ast.File
+	ModTimes           map[string]time.Time
+	AstPackage         *go_ast.Package
+	Views              map[string]*ViewDecl
 
-	GeneratedFile *ast.File
-	Imports       map[string]*Package
-	TargetPath    string
+	GeneratedFile *go_ast.File
 }
 
 type ViewDecl struct {
-	MemberType string
-}
+	MemberType *go_ast.Ident
+	ViewType   *go_ast.Ident
 
-func (pkg *Package) declareView(type_name string) (*ast.Object, error) {
-	obj_name := type_name + "View"
-
-	obj := pkg.AstPackage.Scope.Lookup(obj_name)
-	if obj != nil {
-		if _, ok := obj.Decl.(*ViewDecl); ok {
-			return obj, nil
-		} else {
-			return nil, fmt.Errorf("%s is not a simplex.View", obj_name)
-		}
-	}
-
-	obj = ast.NewObj(ast.Typ, obj_name)
-	obj.Data = &ViewDecl{MemberType: type_name}
-	pkg.GeneratedFile.Scope.Insert(obj)
-
-	//fmt.Println("Generated view:", obj_name)
-
-	return obj, nil
+	Source        *go_ast.FuncDecl
+	Select        *go_ast.FuncDecl
+	Reject        *go_ast.FuncDecl
+	Sort          *go_ast.FuncDecl
+	Group         *go_ast.FuncDecl
+	CollectedFrom *go_ast.FuncDecl
 }

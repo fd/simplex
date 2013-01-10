@@ -5,100 +5,159 @@ import (
 	//"fmt"
 )
 
-func resolve_type(scope *ast.Scope, node ast.Node) (o *ast.Object) {
-	defer func() {
-		if o != nil {
-			if _, k := o.Data.(*ViewDecl); k && o.Type == nil {
-				o.Type = o.Data
-			}
-		}
-	}()
-
+func resolve_view_type(scope *ast.Scope, node interface{}) *ViewDecl {
 	switch n := node.(type) {
 
 	case *ast.CallExpr:
-		obj := resolve_type(scope, n.Fun)
-		return obj
 
-	case *ast.Field:
-		return resolve_type(scope, n.Type)
+		switch fun := n.Fun.(type) {
+
+		//case *ast.Ident:
+		//fun.Obj
+
+		case *ast.SelectorExpr:
+			if fun.Sel.Obj == nil {
+				return nil
+			}
+
+			func_decl, ok := fun.Sel.Obj.Decl.(*ast.FuncDecl)
+			if !ok {
+				return nil
+			}
+
+			results := func_decl.Type.Results
+			if results == nil {
+				return nil
+			}
+
+			if len(results.List) == 0 {
+				return nil
+			}
+
+			field := results.List[0]
+			if len(field.Names) > 1 {
+				return nil
+			}
+
+			typ := field.Type
+			return resolve_view_type(scope, typ)
+
+		default:
+			ast.Print(nil, fun)
+		}
 
 	case *ast.Ident:
 		if n.Obj == nil {
-			if !resolve(scope, n) {
-				return nil
-			}
-		}
-		if n.Obj.Type != nil {
-			return n.Obj
-		}
-		if node, ok := n.Obj.Decl.(ast.Node); ok {
-			typ := resolve_type(scope, node)
-			if typ != nil {
-				n.Obj.Type = typ.Type
-			}
-			return n.Obj
-		}
-		if view, ok := n.Obj.Data.(*ViewDecl); ok {
-			n.Obj.Type = view
-			return n.Obj
-		}
-		return nil
-
-	case *ast.SelectorExpr:
-		if n.Sel.Obj != nil {
-			if _, ok := n.Sel.Obj.Data.(*ViewDecl); ok {
-				return n.Sel.Obj
-			}
-		}
-
-		x_obj := resolve_type(scope, n.X)
-		if x_obj == nil {
 			return nil
 		}
 
-		switch x_obj.Kind {
+		if view_decl, ok := n.Obj.Data.(*ViewDecl); ok {
+			return view_decl
+		}
 
-		case ast.Pkg:
-			return resolve_type(x_obj.Data.(*ast.Scope), n.Sel)
-
-		case ast.Fun:
-			decl := x_obj.Decl.(*ast.FuncDecl)
-			r := decl.Type.Results
-			if r == nil {
-				return nil
-			}
-			if r.NumFields() != 1 {
-				return nil
-			}
-			typ_spec := r.List[0].Type
-			obj := resolve_type(scope, typ_spec)
-			return obj
+		switch n.Obj.Kind {
 
 		case ast.Var:
-			decl := x_obj.Decl.(*ast.Field)
-			typ_spec := decl.Type
-			obj := resolve_type(scope, typ_spec)
-			return obj
+			// resolve var type
+			var expr ast.Expr
+			switch decl := n.Obj.Decl.(type) {
 
-		case ast.Typ:
-			return x_obj
+			case *ast.ValueSpec:
+				for i, name := range decl.Names {
+					if name.Name == n.Name {
+						expr = decl.Values[i]
+						break
+					}
+				}
+
+			case *ast.Field:
+				expr = decl.Type
+
+			default:
+				panic("unsupported node")
+
+			}
+
+			return resolve_view_type(scope, expr)
+
+		case ast.Fun:
+			decl := n.Obj.Decl.(*ast.FuncDecl)
+			results := decl.Type.Results
+			if results == nil {
+				return nil
+			}
+			if len(results.List) != 1 {
+				return nil
+			}
+			field := results.List[0]
+			if len(field.Names) > 1 {
+				return nil
+			}
+			return resolve_view_type(scope, field.Type)
 
 		default:
-			ast.Print(nil, node)
-
+			ast.Print(nil, n)
 		}
 
-	case *ast.ValueSpec:
-		for i, val := range n.Names {
-			obj := resolve_type(scope, n.Values[i])
-			val.Obj.Type = obj.Type
-		}
-		return nil
+		// T.collect(F(t)t') => T'
+		// T.inject(F(t, a)a) => A
+		// T.select(...) => T
+		// T.reject(...) => T
+		// T.detect(...) => T
+		// T.sort(...) => T
+		// T.group(F(t)g) => G{g, T}
+		// x.F(...)T => T
 
 	default:
-		//ast.Print(nil, node)
+		ast.Print(nil, n)
+		return nil
+	}
 
+	ast.Print(nil, node)
+	return nil
+}
+
+func resolve_function_type(scope *ast.Scope, node interface{}) *ViewDecl {
+	switch n := node.(type) {
+
+	case *ast.Ident:
+		if n.Obj == nil {
+			return nil
+		}
+
+		switch n.Obj.Kind {
+
+		case ast.Fun:
+			decl := n.Obj.Decl.(*ast.FuncDecl)
+			results := decl.Type.Results
+			if results == nil {
+				return nil
+			}
+			if len(results.List) != 1 {
+				return nil
+			}
+			field := results.List[0]
+			if len(field.Names) > 1 {
+				return nil
+			}
+			return resolve_view_type(scope, field.Type)
+
+		default:
+			ast.Print(nil, n)
+		}
+
+	//case *ast.SelectorExpr:
+	// T.collect(F(t)t') => T'
+	// T.inject(F(t, a)a) => A
+	// T.select(...) => T
+	// T.reject(...) => T
+	// T.detect(...) => T
+	// T.sort(...) => T
+	// T.group(F(t)g) => G{g, T}
+	// x.F(...)T => T
+
+	default:
+		ast.Print(nil, n)
 	}
 
 	return nil

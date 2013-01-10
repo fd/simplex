@@ -12,13 +12,13 @@ type ViewWrapper interface {
 type GroupFunc func(m interface{}) interface{}
 type SortFunc func(m interface{}) interface{}
 type CollectFunc func(m interface{}) interface{}
-type WhereFunc func(m interface{}) bool
+type SelectFunc func(m interface{}) bool
 
 func Source(typ string) View {
 	return View{Type: typ}
 }
 
-func (v View) Where(f WhereFunc) View {
+func (v View) Select(f SelectFunc) View {
 	return v
 }
 func (v View) Sort(f SortFunc) View {

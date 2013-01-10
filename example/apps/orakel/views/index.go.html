@@ -1,34 +1,36 @@
+{{: for page ProductsPage }}
+{{: import "github.com/fd/w/html" }}
+
 {{#render "layout", title=long_title }}
 
 <div class="content">
   <ul>
 
-    {{#each Products }}
+    {{#each p := range page.Products }}
       <li>
-        <a href={{ ProductURL $ }} title="">
-          {{#if images.first}}
-            <img alt={{ name }} src={{ thumbnail.url }} />
-          {{else}}
-            <img alt={{ name }} src="/missing.png" />
-          {{/if}}
-          <span>{{ name }}</span>
-        </a>
+        {{#if i, ok := p.Images[0]; ok }}
+          <a href={{ p.Path() }}>
+            <img alt={{ p.name }} src={{ i.Thumbnail.Path() }} />
+            <span>{{ p.name }}</span>
+          </a>
+        {{else}}
+          <a href={{ p.Path() }}>
+            <img alt={{ p.name }} src="/missing.png" />
+            <span>{{ p.name }}</span>
+          </a>
+        {{/if}}
       </li>
     {{/each}}
 
   </ul>
 
-  <h2>{{ title }}</h2>
-  {{{ body }}}
+  <h2>{{ page.Title }}</h2>
+  {{{ page.Body }}}
 
 </div>
 
 <aside>
-
-  {{#each sidebar_item_ids }}
-    {{ render template_name, $ }}
-  {{/each}}
-
+  {{ page.SidebarItems.collect(renderedSidebarItem) }}
 </aside>
 
 {{/render}}

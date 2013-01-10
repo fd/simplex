@@ -18,7 +18,7 @@ func (pkg *Package) MergeGeneratedFiles() error {
 		gen_files["smplx_generated.go"] = f
 		delete(orig_files, "smplx_generated.go")
 	}
-	for _, name := range pkg.SimplexFiles {
+	for name := range pkg.SmplxFiles {
 		gen_files[name] = orig_files[name]
 		mod_time := pkg.ModTimes[name]
 
@@ -37,7 +37,7 @@ func (pkg *Package) MergeGeneratedFiles() error {
 
 	pkg.GeneratedFile = f
 	pkg.AstPackage.Files = orig_files
-	pkg.SimplexFiles = nil
+	pkg.SmplxFiles = nil
 	pkg.Files = orig_files
 	pkg.ModTimes["smplx_generated.go"] = max_mod_time
 

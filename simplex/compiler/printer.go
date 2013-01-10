@@ -19,7 +19,7 @@ func (pkg *Package) Print() ([]string, error) {
 
 	mod_time := pkg.ModTimes["smplx_generated.go"]
 	stat, err := os.Stat(pkg.TargetPath)
-	if err == nil && !mod_time.After(stat.ModTime()) {
+	if len(fs) == 0 && err == nil && !mod_time.After(stat.ModTime()) {
 		return fs, nil
 	}
 	err = nil

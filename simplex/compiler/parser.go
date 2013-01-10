@@ -1,7 +1,9 @@
 package compiler
 
 import (
-	"go/ast"
+	sx_ast "github.com/fd/w/simplex/ast"
+	sx_parser "github.com/fd/w/simplex/parser"
+	go_ast "go/ast"
 	"go/parser"
 	"go/token"
 	"io/ioutil"
@@ -16,7 +18,7 @@ func (pkg *Package) ParseFiles() error {
 	}
 
 	pkg.FileSet = token.NewFileSet()
-	pkg.Files = map[string]*ast.File{}
+	pkg.Files = map[string]*go_ast.File{}
 	pkg.ModTimes = map[string]time.Time{}
 
 	// Go files
@@ -53,7 +55,7 @@ func (pkg *Package) ParseFiles() error {
 	}
 
 	// Simplex files
-	for _, name := range pkg.SimplexFiles {
+	for name := range pkg.SmplxFiles {
 		l_name := path.Join(pkg.BuildPackage.ImportPath, name)
 		r_name := path.Join(pkg.BuildPackage.Dir, name)
 
@@ -67,11 +69,11 @@ func (pkg *Package) ParseFiles() error {
 			return err
 		}
 
-		f, err := parser.ParseFile(
+		f, err := sx_parser.ParseFile(
 			pkg.FileSet,
 			l_name,
 			source,
-			parser.SpuriousErrors|parser.ParseComments,
+			sx_parser.SpuriousErrors|sx_parser.ParseComments,
 		)
 		if err != nil {
 			return err
@@ -80,13 +82,13 @@ func (pkg *Package) ParseFiles() error {
 		resolve_simplex_file(f)
 
 		pkg.ModTimes[name] = stat.ModTime()
-		pkg.Files[name] = f
+		pkg.SmplxFiles[name] = f
 	}
 
 	return nil
 }
 
-func resolve_simplex_file(f *ast.File) {
+func resolve_simplex_file(f *sx_ast.File) {
 	orig_outer := f.Scope.Outer
 	defer func() {
 		f.Scope.Outer = orig_outer
@@ -104,7 +106,7 @@ func resolve_simplex_file(f *ast.File) {
 	f.Unresolved = f.Unresolved[0:i]
 }
 
-func resolve(scope *ast.Scope, ident *ast.Ident) bool {
+func resolve(scope *go_ast.Scope, ident *sx_ast.Ident) bool {
 	for ; scope != nil; scope = scope.Outer {
 		if obj := scope.Lookup(ident.Name); obj != nil {
 			ident.Obj = obj

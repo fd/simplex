@@ -6,7 +6,7 @@ import (
 )
 
 func main() {
-	pkg, err := compiler.ImportResolved(
+	pkg, err := compiler.Import(
 		"github.com/fd/w/simplex/example", ".")
 	if err != nil {
 		fmt.Println(err)

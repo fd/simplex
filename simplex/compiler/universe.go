@@ -99,8 +99,9 @@ func init() {
 	scope = ast.NewScope(nil)
 	SmplxUniverse = scope
 
+	defType("view")
 	defFun("source")
-	defFun("where")
+	defFun("select")
 	defFun("sort")
 	defFun("collect")
 	defFun("group")

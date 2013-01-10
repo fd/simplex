@@ -30,6 +30,7 @@ func Walk(v Visitor, n Node) {
 		}
 
 	case *Block:
+		Walk(v, val.Macro)
 		Walk(v, val.Expression)
 		Walk(v, val.Template)
 		if val.ElseTemplate != nil {
@@ -39,37 +40,16 @@ func Walk(v Visitor, n Node) {
 	case *Interpolation:
 		Walk(v, val.Expression)
 
-	case *Comment:
-		return
-
 	case *Literal:
 		return
 
-	case *Get:
-		Walk(v, val.From)
-		Walk(v, val.Name)
-
-	case *FunctionCall:
-		Walk(v, val.From)
-
-		for _, arg := range val.Args {
-			Walk(v, arg)
-		}
-
-		for _, arg := range val.Options {
-			Walk(v, arg)
-		}
-
-	case *IntegerLiteral:
-		return
-
-	case *FloatLiteral:
-		return
-
-	case *StringLiteral:
+	case *Comment:
 		return
 
 	case *Identifier:
+		return
+
+	case *Expression:
 		return
 
 	case Visitable:

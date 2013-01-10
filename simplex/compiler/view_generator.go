@@ -3,18 +3,21 @@ package compiler
 import (
 	"bytes"
 	"fmt"
+	sx_ast "github.com/fd/w/simplex/ast"
 	"go/ast"
 	"go/parser"
 	"go/scanner"
+	"go/token"
 )
 
 func (pkg *Package) GenerateViews() error {
-	if len(pkg.SimplexFiles) == 0 {
+	if len(pkg.SmplxFiles) == 0 {
 		return nil
 	}
 
 	generated_scope := ast.NewScope(nil)
 
+	pkg.Views = map[string]*ViewDecl{}
 	pkg.GeneratedFile = &ast.File{
 		Name:  ast.NewIdent(pkg.AstPackage.Name),
 		Scope: generated_scope,
@@ -25,8 +28,7 @@ func (pkg *Package) GenerateViews() error {
 	fmt.Fprintf(generated, "import sx_runtime \"github.com/fd/w/simplex/runtime\"\n")
 
 	// resolve all simplex calls with dummy types and functions
-	for _, name := range pkg.SimplexFiles {
-		file := pkg.AstPackage.Files[name]
+	for _, file := range pkg.SmplxFiles {
 		v := &view_generator{&visitor{file, pkg, nil}, generated, map[string]bool{}}
 		ast.Walk(v, file)
 		err := v.errors.Err()
@@ -45,10 +47,71 @@ func (pkg *Package) GenerateViews() error {
 		return err
 	}
 
-	for _, obj := range generated_scope.Objects {
-		new_obj := f.Scope.Lookup(obj.Name)
-		if new_obj != nil {
-			new_obj.Data = obj.Data
+	// Link view functions
+	for _, e := range f.Decls {
+		switch decl := e.(type) {
+		case *ast.FuncDecl:
+			if decl.Recv == nil {
+				continue
+			}
+
+			recv_type := decl.Recv.List[0].Type
+			ident, ok := recv_type.(*ast.Ident)
+			if !ok {
+				continue
+			}
+
+			view_decl, ok := pkg.Views[ident.Name]
+			if !ok {
+				continue
+			}
+
+			switch decl.Name.Name {
+			case "Source":
+				view_decl.Source = decl
+			case "Select":
+				view_decl.Select = decl
+			case "Reject":
+				view_decl.Reject = decl
+			case "Sort":
+				view_decl.Sort = decl
+			case "Group":
+				view_decl.Group = decl
+			case "CollectedFrom":
+				view_decl.CollectedFrom = decl
+			default:
+				continue
+			}
+
+			decl.Name.Obj = ast.NewObj(ast.Fun, ident.Name+"•"+decl.Name.Name)
+			decl.Name.Obj.Decl = decl
+			f.Scope.Insert(decl.Name.Obj)
+
+		case *ast.GenDecl:
+			if decl.Tok != token.TYPE {
+				continue
+			}
+
+			if len(decl.Specs) != 1 {
+				continue
+			}
+
+			type_spec, ok := decl.Specs[0].(*ast.TypeSpec)
+			if !ok {
+				continue
+			}
+
+			if type_spec.Name == nil {
+				continue
+			}
+
+			view_decl, ok := pkg.Views[type_spec.Name.Name]
+			if !ok {
+				continue
+			}
+
+			view_decl.ViewType = type_spec.Name
+			type_spec.Name.Obj.Data = view_decl
 		}
 	}
 
@@ -59,8 +122,7 @@ func (pkg *Package) GenerateViews() error {
 
 func (pkg *Package) ResolveViews() error {
 	// resolve all simplex calls with dummy types and functions
-	for _, name := range pkg.SimplexFiles {
-		file := pkg.AstPackage.Files[name]
+	for _, file := range pkg.SmplxFiles {
 		v := &view_resolver{&visitor{file, pkg, nil}}
 		ast.Walk(v, file)
 		err := v.errors.Err()
@@ -71,12 +133,6 @@ func (pkg *Package) ResolveViews() error {
 
 	return nil
 }
-
-/*
-  Declare new View types
-  source(Type)         => TypeView
-  collect(func(T)Type) => TypeView
-*/
 
 type view_generator struct {
 	*visitor
@@ -89,138 +145,98 @@ func (v *view_generator) Write(dat []byte) (int, error) {
 }
 
 func (v *view_generator) Visit(node ast.Node) ast.Visitor {
-	switch n := node.(type) {
-	case *ast.CallExpr:
-		return v.VisitCallExpr(n)
-	}
-	return v
-}
-
-func (v *view_generator) VisitCallExpr(call *ast.CallExpr) ast.Visitor {
-	switch node := call.Fun.(type) {
-
-	case *ast.Ident:
-		switch node.Name {
-		case "source": // source(...)
-			return v.VisitSourceCall(call)
-		}
-
-	case *ast.SelectorExpr:
-		switch node.Sel.Name {
-		case "collect": // x.collect(...)
-			return v.VisitCollectCall(call)
-		}
-
-	}
-
-	return v
-}
-
-func (v *view_generator) VisitSourceCall(call *ast.CallExpr) ast.Visitor {
-	if len(call.Args) != 1 {
-		v.push_errorf(call, "Expected a local type")
-		return nil
-	}
-
-	typ := call.Args[0]
-	ident, _ := typ.(*ast.Ident)
-
-	if ident == nil {
-		v.push_errorf(call.Args[0], "Expected a local type")
-		return nil
-	}
-
-	if ident.Obj == nil {
-		v.push_errorf(call.Args[0], "Expected a local type")
-		return nil
-	}
-
-	view_obj, err := v.Pkg.declareView(ident.Name)
-	if err != nil {
-		v.push_error(ident, err)
-		return nil
-	}
-
-	call.Fun.(*ast.Ident).Obj = view_obj
-	v.PrintTypeDecl(view_obj)
-
-	return v
-}
-
-func (v *view_generator) VisitCollectCall(call *ast.CallExpr) ast.Visitor {
-	if len(call.Args) != 1 {
-		v.push_errorf(call, "Expected function with 1 return value")
-		return nil
-	}
-
-	collect_func, err := find_inner_function(call.Args[0], v.File.Scope)
-	if err != nil {
-		v.push_error(call.Args[0], err)
-		return nil
-	}
-
-	if collect_func.Type.Results.NumFields() != 1 {
-		v.push_errorf(call.Args[0], "Expected function with 1 return value")
-		return nil
-	}
-
-	typ := collect_func.Type.Results.List[0].Type
-	ident, ok := typ.(*ast.Ident)
+	decl, ok := node.(*ast.GenDecl)
 	if !ok {
-		v.push_errorf(call.Args[0], "Expected function with a local return value")
-		return nil
-	}
-	if ident.Obj == nil {
-		v.push_errorf(call.Args[0], "Expected function with a local return value")
-		return nil
+		return v
 	}
 
-	view_obj, err := v.Pkg.declareView(ident.Obj.Name)
-	if err != nil {
-		v.push_error(ident, err)
-		return nil
+	if decl.Tok != token.TYPE {
+		return v
 	}
 
-	call.Fun.(*ast.SelectorExpr).Sel.Obj = view_obj
-	v.PrintTypeDecl(view_obj)
+	for _, any_spec := range decl.Specs {
+		spec := any_spec.(*ast.TypeSpec)
 
-	return v
+		if spec.Name == nil {
+			continue
+		}
+
+		struc, ok := spec.Type.(*ast.StructType)
+		if !ok {
+			continue
+		}
+
+		if len(struc.Fields.List) < 1 {
+			continue
+		}
+
+		field := struc.Fields.List[0]
+		if len(field.Names) != 0 {
+			continue
+		}
+
+		ident, ok := field.Type.(*ast.Ident)
+		if !ok {
+			continue
+		}
+
+		if ident.Name != "view" {
+			continue
+		}
+
+		struc.Fields.List = struc.Fields.List[1:]
+
+		view_decl := &ViewDecl{
+			MemberType: spec.Name,
+		}
+		v.Pkg.Views[spec.Name.Name+"View"] = view_decl
+		spec.Name.Obj.Data = view_decl
+
+		v.PrintTypeDecl(spec.Name)
+	}
+
+	return nil
 }
 
-func (v *view_generator) PrintTypeDecl(view_obj *ast.Object) {
-	if !v.Views[view_obj.Name] {
-		v.Views[view_obj.Name] = true
+func (v *view_generator) PrintTypeDecl(view_ident *ast.Ident) {
+	decl := view_ident.Obj.Data.(*ViewDecl)
+	m_name := decl.MemberType.Name
+	v_name := m_name + "View"
+
+	if !v.Views[v_name] {
+		v.Views[v_name] = true
+
 		fmt.Fprintf(v, `type %s struct { view sx_runtime.View }
-`, view_obj.Name)
-		fmt.Fprintf(v, `func %sSource()%s{return %s{ sx_runtime.Source("%s") }}
+`, v_name)
+		fmt.Fprintf(v, `func (w %s)Source()%s{return %s{ sx_runtime.Source("%s") }}
 `,
-			view_obj.Name,
-			view_obj.Name,
-			view_obj.Name,
-			view_obj.Name)
-		fmt.Fprintf(v, `func (w %s)Where(f sx_runtime.WhereFunc)%s{return %s{ w.view.Where(f) }}
+			v_name,
+			v_name,
+			v_name,
+			v_name)
+		fmt.Fprintf(v, `func (w %s)Select(f sx_runtime.SelectFunc)%s{return %s{ w.view.Select(f) }}
 `,
-			view_obj.Name,
-			view_obj.Name,
-			view_obj.Name)
+			v_name,
+			v_name,
+			v_name)
 		fmt.Fprintf(v, `func (w %s)Sort(f sx_runtime.SortFunc)%s{return %s{ w.view.Sort(f) }}
 `,
-			view_obj.Name,
-			view_obj.Name,
-			view_obj.Name)
+			v_name,
+			v_name,
+			v_name)
 		fmt.Fprintf(v, `func (w %s)Group(f sx_runtime.GroupFunc)%s{return %s{ w.view.Group(f) }}
 `,
-			view_obj.Name,
-			view_obj.Name,
-			view_obj.Name)
-		fmt.Fprintf(v, `func %sCollectedFrom(input sx_runtime.ViewWrapper, f sx_runtime.CollectFunc)%s{return %s{ input.View().Collect(f) }}
+			v_name,
+			v_name,
+			v_name)
+		fmt.Fprintf(v, `func (w %s)CollectedFrom(input sx_runtime.ViewWrapper, f sx_runtime.CollectFunc)%s{return %s{ input.View().Collect(f) }}
 `,
-			view_obj.Name,
-			view_obj.Name,
-			view_obj.Name)
+			v_name,
+			v_name,
+			v_name)
 		fmt.Fprintf(v, `func (w %s)View()sx_runtime.View{return w.view }
 `,
-			view_obj.Name)
+			v_name)
 	}
 }
 
@@ -248,8 +264,8 @@ func (v *view_resolver) VisitCallExpr(call *ast.CallExpr) ast.Visitor {
 	case *ast.SelectorExpr:
 		switch node.Sel.Name {
 
-		case "where": // x.where(...)
-			return v.VisitWhereCall(call)
+		case "select": // x.select(...)
+			return v.VisitSelectCall(call)
 
 		case "collect": // x.collect(...)
 			return v.VisitCollectCall(call)
@@ -268,29 +284,43 @@ func (v *view_resolver) VisitCallExpr(call *ast.CallExpr) ast.Visitor {
 }
 
 func (v *view_resolver) VisitSourceCall(call *ast.CallExpr) ast.Visitor {
-	view_obj := resolve_type(v.File.Scope, call)
-	view_typ := view_obj.Type.(*ViewDecl).MemberType
+	if len(call.Args) != 1 {
+		return v
+	}
 
-	fident := ast.NewIdent(view_typ + "ViewSource")
-	fident.Obj = view_obj
+	ident, ok := call.Args[0].(*ast.Ident)
+	if !ok {
+		return v
+	}
+
+	view_decl, ok := v.Pkg.Views[ident.Name+"View"]
+	if !ok {
+		return v
+	}
+
 	call.Args = []ast.Expr{}
-	call.Fun = fident
+	call.Fun = &ast.SelectorExpr{
+		X: &ast.CompositeLit{
+			Type: view_decl.ViewType,
+		},
+		Sel: view_decl.Source.Name,
+	}
 
 	return v
 }
 
-func (v *view_resolver) VisitWhereCall(call *ast.CallExpr) ast.Visitor {
+// T.where(F) => T
+func (v *view_resolver) VisitSelectCall(call *ast.CallExpr) ast.Visitor {
 	ast.Walk(v, call.Fun)
 
-	view_obj := resolve_type(v.File.Scope, call)
-	view_typ := view_obj.Type.(*ViewDecl).MemberType
+	view_decl := resolve_view_type(v.File.Scope, call.Fun.(*ast.SelectorExpr).X)
 	inner := call.Args[0]
 
 	wrapper := &ast.FuncLit{
 		Type: &ast.FuncType{
 			Params: &ast.FieldList{
 				List: []*ast.Field{
-					&ast.Field{
+					{
 						Names: []*ast.Ident{
 							ast.NewIdent("m"),
 						},
@@ -302,7 +332,7 @@ func (v *view_resolver) VisitWhereCall(call *ast.CallExpr) ast.Visitor {
 			},
 			Results: &ast.FieldList{
 				List: []*ast.Field{
-					&ast.Field{
+					{
 						Type: ast.NewIdent("bool"),
 					},
 				},
@@ -317,7 +347,7 @@ func (v *view_resolver) VisitWhereCall(call *ast.CallExpr) ast.Visitor {
 							Args: []ast.Expr{
 								&ast.TypeAssertExpr{
 									X:    ast.NewIdent("m"),
-									Type: ast.NewIdent(view_typ),
+									Type: view_decl.MemberType,
 								},
 							},
 						},
@@ -328,9 +358,7 @@ func (v *view_resolver) VisitWhereCall(call *ast.CallExpr) ast.Visitor {
 	}
 
 	call.Args = []ast.Expr{wrapper}
-	fident := ast.NewIdent("Where")
-	fident.Obj = view_obj
-	call.Fun.(*ast.SelectorExpr).Sel = fident
+	call.Fun.(*ast.SelectorExpr).Sel = view_decl.Select.Name
 
 	return nil
 }
@@ -338,20 +366,19 @@ func (v *view_resolver) VisitWhereCall(call *ast.CallExpr) ast.Visitor {
 func (v *view_resolver) VisitCollectCall(call *ast.CallExpr) ast.Visitor {
 	ast.Walk(v, call.Fun)
 
-	i_obj := resolve_type(v.File.Scope, call.Fun.(*ast.SelectorExpr).X)
-	o_obj := resolve_type(v.File.Scope, call)
-
-	i_typ := i_obj.Type.(*ViewDecl).MemberType
-	o_typ := o_obj.Type.(*ViewDecl).MemberType + "View"
-
 	first := call.Fun.(*ast.SelectorExpr).X
 	inner := call.Args[0]
+
+	//ast.Print(v.Pkg.FileSet, inner)
+
+	i_decl := resolve_view_type(v.File.Scope, first)
+	o_decl := resolve_function_type(v.File.Scope, inner)
 
 	wrapper := &ast.FuncLit{
 		Type: &ast.FuncType{
 			Params: &ast.FieldList{
 				List: []*ast.Field{
-					&ast.Field{
+					{
 						Names: []*ast.Ident{
 							ast.NewIdent("m"),
 						},
@@ -363,7 +390,7 @@ func (v *view_resolver) VisitCollectCall(call *ast.CallExpr) ast.Visitor {
 			},
 			Results: &ast.FieldList{
 				List: []*ast.Field{
-					&ast.Field{
+					{
 						Type: &ast.InterfaceType{
 							Methods: &ast.FieldList{Opening: call.Pos(), Closing: call.Pos()},
 						},
@@ -380,7 +407,7 @@ func (v *view_resolver) VisitCollectCall(call *ast.CallExpr) ast.Visitor {
 							Args: []ast.Expr{
 								&ast.TypeAssertExpr{
 									X:    ast.NewIdent("m"),
-									Type: ast.NewIdent(i_typ),
+									Type: i_decl.MemberType,
 								},
 							},
 						},
@@ -391,9 +418,12 @@ func (v *view_resolver) VisitCollectCall(call *ast.CallExpr) ast.Visitor {
 	}
 
 	call.Args = []ast.Expr{first, wrapper}
-	fident := ast.NewIdent(o_typ + "CollectedFrom")
-	fident.Obj = o_obj
-	call.Fun = fident
+	call.Fun = &ast.SelectorExpr{
+		X: &ast.CompositeLit{
+			Type: o_decl.ViewType,
+		},
+		Sel: o_decl.CollectedFrom.Name,
+	}
 
 	return nil
 }
@@ -401,15 +431,14 @@ func (v *view_resolver) VisitCollectCall(call *ast.CallExpr) ast.Visitor {
 func (v *view_resolver) VisitSortCall(call *ast.CallExpr) ast.Visitor {
 	ast.Walk(v, call.Fun)
 
-	view_obj := resolve_type(v.File.Scope, call)
-	view_typ := view_obj.Type.(*ViewDecl).MemberType
+	view_decl := resolve_view_type(v.File.Scope, call.Fun.(*ast.SelectorExpr).X)
 	inner := call.Args[0]
 
 	wrapper := &ast.FuncLit{
 		Type: &ast.FuncType{
 			Params: &ast.FieldList{
 				List: []*ast.Field{
-					&ast.Field{
+					{
 						Names: []*ast.Ident{
 							ast.NewIdent("m"),
 						},
@@ -421,7 +450,7 @@ func (v *view_resolver) VisitSortCall(call *ast.CallExpr) ast.Visitor {
 			},
 			Results: &ast.FieldList{
 				List: []*ast.Field{
-					&ast.Field{
+					{
 						Type: &ast.InterfaceType{
 							Methods: &ast.FieldList{Opening: inner.Pos(), Closing: inner.Pos()},
 						},
@@ -438,7 +467,7 @@ func (v *view_resolver) VisitSortCall(call *ast.CallExpr) ast.Visitor {
 							Args: []ast.Expr{
 								&ast.TypeAssertExpr{
 									X:    ast.NewIdent("m"),
-									Type: ast.NewIdent(view_typ),
+									Type: view_decl.MemberType,
 								},
 							},
 						},
@@ -449,9 +478,7 @@ func (v *view_resolver) VisitSortCall(call *ast.CallExpr) ast.Visitor {
 	}
 
 	call.Args = []ast.Expr{wrapper}
-	fident := ast.NewIdent("Sort")
-	fident.Obj = view_obj
-	call.Fun.(*ast.SelectorExpr).Sel = fident
+	call.Fun.(*ast.SelectorExpr).Sel = view_decl.Sort.Name
 
 	return nil
 }
@@ -459,15 +486,14 @@ func (v *view_resolver) VisitSortCall(call *ast.CallExpr) ast.Visitor {
 func (v *view_resolver) VisitGroupCall(call *ast.CallExpr) ast.Visitor {
 	ast.Walk(v, call.Fun)
 
-	view_obj := resolve_type(v.File.Scope, call)
-	view_typ := view_obj.Type.(*ViewDecl).MemberType
+	view_decl := resolve_view_type(v.File.Scope, call.Fun.(*ast.SelectorExpr).X)
 	inner := call.Args[0]
 
 	wrapper := &ast.FuncLit{
 		Type: &ast.FuncType{
 			Params: &ast.FieldList{
 				List: []*ast.Field{
-					&ast.Field{
+					{
 						Names: []*ast.Ident{
 							ast.NewIdent("m"),
 						},
@@ -479,7 +505,7 @@ func (v *view_resolver) VisitGroupCall(call *ast.CallExpr) ast.Visitor {
 			},
 			Results: &ast.FieldList{
 				List: []*ast.Field{
-					&ast.Field{
+					{
 						Type: &ast.InterfaceType{
 							Methods: &ast.FieldList{Opening: call.Pos(), Closing: call.Pos()},
 						},
@@ -496,7 +522,7 @@ func (v *view_resolver) VisitGroupCall(call *ast.CallExpr) ast.Visitor {
 							Args: []ast.Expr{
 								&ast.TypeAssertExpr{
 									X:    ast.NewIdent("m"),
-									Type: ast.NewIdent(view_typ),
+									Type: view_decl.MemberType,
 								},
 							},
 						},
@@ -507,52 +533,13 @@ func (v *view_resolver) VisitGroupCall(call *ast.CallExpr) ast.Visitor {
 	}
 
 	call.Args = []ast.Expr{wrapper}
-	fident := ast.NewIdent("Group")
-	fident.Obj = view_obj
-	call.Fun.(*ast.SelectorExpr).Sel = fident
+	call.Fun.(*ast.SelectorExpr).Sel = view_decl.Group.Name
 
 	return nil
 }
 
-/*
-  find a literal function reference
-*/
-func find_inner_function(node ast.Node, scope *ast.Scope) (*ast.FuncDecl, error) {
-	var obj *ast.Object
-
-	switch n := node.(type) {
-	case *ast.Ident:
-		if n.Obj == nil {
-			resolve(scope, n)
-		}
-		obj = n.Obj
-
-	case *ast.SelectorExpr:
-		if n.Sel.Obj == nil {
-			if ident, ok := n.X.(*ast.Ident); ok && ident.Obj.Type == ast.Pkg {
-				resolve(ident.Obj.Data.(*ast.Scope), n.Sel)
-			}
-		}
-		obj = n.Sel.Obj
-
-	default:
-		return nil, fmt.Errorf("Expected a function reference.")
-
-	}
-
-	if obj == nil {
-		return nil, fmt.Errorf("Expected a function reference.")
-	}
-	if obj.Kind != ast.Fun {
-		return nil, fmt.Errorf("Expected a function reference.")
-	}
-
-	func_decl, _ := obj.Decl.(*ast.FuncDecl)
-	return func_decl, nil
-}
-
 type visitor struct {
-	File   *ast.File
+	File   *sx_ast.File
 	Pkg    *Package
 	errors scanner.ErrorList
 }

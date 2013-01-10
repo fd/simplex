@@ -10,6 +10,7 @@ func TestParser(t *testing.T) {
 	)
 
 	tmpl, err := Parse("", `
+    {{: import "strings" }}
     <a href="{{ person.link }}">{{ person.name }}</a>
     {{#if person.bio }}
       {{! This is a comment }}
@@ -24,13 +25,14 @@ func TestParser(t *testing.T) {
 		t.Errorf("error: %s", err)
 	}
 	e := `
-    <a href="{{person.link}}">{{person.name}}</a>
-    {{#if(person.bio)}}
+    {{:import "strings" }}
+    <a href="{{ person.link }}">{{ person.name }}</a>
+    {{#if person.bio }}
       {{! This is a comment }}
-      <a href={{person.website().url}}>website</a>
-      {{{yield}}}
-      {{image_tag(person.picture, class=person.greet("Hello"), title="Profile \"picture\"")}}
-    {{else}}
+      <a href={{ person.website().url }}>website</a>
+      {{{ yield }}}
+      {{ image_tag person.picture, title="Profile \"picture\"", class=person.greet("Hello") }}
+    {{ else }}
       {{! No profile }}
     {{/end}}
   `

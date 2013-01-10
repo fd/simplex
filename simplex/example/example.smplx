@@ -1,19 +1,26 @@
-// vim: set ft=go :
 package main
 
-type Location struct {
-  name string
-  website string
-  gps GPS
-}
+type (
 
-type GPS struct {
-  Lat, Lng float64
-}
+  Location struct {
+    name string
+    website string
+    gps GPS
+  }
 
-var Locations = source(Location).where(has_website).sort(locations_gps_ne)
-var LocationsWithWebsite = Locations.WithWebsite()
-var Coordinates = Locations.collect(gps).sort(gps_ne)
+  GPS struct {
+    Lat, Lng float64
+  }
+
+  Locations view[]Location
+
+)
+
+var (
+  Locations            = source(Location).select(has_website).sort(locations_gps_ne)
+  LocationsWithWebsite = Locations.WithWebsite()
+  Coordinates          = Locations.collect(gps).sort(gps_ne)
+)
 
 func has_website(loc Location) bool {
   return loc.website != ""
@@ -31,6 +38,6 @@ func gps_ne(gps GPS) []float64 {
   return []float64{ gps.Lat, gps.Lng }
 }
 
-func (v LocationView) WithWebsite () LocationView {
-  return v.where(has_website)
+func (v Locations) WithWebsite () view[]Location {
+  return v.select(has_website)
 }

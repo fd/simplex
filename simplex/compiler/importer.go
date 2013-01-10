@@ -1,13 +1,14 @@
 package compiler
 
 import (
+	sx_ast "github.com/fd/w/simplex/ast"
 	"go/build"
 	"os"
 	"path"
 	"strings"
 )
 
-func Import(dir string, srcDir string) (*Package, error) {
+func import_package(dir string, srcDir string) (*Package, error) {
 
 	{ // lookup in memory
 		build_pkg, err := Context.Import(dir, srcDir, build.FindOnly)
@@ -52,8 +53,8 @@ func Import(dir string, srcDir string) (*Package, error) {
 	return pkg, nil
 }
 
-func ImportResolved(dir string, srcDir string) (*Package, error) {
-	pkg, err := Import(dir, srcDir)
+func Import(dir string, srcDir string) (*Package, error) {
+	pkg, err := import_package(dir, srcDir)
 	if err != nil {
 		return nil, err
 	}
@@ -88,18 +89,22 @@ func (pkg *Package) find_simplex_files() error {
 		return err
 	}
 
+	pkg.SmplxFiles = map[string]*sx_ast.File{}
+
 	for _, fi := range fis {
 		name := fi.Name()
-
-		if !strings.HasSuffix(name, ".smplx") {
-			continue
-		}
 
 		if strings.HasPrefix(name, "_") {
 			continue
 		}
 
-		pkg.SimplexFiles = append(pkg.SimplexFiles, name)
+		if strings.HasSuffix(name, ".smplx") {
+			pkg.SmplxFiles[name] = nil
+		}
+
+		if strings.HasSuffix(name, ".smplx.html") {
+			pkg.SmplxTemplateFiles = append(pkg.SmplxTemplateFiles, name)
+		}
 	}
 
 	return nil

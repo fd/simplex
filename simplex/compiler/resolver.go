@@ -21,7 +21,7 @@ func (pkg *Package) ResolvePackage() error {
 			return obj, nil
 		}
 
-		pkg, err := ImportResolved(dir, pkg.BuildPackage.ImportPath)
+		pkg, err := Import(dir, pkg.BuildPackage.ImportPath)
 		if err != nil {
 			return nil, err
 		}
