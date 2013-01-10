@@ -11,8 +11,6 @@ import (
 	"github.com/fd/w/simplex/ast"
 	"github.com/fd/w/simplex/scanner"
 	"github.com/fd/w/simplex/token"
-	go_ast "go/ast"
-	go_token "go/token"
 	"sort"
 )
 
@@ -21,20 +19,20 @@ const trace = false
 
 type checker struct {
 	ctxt  *Context
-	fset  *go_token.FileSet
+	fset  *token.FileSet
 	files []*ast.File
 
 	// lazily initialized
-	pkgscope *go_ast.Scope
+	pkgscope *ast.Scope
 	firsterr error
 	initspec map[*ast.ValueSpec]*ast.ValueSpec // "inherited" type and initialization expressions for constant declarations
 	funclist []function                        // list of functions/methods with correct signatures and non-empty bodies
 	funcsig  *Signature                        // signature of currently typechecked function
-	pos      []go_token.Pos                    // stack of expr positions; debugging support, used if trace is set
+	pos      []token.Pos                       // stack of expr positions; debugging support, used if trace is set
 }
 
 type function struct {
-	obj  *go_ast.Object // for debugging/tracing only
+	obj  *ast.Object // for debugging/tracing only
 	sig  *Signature
 	body *ast.BlockStmt
 }
@@ -43,7 +41,7 @@ type function struct {
 // that need to be processed after all package-level declarations
 // are typechecked.
 //
-func (check *checker) later(obj *go_ast.Object, sig *Signature, body *ast.BlockStmt) {
+func (check *checker) later(obj *ast.Object, sig *Signature, body *ast.BlockStmt) {
 	// functions implemented elsewhere (say in assembly) have no body
 	if body != nil {
 		check.funclist = append(check.funclist, function{obj, sig, body})
@@ -60,9 +58,9 @@ func (check *checker) later(obj *go_ast.Object, sig *Signature, body *ast.BlockS
 // in the type-checking phase. It would simplify the parser, AST, and also
 // reduce some amount of code duplication.
 //
-func (check *checker) declare(scope *go_ast.Scope, kind go_ast.ObjKind, ident *ast.Ident, decl ast.Decl) {
+func (check *checker) declare(scope *ast.Scope, kind ast.ObjKind, ident *ast.Ident, decl ast.Decl) {
 	assert(ident.Obj == nil) // identifier already declared or resolved
-	obj := go_ast.NewObj(kind, ident.Name)
+	obj := ast.NewObj(kind, ident.Name)
 	obj.Decl = decl
 	ident.Obj = obj
 	if ident.Name != "_" {
@@ -76,7 +74,7 @@ func (check *checker) declare(scope *go_ast.Scope, kind go_ast.ObjKind, ident *a
 	}
 }
 
-func (check *checker) valueSpec(pos go_token.Pos, obj *go_ast.Object, lhs []*ast.Ident, typ ast.Expr, rhs []ast.Expr, iota int) {
+func (check *checker) valueSpec(pos token.Pos, obj *ast.Object, lhs []*ast.Ident, typ ast.Expr, rhs []ast.Expr, iota int) {
 	if len(lhs) == 0 {
 		check.invalidAST(pos, "missing lhs in declaration")
 		return
@@ -134,14 +132,14 @@ func (check *checker) valueSpec(pos go_token.Pos, obj *go_ast.Object, lhs []*ast
 // Callers must check obj.Type before calling object; this eliminates a call
 // for each identifier that has been typechecked already, a common scenario.
 //
-func (check *checker) object(obj *go_ast.Object, cycleOk bool) {
+func (check *checker) object(obj *ast.Object, cycleOk bool) {
 	assert(obj.Type == nil)
 
 	switch obj.Kind {
-	case go_ast.Bad, go_ast.Pkg:
+	case ast.Bad, ast.Pkg:
 		// nothing to do
 
-	case go_ast.Con, go_ast.Var:
+	case ast.Con, ast.Var:
 		// The obj.Data field for constants and variables is initialized
 		// to the respective (hypothetical, for variables) iota value by
 		// the parser. The object's fields can be in one of the following
@@ -160,18 +158,18 @@ func (check *checker) object(obj *go_ast.Object, cycleOk bool) {
 		obj.Data = nil
 		// determine spec for type and initialization expressions
 		init := spec
-		if len(init.Values) == 0 && obj.Kind == go_ast.Con {
+		if len(init.Values) == 0 && obj.Kind == ast.Con {
 			init = check.initspec[spec]
 		}
 		check.valueSpec(spec.Pos(), obj, spec.Names, init.Type, init.Values, iota)
 
-	case go_ast.Typ:
+	case ast.Typ:
 		typ := &NamedType{Obj: obj}
 		obj.Type = typ // "mark" object so recursion terminates
 		typ.Underlying = underlying(check.typ(obj.Decl.(*ast.TypeSpec).Type, cycleOk))
 		// typecheck associated method signatures
 		if obj.Data != nil {
-			scope := obj.Data.(*go_ast.Scope)
+			scope := obj.Data.(*ast.Scope)
 			switch t := typ.Underlying.(type) {
 			case *Struct:
 				// struct fields must not conflict with methods
@@ -200,7 +198,7 @@ func (check *checker) object(obj *go_ast.Object, cycleOk bool) {
 			}
 		}
 
-	case go_ast.Fun:
+	case ast.Fun:
 		fdecl := obj.Decl.(*ast.FuncDecl)
 		// methods are typechecked when their receivers are typechecked
 		if fdecl.Recv == nil {
@@ -251,10 +249,10 @@ func (check *checker) assocMethod(meth *ast.FuncDecl) {
 		typ = ptr.X
 	}
 	// determine receiver base type object
-	var obj *go_ast.Object
+	var obj *ast.Object
 	if ident, ok := typ.(*ast.Ident); ok && ident.Obj != nil {
 		obj = ident.Obj
-		if obj.Kind != go_ast.Typ {
+		if obj.Kind != ast.Typ {
 			check.errorf(ident.Pos(), "%s is not a type", ident.Name)
 			return // ignore this method
 		}
@@ -271,14 +269,14 @@ func (check *checker) assocMethod(meth *ast.FuncDecl) {
 		return // ignore this method
 	}
 	// declare method in receiver base type scope
-	var scope *go_ast.Scope
+	var scope *ast.Scope
 	if obj.Data != nil {
-		scope = obj.Data.(*go_ast.Scope)
+		scope = obj.Data.(*ast.Scope)
 	} else {
-		scope = go_ast.NewScope(nil)
+		scope = ast.NewScope(nil)
 		obj.Data = scope
 	}
-	check.declare(scope, go_ast.Fun, meth.Name, meth)
+	check.declare(scope, ast.Fun, meth.Name, meth)
 }
 
 func (check *checker) assocInitvalsOrMethod(decl ast.Decl) {
@@ -327,7 +325,7 @@ func (check *checker) decl(decl ast.Decl) {
 		// since they are not in any scope. Create a dummy object for them.
 		if d.Name.Name == "init" {
 			assert(obj == nil) // all other functions should have an object
-			obj = go_ast.NewObj(go_ast.Fun, d.Name.Name)
+			obj = ast.NewObj(ast.Fun, d.Name.Name)
 			obj.Decl = d
 			d.Name.Obj = obj
 		}
@@ -352,7 +350,7 @@ func (check *checker) iterate(f func(*checker, ast.Decl)) {
 func sortedFiles(m map[string]*ast.File) []*ast.File {
 	keys := make([]string, len(m))
 	i := 0
-	for k, _ := range m {
+	for k := range m {
 		keys[i] = k
 		i++
 	}
@@ -369,7 +367,7 @@ func sortedFiles(m map[string]*ast.File) []*ast.File {
 // A bailout panic is raised to indicate early termination.
 type bailout struct{}
 
-func check(ctxt *Context, fset *go_token.FileSet, files map[string]*ast.File) (pkg *ast.Package, err error) {
+func check(ctxt *Context, fset *token.FileSet, files map[string]*ast.File) (pkg *ast.Package, err error) {
 	// initialize checker
 	check := checker{
 		ctxt:     ctxt,

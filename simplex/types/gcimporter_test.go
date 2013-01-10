@@ -5,8 +5,8 @@
 package types
 
 import (
-	go_ast "go/ast"
-	"go/build"
+	"github.com/fd/w/simplex/ast"
+	"github.com/fd/w/simplex/build"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -51,7 +51,7 @@ func compile(t *testing.T, dirname, filename string) string {
 
 // Use the same global imports map for all tests. The effect is
 // as if all tested packages were imported into a single package.
-var imports = make(map[string]*go_ast.Object)
+var imports = make(map[string]*ast.Object)
 
 func testPath(t *testing.T, path string) bool {
 	t0 := time.Now()
@@ -104,7 +104,7 @@ func TestGcImport(t *testing.T) {
 	}
 
 	if outFn := compile(t, "testdata", "exports.go"); outFn != "" {
-		//defer os.Remove(outFn)
+		defer os.Remove(outFn)
 	}
 
 	nimports := 0
@@ -117,14 +117,14 @@ func TestGcImport(t *testing.T) {
 
 var importedObjectTests = []struct {
 	name string
-	kind go_ast.ObjKind
+	kind ast.ObjKind
 	typ  string
 }{
-	{"unsafe.Pointer", go_ast.Typ, "Pointer"},
-	{"math.Pi", go_ast.Con, "untyped float"},
-	{"io.Reader", go_ast.Typ, "interface{Read(p []byte) (n int, err error)}"},
-	{"io.ReadWriter", go_ast.Typ, "interface{Read(p []byte) (n int, err error); Write(p []byte) (n int, err error)}"},
-	{"math.Sin", go_ast.Fun, "func(x float64) (_ float64)"},
+	{"unsafe.Pointer", ast.Typ, "Pointer"},
+	{"math.Pi", ast.Con, "untyped float"},
+	{"io.Reader", ast.Typ, "interface{Read(p []byte) (n int, err error)}"},
+	{"io.ReadWriter", ast.Typ, "interface{Read(p []byte) (n int, err error); Write(p []byte) (n int, err error)}"},
+	{"math.Sin", ast.Fun, "func(x float64) (_ float64)"},
 	// TODO(gri) add more tests
 }
 
@@ -147,7 +147,7 @@ func TestGcImportedTypes(t *testing.T) {
 			continue
 		}
 
-		obj := pkg.Data.(*go_ast.Scope).Lookup(objName)
+		obj := pkg.Data.(*ast.Scope).Lookup(objName)
 		if obj.Kind != test.kind {
 			t.Errorf("%s: got kind = %q; want %q", test.name, obj.Kind, test.kind)
 		}

@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"github.com/fd/w/simplex/scanner"
 	"github.com/fd/w/simplex/token"
-	go_token "go/token"
 )
 
 func ExampleScanner_Scan() {
@@ -17,7 +16,7 @@ func ExampleScanner_Scan() {
 
 	// Initialize the scanner.
 	var s scanner.Scanner
-	fset := go_token.NewFileSet()                   // positions are relative to fset
+	fset := token.NewFileSet()                      // positions are relative to fset
 	file := fset.AddFile("", fset.Base(), len(src)) // register input "file"
 	s.Init(file, src, nil /* no error handler */, scanner.ScanComments)
 

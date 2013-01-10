@@ -6,7 +6,7 @@ package scanner
 
 import (
 	"fmt"
-	go_token "go/token"
+	"github.com/fd/w/simplex/token"
 	"io"
 	"sort"
 )
@@ -17,7 +17,7 @@ import (
 // by Msg.
 //
 type Error struct {
-	Pos go_token.Position
+	Pos token.Position
 	Msg string
 }
 
@@ -37,7 +37,7 @@ func (e Error) Error() string {
 type ErrorList []*Error
 
 // Add adds an Error with given position and error message to an ErrorList.
-func (p *ErrorList) Add(pos go_token.Position, msg string) {
+func (p *ErrorList) Add(pos token.Position, msg string) {
 	*p = append(*p, &Error{pos, msg})
 }
 
@@ -79,7 +79,7 @@ func (p ErrorList) Sort() {
 // RemoveMultiples sorts an ErrorList and removes all but the first error per line.
 func (p *ErrorList) RemoveMultiples() {
 	sort.Sort(p)
-	var last go_token.Position // initial last.Line is != any legal error line
+	var last token.Position // initial last.Line is != any legal error line
 	i := 0
 	for _, e := range *p {
 		if e.Pos.Filename != last.Filename || e.Pos.Line != last.Line {

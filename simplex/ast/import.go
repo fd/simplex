@@ -6,13 +6,12 @@ package ast
 
 import (
 	"github.com/fd/w/simplex/token"
-	go_token "go/token"
 	"sort"
 	"strconv"
 )
 
 // SortImports sorts runs of consecutive import lines in import blocks in f.
-func SortImports(fset *go_token.FileSet, f *File) {
+func SortImports(fset *token.FileSet, f *File) {
 	for _, d := range f.Decls {
 		d, ok := d.(*GenDecl)
 		if !ok || d.Tok != token.IMPORT {
@@ -21,7 +20,7 @@ func SortImports(fset *go_token.FileSet, f *File) {
 			break
 		}
 
-		if d.Lparen == go_token.NoPos {
+		if !d.Lparen.IsValid() {
 			// Not a block: sorted by default.
 			continue
 		}
@@ -48,11 +47,11 @@ func importPath(s Spec) string {
 }
 
 type posSpan struct {
-	Start go_token.Pos
-	End   go_token.Pos
+	Start token.Pos
+	End   token.Pos
 }
 
-func sortSpecs(fset *go_token.FileSet, f *File, specs []Spec) {
+func sortSpecs(fset *token.FileSet, f *File, specs []Spec) {
 	// Avoid work if already sorted (also catches < 2 entries).
 	sorted := true
 	for i, s := range specs {

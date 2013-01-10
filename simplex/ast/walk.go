@@ -158,7 +158,9 @@ func Walk(v Visitor, node Node) {
 		Walk(v, n.Fields)
 
 	case *FuncType:
-		Walk(v, n.Params)
+		if n.Params != nil {
+			Walk(v, n.Params)
+		}
 		if n.Results != nil {
 			Walk(v, n.Results)
 		}
@@ -168,12 +170,6 @@ func Walk(v Visitor, node Node) {
 
 	case *MapType:
 		Walk(v, n.Key)
-		Walk(v, n.Value)
-
-	case *ViewType:
-		if n.Key != nil {
-			Walk(v, n.Key)
-		}
 		Walk(v, n.Value)
 
 	case *ChanType:

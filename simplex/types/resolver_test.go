@@ -9,8 +9,7 @@ import (
 	"github.com/fd/w/simplex/ast"
 	"github.com/fd/w/simplex/parser"
 	"github.com/fd/w/simplex/scanner"
-	go_ast "go/ast"
-	go_token "go/token"
+	"github.com/fd/w/simplex/token"
 	"testing"
 )
 
@@ -46,11 +45,11 @@ var pkgnames = []string{
 // TODO(gri): Eventually, this functionality should be subsumed
 //            by Check.
 //
-func ResolveQualifiedIdents(fset *go_token.FileSet, pkg *ast.Package) error {
+func ResolveQualifiedIdents(fset *token.FileSet, pkg *ast.Package) error {
 	var errors scanner.ErrorList
 
-	findObj := func(pkg *go_ast.Object, name *ast.Ident) *go_ast.Object {
-		scope := pkg.Data.(*go_ast.Scope)
+	findObj := func(pkg *ast.Object, name *ast.Ident) *ast.Object {
+		scope := pkg.Data.(*ast.Scope)
 		obj := scope.Lookup(name.Name)
 		if obj == nil {
 			errors.Add(fset.Position(name.Pos()), fmt.Sprintf("no %s in package %s", name.Name, pkg.Name))
@@ -60,7 +59,7 @@ func ResolveQualifiedIdents(fset *go_token.FileSet, pkg *ast.Package) error {
 
 	ast.Inspect(pkg, func(n ast.Node) bool {
 		if s, ok := n.(*ast.SelectorExpr); ok {
-			if x, ok := s.X.(*ast.Ident); ok && x.Obj != nil && x.Obj.Kind == go_ast.Pkg {
+			if x, ok := s.X.(*ast.Ident); ok && x.Obj != nil && x.Obj.Kind == ast.Pkg {
 				// find selector in respective package
 				s.Sel.Obj = findObj(x.Obj, s.Sel)
 			}
@@ -74,7 +73,7 @@ func ResolveQualifiedIdents(fset *go_token.FileSet, pkg *ast.Package) error {
 
 func TestResolveQualifiedIdents(t *testing.T) {
 	// parse package files
-	fset := go_token.NewFileSet()
+	fset := token.NewFileSet()
 	files := make(map[string]*ast.File)
 	for i, src := range sources {
 		filename := fmt.Sprintf("file%d", i)
@@ -118,7 +117,7 @@ func TestResolveQualifiedIdents(t *testing.T) {
 					t.Errorf("%s: unresolved qualified identifier %s", fset.Position(x.Pos()), x.Name)
 					return false
 				}
-				if x.Obj.Kind == go_ast.Pkg && s.Sel != nil && s.Sel.Obj == nil {
+				if x.Obj.Kind == ast.Pkg && s.Sel != nil && s.Sel.Obj == nil {
 					t.Errorf("%s: unresolved selector %s", fset.Position(s.Sel.Pos()), s.Sel.Name)
 					return false
 				}

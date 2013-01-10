@@ -8,14 +8,13 @@ package types
 
 import (
 	"github.com/fd/w/simplex/ast"
-	go_ast "go/ast"
 	"strings"
 )
 
 var (
 	aType            implementsType
-	Universe, unsafe *go_ast.Scope
-	Unsafe           *go_ast.Object // package unsafe
+	Universe, unsafe *ast.Scope
+	Unsafe           *ast.Object // package unsafe
 )
 
 // Predeclared types, indexed by BasicKind.
@@ -95,43 +94,43 @@ var (
 
 // commonly used constants
 var (
-	universeIota *go_ast.Object
+	universeIota *ast.Object
 )
 
 func init() {
 	// Universe scope
-	Universe = go_ast.NewScope(nil)
+	Universe = ast.NewScope(nil)
 
 	// unsafe package and its scope
-	unsafe = go_ast.NewScope(nil)
-	Unsafe = go_ast.NewObj(go_ast.Pkg, "unsafe")
+	unsafe = ast.NewScope(nil)
+	Unsafe = ast.NewObj(ast.Pkg, "unsafe")
 	Unsafe.Data = unsafe
 
 	// predeclared types
 	for _, t := range Typ {
-		def(go_ast.Typ, t.Name).Type = t
+		def(ast.Typ, t.Name).Type = t
 	}
 	for _, t := range aliases {
-		def(go_ast.Typ, t.Name).Type = t
+		def(ast.Typ, t.Name).Type = t
 	}
 
 	// error type
 	{
 		err := &Method{"Error", &Signature{Results: []*Var{{"", Typ[String]}}}}
-		obj := def(go_ast.Typ, "error")
+		obj := def(ast.Typ, "error")
 		obj.Type = &NamedType{Underlying: &Interface{Methods: []*Method{err}}, Obj: obj}
 	}
 
 	// predeclared constants
 	for _, t := range predeclaredConstants {
-		obj := def(go_ast.Con, t.name)
+		obj := def(ast.Con, t.name)
 		obj.Type = Typ[t.kind]
 		obj.Data = t.val
 	}
 
 	// predeclared functions
 	for _, f := range predeclaredFunctions {
-		def(go_ast.Fun, f.name).Type = f
+		def(ast.Fun, f.name).Type = f
 	}
 
 	universeIota = Universe.Lookup("iota")
@@ -141,8 +140,8 @@ func init() {
 // a scope. Objects with exported names are inserted in the unsafe package
 // scope; other objects are inserted in the universe scope.
 //
-func def(kind go_ast.ObjKind, name string) *go_ast.Object {
-	obj := go_ast.NewObj(kind, name)
+func def(kind ast.ObjKind, name string) *ast.Object {
+	obj := ast.NewObj(kind, name)
 	// insert non-internal objects into respective scope
 	if strings.Index(name, " ") < 0 {
 		scope := Universe

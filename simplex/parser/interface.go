@@ -10,7 +10,7 @@ import (
 	"bytes"
 	"errors"
 	"github.com/fd/w/simplex/ast"
-	go_token "go/token"
+	"github.com/fd/w/simplex/token"
 	"io"
 	"io/ioutil"
 	"os"
@@ -79,7 +79,7 @@ const (
 // representing the fragments of erroneous source code). Multiple errors
 // are returned via a scanner.ErrorList which is sorted by file position.
 //
-func ParseFile(fset *go_token.FileSet, filename string, src interface{}, mode Mode) (*ast.File, error) {
+func ParseFile(fset *token.FileSet, filename string, src interface{}, mode Mode) (*ast.File, error) {
 	// get source
 	text, err := readSource(filename, src)
 	if err != nil {
@@ -90,6 +90,15 @@ func ParseFile(fset *go_token.FileSet, filename string, src interface{}, mode Mo
 	var p parser
 	p.init(fset, filename, text, mode)
 	f := p.parseFile()
+	if f == nil {
+		// source is not a valid Go source file - satisfy
+		// ParseFile API and return a valid (but) empty
+		// *ast.File
+		f = &ast.File{
+			Name:  new(ast.Ident),
+			Scope: ast.NewScope(nil),
+		}
+	}
 
 	// sort errors
 	if p.mode&SpuriousErrors == 0 {
@@ -111,7 +120,7 @@ func ParseFile(fset *go_token.FileSet, filename string, src interface{}, mode Mo
 // returned. If a parse error occurred, a non-nil but incomplete map and the
 // first error encountered are returned.
 //
-func ParseDir(fset *go_token.FileSet, path string, filter func(os.FileInfo) bool, mode Mode) (pkgs map[string]*ast.Package, first error) {
+func ParseDir(fset *token.FileSet, path string, filter func(os.FileInfo) bool, mode Mode) (pkgs map[string]*ast.Package, first error) {
 	fd, err := os.Open(path)
 	if err != nil {
 		return nil, err
@@ -155,7 +164,7 @@ func ParseExpr(x string) (ast.Expr, error) {
 	// use //line directive for correct positions in error messages and put
 	// x alone on a separate line (handles line comments), followed by a ';'
 	// to force an error if the expression is incomplete
-	file, err := ParseFile(go_token.NewFileSet(), "", "package p;func _(){_=\n//line :1\n"+x+"\n;}", 0)
+	file, err := ParseFile(token.NewFileSet(), "", "package p;func _(){_=\n//line :1\n"+x+"\n;}", 0)
 	if err != nil {
 		return nil, err
 	}

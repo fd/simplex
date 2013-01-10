@@ -29,8 +29,6 @@ import (
 	"github.com/fd/w/simplex/parser"
 	"github.com/fd/w/simplex/scanner"
 	"github.com/fd/w/simplex/token"
-	go_ast "go/ast"
-	go_token "go/token"
 	"io/ioutil"
 	"os"
 	"regexp"
@@ -61,10 +59,10 @@ var tests = []struct {
 	{"stmt0", []string{"testdata/stmt0.src"}},
 }
 
-var fset = go_token.NewFileSet()
+var fset = token.NewFileSet()
 
-func getFile(filename string) (file *go_token.File) {
-	fset.Iterate(func(f *go_token.File) bool {
+func getFile(filename string) (file *token.File) {
+	fset.Iterate(func(f *token.File) bool {
 		if f.Name() == filename {
 			file = f
 			return false // end iteration
@@ -238,8 +236,8 @@ func TestCheck(t *testing.T) {
 	// Declare builtins for testing.
 	// Not done in an init func to avoid an init race with
 	// the construction of the Universe var.
-	def(go_ast.Fun, "assert").Type = &builtin{aType, _Assert, "assert", 1, false, true}
-	def(go_ast.Fun, "trace").Type = &builtin{aType, _Trace, "trace", 0, true, true}
+	def(ast.Fun, "assert").Type = &builtin{aType, _Assert, "assert", 1, false, true}
+	def(ast.Fun, "trace").Type = &builtin{aType, _Trace, "trace", 0, true, true}
 
 	// For easy debugging w/o changing the testing code,
 	// if there is a local test file, only test that file.

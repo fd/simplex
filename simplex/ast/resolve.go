@@ -9,25 +9,24 @@ package ast
 import (
 	"fmt"
 	"github.com/fd/w/simplex/scanner"
-	go_ast "go/ast"
-	go_token "go/token"
+	"github.com/fd/w/simplex/token"
 	"strconv"
 )
 
 type pkgBuilder struct {
-	fset   *go_token.FileSet
+	fset   *token.FileSet
 	errors scanner.ErrorList
 }
 
-func (p *pkgBuilder) error(pos go_token.Pos, msg string) {
+func (p *pkgBuilder) error(pos token.Pos, msg string) {
 	p.errors.Add(p.fset.Position(pos), msg)
 }
 
-func (p *pkgBuilder) errorf(pos go_token.Pos, format string, args ...interface{}) {
+func (p *pkgBuilder) errorf(pos token.Pos, format string, args ...interface{}) {
 	p.error(pos, fmt.Sprintf(format, args...))
 }
 
-func (p *pkgBuilder) declare(scope, altScope *go_ast.Scope, obj *go_ast.Object) {
+func (p *pkgBuilder) declare(scope, altScope *Scope, obj *Object) {
 	alt := scope.Insert(obj)
 	if alt == nil && altScope != nil {
 		// see if there is a conflicting declaration in altScope
@@ -42,7 +41,7 @@ func (p *pkgBuilder) declare(scope, altScope *go_ast.Scope, obj *go_ast.Object) 
 	}
 }
 
-func resolve(scope *go_ast.Scope, ident *Ident) bool {
+func resolve(scope *Scope, ident *Ident) bool {
 	for ; scope != nil; scope = scope.Outer {
 		if obj := scope.Lookup(ident.Name); obj != nil {
 			ident.Obj = obj
@@ -61,7 +60,7 @@ func resolve(scope *go_ast.Scope, ident *Ident) bool {
 // Importer should load the package data for the given path into
 // a new *Object (pkg), record pkg in the imports map, and then
 // return pkg.
-type Importer func(imports map[string]*go_ast.Object, path string) (pkg *go_ast.Object, err error)
+type Importer func(imports map[string]*Object, path string) (pkg *Object, err error)
 
 // NewPackage creates a new Package node from a set of File nodes. It resolves
 // unresolved identifiers across files and updates each file's Unresolved list
@@ -72,13 +71,13 @@ type Importer func(imports map[string]*go_ast.Object, path string) (pkg *go_ast.
 // different package names are reported and then ignored.
 // The result is a package node and a scanner.ErrorList if there were errors.
 //
-func NewPackage(fset *go_token.FileSet, files map[string]*File, importer Importer, universe *go_ast.Scope) (*Package, error) {
+func NewPackage(fset *token.FileSet, files map[string]*File, importer Importer, universe *Scope) (*Package, error) {
 	var p pkgBuilder
 	p.fset = fset
 
 	// complete package scope
 	pkgName := ""
-	pkgScope := go_ast.NewScope(universe)
+	pkgScope := NewScope(universe)
 	for _, file := range files {
 		// package names must match
 		switch name := file.Name.Name; {
@@ -96,7 +95,7 @@ func NewPackage(fset *go_token.FileSet, files map[string]*File, importer Importe
 	}
 
 	// package global mapping of imported package ids to package objects
-	imports := make(map[string]*go_ast.Object)
+	imports := make(map[string]*Object)
 
 	// complete file scopes with imports and resolve identifiers
 	for _, file := range files {
@@ -108,7 +107,7 @@ func NewPackage(fset *go_token.FileSet, files map[string]*File, importer Importe
 
 		// build file scope by processing all imports
 		importErrors := false
-		fileScope := go_ast.NewScope(pkgScope)
+		fileScope := NewScope(pkgScope)
 		for _, spec := range file.Imports {
 			if importer == nil {
 				importErrors = true
@@ -134,7 +133,7 @@ func NewPackage(fset *go_token.FileSet, files map[string]*File, importer Importe
 			// add import to file scope
 			if name == "." {
 				// merge imported scope with file scope
-				for _, obj := range pkg.Data.(*go_ast.Scope).Objects {
+				for _, obj := range pkg.Data.(*Scope).Objects {
 					p.declare(fileScope, pkgScope, obj)
 				}
 			} else if name != "_" {
@@ -142,7 +141,7 @@ func NewPackage(fset *go_token.FileSet, files map[string]*File, importer Importe
 				// (do not re-use pkg in the file scope but create
 				// a new object instead; the Decl field is different
 				// for different files)
-				obj := go_ast.NewObj(go_ast.Pkg, name)
+				obj := NewObj(Pkg, name)
 				obj.Decl = spec
 				obj.Data = pkg.Data
 				p.declare(fileScope, pkgScope, obj)

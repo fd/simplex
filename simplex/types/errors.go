@@ -10,7 +10,7 @@ import (
 	"bytes"
 	"fmt"
 	"github.com/fd/w/simplex/ast"
-	go_token "go/token"
+	"github.com/fd/w/simplex/token"
 )
 
 // TODO(gri) eventually assert and unimplemented should disappear.
@@ -43,7 +43,7 @@ func (check *checker) printTrace(format string, args []interface{}) {
 	fmt.Println(check.formatMsg(format, args))
 }
 
-func (check *checker) trace(pos go_token.Pos, format string, args ...interface{}) {
+func (check *checker) trace(pos token.Pos, format string, args ...interface{}) {
 	check.pos = append(check.pos, pos)
 	check.printTrace(format, args)
 }
@@ -58,7 +58,7 @@ func (check *checker) untrace(format string, args ...interface{}) {
 func (check *checker) formatMsg(format string, args []interface{}) string {
 	for i, arg := range args {
 		switch a := arg.(type) {
-		case go_token.Pos:
+		case token.Pos:
 			args[i] = check.fset.Position(a)
 		case ast.Expr:
 			args[i] = exprString(a)
@@ -87,19 +87,19 @@ func (check *checker) err(err error) {
 	f(err)
 }
 
-func (check *checker) errorf(pos go_token.Pos, format string, args ...interface{}) {
+func (check *checker) errorf(pos token.Pos, format string, args ...interface{}) {
 	check.err(fmt.Errorf("%s: %s", check.fset.Position(pos), check.formatMsg(format, args)))
 }
 
-func (check *checker) invalidAST(pos go_token.Pos, format string, args ...interface{}) {
+func (check *checker) invalidAST(pos token.Pos, format string, args ...interface{}) {
 	check.errorf(pos, "invalid AST: "+format, args...)
 }
 
-func (check *checker) invalidArg(pos go_token.Pos, format string, args ...interface{}) {
+func (check *checker) invalidArg(pos token.Pos, format string, args ...interface{}) {
 	check.errorf(pos, "invalid argument: "+format, args...)
 }
 
-func (check *checker) invalidOp(pos go_token.Pos, format string, args ...interface{}) {
+func (check *checker) invalidOp(pos token.Pos, format string, args ...interface{}) {
 	check.errorf(pos, "invalid operation: "+format, args...)
 }
 

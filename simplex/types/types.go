@@ -4,10 +4,7 @@
 
 package types
 
-import (
-	"github.com/fd/w/simplex/ast"
-	go_ast "go/ast"
-)
+import "github.com/fd/w/simplex/ast"
 
 // All types implement the Type interface.
 type Type interface {
@@ -214,8 +211,8 @@ type Chan struct {
 // A NamedType represents a named type as declared in a type declaration.
 type NamedType struct {
 	implementsType
-	Obj        *go_ast.Object // corresponding declared object; Obj.Data.(*ast.Scope) contains methods, if any
-	Underlying Type           // nil if not fully declared yet; never a *NamedType
+	Obj        *ast.Object // corresponding declared object; Obj.Data.(*ast.Scope) contains methods, if any
+	Underlying Type        // nil if not fully declared yet; never a *NamedType
 }
 
 // All concrete types embed implementsType which

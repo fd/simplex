@@ -7,11 +7,11 @@ package parser_test
 import (
 	"fmt"
 	"github.com/fd/w/simplex/parser"
-	go_token "go/token"
+	"github.com/fd/w/simplex/token"
 )
 
 func ExampleParseFile() {
-	fset := go_token.NewFileSet() // positions are relative to fset
+	fset := token.NewFileSet() // positions are relative to fset
 
 	// Parse the file containing this very example
 	// but stop after processing the imports.
@@ -29,6 +29,6 @@ func ExampleParseFile() {
 	// output:
 	//
 	// "fmt"
-	// "go/token"
 	// "github.com/fd/w/simplex/parser"
+	// "github.com/fd/w/simplex/token"
 }

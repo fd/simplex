@@ -12,9 +12,8 @@ import (
 	"errors"
 	"fmt"
 	"github.com/fd/w/simplex/ast"
+	"github.com/fd/w/simplex/build"
 	"github.com/fd/w/simplex/token"
-	go_ast "go/ast"
-	"go/build"
 	"io"
 	"math/big"
 	"os"
@@ -84,7 +83,7 @@ func FindPkg(path, srcDir string) (filename, id string) {
 // be the beginning of the export data section. The filename is only used
 // in error messages.
 //
-func GcImportData(imports map[string]*go_ast.Object, filename, id string, data *bufio.Reader) (pkg *go_ast.Object, err error) {
+func GcImportData(imports map[string]*ast.Object, filename, id string, data *bufio.Reader) (pkg *ast.Object, err error) {
 	// support for gcParser error handling
 	defer func() {
 		if r := recover(); r != nil {
@@ -105,7 +104,7 @@ func GcImportData(imports map[string]*go_ast.Object, filename, id string, data *
 // The imports map must contains all packages already imported.
 // GcImport satisfies the ast.Importer signature.
 //
-func GcImport(imports map[string]*go_ast.Object, path string) (pkg *go_ast.Object, err error) {
+func GcImport(imports map[string]*ast.Object, path string) (pkg *ast.Object, err error) {
 	if path == "unsafe" {
 		return Unsafe, nil
 	}
@@ -157,13 +156,13 @@ func GcImport(imports map[string]*go_ast.Object, path string) (pkg *go_ast.Objec
 // object/archive file and populates its scope with the results.
 type gcParser struct {
 	scanner scanner.Scanner
-	tok     rune                      // current token
-	lit     string                    // literal string; only valid for Ident, Int, String tokens
-	id      string                    // package id of imported package
-	imports map[string]*go_ast.Object // package id -> package object
+	tok     rune                   // current token
+	lit     string                 // literal string; only valid for Ident, Int, String tokens
+	id      string                 // package id of imported package
+	imports map[string]*ast.Object // package id -> package object
 }
 
-func (p *gcParser) init(filename, id string, src io.Reader, imports map[string]*go_ast.Object) {
+func (p *gcParser) init(filename, id string, src io.Reader, imports map[string]*ast.Object) {
 	p.scanner.Init(src)
 	p.scanner.Error = func(_ *scanner.Scanner, msg string) { p.error(msg) }
 	p.scanner.Mode = scanner.ScanIdents | scanner.ScanInts | scanner.ScanChars | scanner.ScanStrings | scanner.ScanComments | scanner.SkipComments
@@ -189,7 +188,7 @@ func (p *gcParser) next() {
 }
 
 // Declare inserts a named object of the given kind in scope.
-func (p *gcParser) declare(scope *go_ast.Scope, kind go_ast.ObjKind, name string) *go_ast.Object {
+func (p *gcParser) declare(scope *ast.Scope, kind ast.ObjKind, name string) *ast.Object {
 	// the object may have been imported before - if it exists
 	// already in the respective package scope, return that object
 	if obj := scope.Lookup(name); obj != nil {
@@ -198,14 +197,14 @@ func (p *gcParser) declare(scope *go_ast.Scope, kind go_ast.ObjKind, name string
 	}
 
 	// otherwise create a new object and insert it into the package scope
-	obj := go_ast.NewObj(kind, name)
+	obj := ast.NewObj(kind, name)
 	if scope.Insert(obj) != nil {
 		unreachable() // Lookup should have found it
 	}
 
 	// if the new type object is a named type it may be referred
 	// to before the underlying type is known - set it up
-	if kind == go_ast.Typ {
+	if kind == ast.Typ {
 		obj.Type = &NamedType{Obj: obj}
 	}
 
@@ -271,7 +270,7 @@ func (p *gcParser) expectKeyword(keyword string) {
 
 // ImportPath = string_lit .
 //
-func (p *gcParser) parsePkgId() *go_ast.Object {
+func (p *gcParser) parsePkgId() *ast.Object {
 	id, err := strconv.Unquote(p.expect(scanner.String))
 	if err != nil {
 		p.error(err)
@@ -289,8 +288,8 @@ func (p *gcParser) parsePkgId() *go_ast.Object {
 
 	pkg := p.imports[id]
 	if pkg == nil {
-		pkg = go_ast.NewObj(go_ast.Pkg, "")
-		pkg.Data = go_ast.NewScope(nil)
+		pkg = ast.NewObj(ast.Pkg, "")
+		pkg.Data = ast.NewScope(nil)
 		p.imports[id] = pkg
 	}
 
@@ -316,7 +315,7 @@ func (p *gcParser) parseDotIdent() string {
 
 // ExportedName = "@" ImportPath "." dotIdentifier .
 //
-func (p *gcParser) parseExportedName() (*go_ast.Object, string) {
+func (p *gcParser) parseExportedName() (*ast.Object, string) {
 	p.expect('@')
 	pkg := p.parsePkgId()
 	p.expect('.')
@@ -332,7 +331,7 @@ func (p *gcParser) parseExportedName() (*go_ast.Object, string) {
 func (p *gcParser) parseBasicType() Type {
 	id := p.expect(scanner.Ident)
 	obj := Universe.Lookup(id)
-	if obj == nil || obj.Kind != go_ast.Typ {
+	if obj == nil || obj.Kind != ast.Typ {
 		p.errorf("not a basic type: %s", id)
 	}
 	return obj.Type.(Type)
@@ -567,7 +566,7 @@ func (p *gcParser) parseType() Type {
 	case '@':
 		// TypeName
 		pkg, name := p.parseExportedName()
-		return p.declare(pkg.Data.(*go_ast.Scope), go_ast.Typ, name).Type.(Type)
+		return p.declare(pkg.Data.(*ast.Scope), ast.Typ, name).Type.(Type)
 	case '[':
 		p.next() // look ahead
 		if p.tok == ']' {
@@ -675,7 +674,7 @@ func (p *gcParser) parseNumber() (x operand) {
 func (p *gcParser) parseConstDecl() {
 	p.expectKeyword("const")
 	pkg, name := p.parseExportedName()
-	obj := p.declare(pkg.Data.(*go_ast.Scope), go_ast.Con, name)
+	obj := p.declare(pkg.Data.(*ast.Scope), ast.Con, name)
 	var x operand
 	if p.tok != '=' {
 		obj.Type = p.parseType()
@@ -741,7 +740,7 @@ func (p *gcParser) parseConstDecl() {
 func (p *gcParser) parseTypeDecl() {
 	p.expectKeyword("type")
 	pkg, name := p.parseExportedName()
-	obj := p.declare(pkg.Data.(*go_ast.Scope), go_ast.Typ, name)
+	obj := p.declare(pkg.Data.(*ast.Scope), ast.Typ, name)
 
 	// The type object may have been imported before and thus already
 	// have a type associated with it. We still need to parse the type
@@ -760,15 +759,15 @@ func (p *gcParser) parseTypeDecl() {
 func (p *gcParser) parseVarDecl() {
 	p.expectKeyword("var")
 	pkg, name := p.parseExportedName()
-	obj := p.declare(pkg.Data.(*go_ast.Scope), go_ast.Var, name)
+	obj := p.declare(pkg.Data.(*ast.Scope), ast.Var, name)
 	obj.Type = p.parseType()
 }
 
 // Func = Signature [ Body ] .
 // Body = "{" ... "}" .
 //
-func (p *gcParser) parseFunc(scope *go_ast.Scope, name string) *Signature {
-	obj := p.declare(scope, go_ast.Fun, name)
+func (p *gcParser) parseFunc(scope *ast.Scope, name string) *Signature {
+	obj := p.declare(scope, ast.Fun, name)
 	sig := p.parseSignature()
 	obj.Type = sig
 	if p.tok == '{' {
@@ -802,11 +801,11 @@ func (p *gcParser) parseMethodDecl() {
 	obj := typ.(*NamedType).Obj
 
 	// determine base type scope
-	var scope *go_ast.Scope
+	var scope *ast.Scope
 	if obj.Data != nil {
-		scope = obj.Data.(*go_ast.Scope)
+		scope = obj.Data.(*ast.Scope)
 	} else {
-		scope = go_ast.NewScope(nil)
+		scope = ast.NewScope(nil)
 		obj.Data = scope
 	}
 
@@ -821,7 +820,7 @@ func (p *gcParser) parseMethodDecl() {
 func (p *gcParser) parseFuncDecl() {
 	// "func" already consumed
 	pkg, name := p.parseExportedName()
-	p.parseFunc(pkg.Data.(*go_ast.Scope), name)
+	p.parseFunc(pkg.Data.(*ast.Scope), name)
 }
 
 // Decl = [ ImportDecl | ConstDecl | TypeDecl | VarDecl | FuncDecl | MethodDecl ] "\n" .
@@ -853,7 +852,7 @@ func (p *gcParser) parseDecl() {
 // Export        = "PackageClause { Decl } "$$" .
 // PackageClause = "package" identifier [ "safe" ] "\n" .
 //
-func (p *gcParser) parseExport() *go_ast.Object {
+func (p *gcParser) parseExport() *ast.Object {
 	p.expectKeyword("package")
 	name := p.expect(scanner.Ident)
 	if p.tok != '\n' {
@@ -866,8 +865,8 @@ func (p *gcParser) parseExport() *go_ast.Object {
 
 	pkg := p.imports[p.id]
 	if pkg == nil {
-		pkg = go_ast.NewObj(go_ast.Pkg, name)
-		pkg.Data = go_ast.NewScope(nil)
+		pkg = ast.NewObj(ast.Pkg, name)
+		pkg.Data = ast.NewScope(nil)
 		p.imports[p.id] = pkg
 	}
 

@@ -34,12 +34,13 @@ var Locations = LocationView{}.
 //line smplx_generated.go:4
 Source().Select(func(m interface{}) bool {
 //line smplx_generated.go:3
-return has_website(m.(Location)) }).
+	return has_website(m.(Location))
+}).
 
 //line github.com/fd/w/simplex/example/example.smplx:4
 
 //line github.com/fd/w/simplex/example/example.smplx:18
-Sort(func(m interface{}) interface{} {
+	Sort(func(m interface{}) interface{} {
 //line github.com/fd/w/simplex/example/example.smplx:18
 	return locations_gps_ne(m.(Location))
 //line github.com/fd/w/simplex/example/example.smplx:4
@@ -113,7 +114,6 @@ func (v LocationView) WithWebsite() LocationView {
 type LocationView struct{ view sx_runtime.View }
 
 //line smplx_generated.go:5
-
 //line smplx_generated.go:4
 func (w LocationView) Source() LocationView { return LocationView{sx_runtime.Source("LocationView")} }
 func (w LocationView) Select(f sx_runtime.SelectFunc) LocationView {
@@ -131,12 +131,10 @@ func (w LocationView) CollectedFrom(input sx_runtime.ViewWrapper, f sx_runtime.C
 func (w LocationView) View() sx_runtime.View { return w.view }
 
 //line smplx_generated.go:11
-
 //line smplx_generated.go:10
 type GPSView struct{ view sx_runtime.View }
 
 //line smplx_generated.go:12
-
 //line smplx_generated.go:11
 func (w GPSView) Source() GPSView                        { return GPSView{sx_runtime.Source("GPSView")} }
 func (w GPSView) Select(f sx_runtime.SelectFunc) GPSView { return GPSView{w.view.Select(f)} }

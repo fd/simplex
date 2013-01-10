@@ -9,7 +9,6 @@ package types
 import (
 	"github.com/fd/w/simplex/ast"
 	"github.com/fd/w/simplex/token"
-	go_ast "go/ast"
 	"strconv"
 )
 
@@ -28,7 +27,7 @@ func (check *checker) collectParams(list *ast.FieldList, variadicOk bool) (param
 	if list == nil {
 		return
 	}
-	var last *go_ast.Object
+	var last *ast.Object
 	for i, field := range list.List {
 		ftype := field.Type
 		if t, _ := ftype.(*ast.Ellipsis); t != nil {
@@ -53,7 +52,7 @@ func (check *checker) collectParams(list *ast.FieldList, variadicOk bool) (param
 			}
 		} else {
 			// anonymous parameter
-			obj := go_ast.NewObj(go_ast.Var, "")
+			obj := ast.NewObj(ast.Var, "")
 			obj.Type = typ
 			last = obj
 			params = append(params, &Var{obj.Name, typ})
@@ -669,12 +668,12 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
 			check.object(obj, cycleOk)
 		}
 		switch obj.Kind {
-		case go_ast.Bad:
+		case ast.Bad:
 			goto Error // error was reported before
-		case go_ast.Pkg:
+		case ast.Pkg:
 			check.errorf(e.Pos(), "use of package %s not in selector", obj.Name)
 			goto Error
-		case go_ast.Con:
+		case ast.Con:
 			if obj.Data == nil {
 				goto Error // cycle detected
 			}
@@ -688,7 +687,7 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
 			} else {
 				x.val = obj.Data
 			}
-		case go_ast.Typ:
+		case ast.Typ:
 			x.mode = typexpr
 			if !cycleOk && underlying(obj.Type.(Type)) == nil {
 				check.errorf(obj.Pos(), "illegal cycle in declaration of %s", obj.Name)
@@ -696,9 +695,9 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
 				x.typ = Typ[Invalid]
 				return // don't goto Error - need x.mode == typexpr
 			}
-		case go_ast.Var:
+		case ast.Var:
 			x.mode = variable
-		case go_ast.Fun:
+		case ast.Fun:
 			x.mode = value
 		default:
 			unreachable()
@@ -872,8 +871,8 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
 		// can only appear in qualified identifiers which are mapped to
 		// selector expressions.
 		if ident, ok := e.X.(*ast.Ident); ok {
-			if obj := ident.Obj; obj != nil && obj.Kind == go_ast.Pkg {
-				exp := obj.Data.(*go_ast.Scope).Lookup(sel)
+			if obj := ident.Obj; obj != nil && obj.Kind == ast.Pkg {
+				exp := obj.Data.(*ast.Scope).Lookup(sel)
 				if exp == nil {
 					check.errorf(e.Sel.Pos(), "cannot refer to unexported %s", sel)
 					goto Error
@@ -881,15 +880,15 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
 				// simplified version of the code for *ast.Idents:
 				// imported objects are always fully initialized
 				switch exp.Kind {
-				case go_ast.Con:
+				case ast.Con:
 					assert(exp.Data != nil)
 					x.mode = constant
 					x.val = exp.Data
-				case go_ast.Typ:
+				case ast.Typ:
 					x.mode = typexpr
-				case go_ast.Var:
+				case ast.Var:
 					x.mode = variable
-				case go_ast.Fun:
+				case ast.Fun:
 					x.mode = value
 				default:
 					unreachable()

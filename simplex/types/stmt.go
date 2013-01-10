@@ -9,8 +9,6 @@ package types
 import (
 	"github.com/fd/w/simplex/ast"
 	"github.com/fd/w/simplex/token"
-	go_ast "go/ast"
-	go_token "go/token"
 )
 
 func (check *checker) assignOperand(z, x *operand) {
@@ -96,7 +94,7 @@ func (check *checker) assign1to1(lhs, rhs ast.Expr, x *operand, decl bool, iota 
 		typ = Typ[Invalid]
 		if x.mode != invalid {
 			typ = x.typ
-			if obj.Kind == go_ast.Var && isUntyped(typ) {
+			if obj.Kind == ast.Var && isUntyped(typ) {
 				if x.isNil() {
 					check.errorf(x.pos(), "use of untyped nil")
 					x.mode = invalid
@@ -111,9 +109,9 @@ func (check *checker) assign1to1(lhs, rhs ast.Expr, x *operand, decl bool, iota 
 	if x.mode != invalid {
 		var z operand
 		switch obj.Kind {
-		case go_ast.Con:
+		case ast.Con:
 			z.mode = constant
-		case go_ast.Var:
+		case ast.Var:
 			z.mode = variable
 		default:
 			unreachable()
@@ -124,7 +122,7 @@ func (check *checker) assign1to1(lhs, rhs ast.Expr, x *operand, decl bool, iota 
 	}
 
 	// for constants, set their value
-	if obj.Kind == go_ast.Con {
+	if obj.Kind == ast.Con {
 		assert(obj.Data == nil)
 		if x.mode != invalid {
 			if x.mode == constant {
@@ -152,7 +150,7 @@ func (check *checker) assign1to1(lhs, rhs ast.Expr, x *operand, decl bool, iota 
 				obj.Data = nilConst
 			default:
 				// in all other cases just prevent use of the constant
-				obj.Kind = go_ast.Bad
+				obj.Kind = ast.Bad
 			}
 		}
 	}
@@ -274,7 +272,7 @@ func (check *checker) stmt(s ast.Stmt) {
 	case *ast.DeclStmt:
 		d, _ := s.Decl.(*ast.GenDecl)
 		if d == nil || (d.Tok != token.CONST && d.Tok != token.TYPE && d.Tok != token.VAR) {
-			check.invalidAST(go_token.NoPos, "const, type, or var declaration expected")
+			check.invalidAST(token.NoPos, "const, type, or var declaration expected")
 			return
 		}
 		if d.Tok == token.CONST {
@@ -420,7 +418,7 @@ func (check *checker) stmt(s ast.Stmt) {
 				name.NamePos = s.Pos()
 				// TODO(gri) Avoid creating new objects here once we
 				//           move away from ast.Objects completely.
-				obj := go_ast.NewObj(go_ast.Var, res.Name)
+				obj := ast.NewObj(ast.Var, res.Name)
 				obj.Type = res.Type
 				name.Obj = obj
 				lhs[i] = name
@@ -460,7 +458,7 @@ func (check *checker) stmt(s ast.Stmt) {
 		check.expr(&x, tag, nil, -1)
 
 		check.multipleDefaults(s.Body.List)
-		seen := make(map[interface{}]go_token.Pos)
+		seen := make(map[interface{}]token.Pos)
 		for _, s := range s.Body.List {
 			clause, _ := s.(*ast.CaseClause)
 			if clause == nil {
@@ -478,7 +476,7 @@ func (check *checker) stmt(s ast.Stmt) {
 					// once in the switch statement. Determine if there is a
 					// duplicate entry, but only report an error if there are
 					// no other errors.
-					var dupl go_token.Pos
+					var dupl token.Pos
 					var yy operand
 					if y.mode == constant {
 						// TODO(gri) This code doesn't work correctly for
@@ -521,7 +519,7 @@ func (check *checker) stmt(s ast.Stmt) {
 		// remaining syntactic errors are considered AST errors here.
 		// TODO(gri) better factoring of error handling (invalid ASTs)
 		//
-		var lhs *go_ast.Object // lhs identifier object or nil
+		var lhs *ast.Object // lhs identifier object or nil
 		var rhs ast.Expr
 		switch guard := s.Assign.(type) {
 		case *ast.ExprStmt:

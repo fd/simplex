@@ -8,7 +8,7 @@ package ast
 
 import (
 	"fmt"
-	go_token "go/token"
+	"github.com/fd/w/simplex/token"
 	"io"
 	"os"
 	"reflect"
@@ -37,7 +37,7 @@ func NotNilFilter(_ string, v reflect.Value) bool {
 // are printed; all others are filtered from the output. Unexported
 // struct fields are never printed.
 //
-func Fprint(w io.Writer, fset *go_token.FileSet, x interface{}, f FieldFilter) (err error) {
+func Fprint(w io.Writer, fset *token.FileSet, x interface{}, f FieldFilter) (err error) {
 	// setup printer
 	p := printer{
 		output: w,
@@ -67,13 +67,13 @@ func Fprint(w io.Writer, fset *go_token.FileSet, x interface{}, f FieldFilter) (
 
 // Print prints x to standard output, skipping nil fields.
 // Print(fset, x) is the same as Fprint(os.Stdout, fset, x, NotNilFilter).
-func Print(fset *go_token.FileSet, x interface{}) error {
+func Print(fset *token.FileSet, x interface{}) error {
 	return Fprint(os.Stdout, fset, x, NotNilFilter)
 }
 
 type printer struct {
 	output io.Writer
-	fset   *go_token.FileSet
+	fset   *token.FileSet
 	filter FieldFilter
 	ptrmap map[interface{}]int // *T -> line number
 	indent int                 // current indentation level
@@ -108,8 +108,10 @@ func (p *printer) Write(data []byte) (n int, err error) {
 		}
 		p.last = b
 	}
-	m, err = p.output.Write(data[n:])
-	n += m
+	if len(data) > n {
+		m, err = p.output.Write(data[n:])
+		n += m
+	}
 	return
 }
 
@@ -236,7 +238,7 @@ func (p *printer) print(x reflect.Value) {
 			// print strings in quotes
 			p.printf("%q", v)
 			return
-		case go_token.Pos:
+		case token.Pos:
 			// position values can be printed nicely if we have a file set
 			if p.fset != nil {
 				p.printf("%s", p.fset.Position(v))

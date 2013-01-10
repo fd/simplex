@@ -11,7 +11,7 @@ package types
 
 import (
 	"github.com/fd/w/simplex/ast"
-	go_token "go/token"
+	"github.com/fd/w/simplex/token"
 )
 
 // A Context specifies the supporting context for type checking.
@@ -57,11 +57,11 @@ var Default = Context{
 // it returns the first error. If the context's Error handler is nil,
 // Check terminates as soon as the first error is encountered.
 //
-func (ctxt *Context) Check(fset *go_token.FileSet, files map[string]*ast.File) (*ast.Package, error) {
+func (ctxt *Context) Check(fset *token.FileSet, files map[string]*ast.File) (*ast.Package, error) {
 	return check(ctxt, fset, files)
 }
 
 // Check is shorthand for Default.Check.
-func Check(fset *go_token.FileSet, files map[string]*ast.File) (*ast.Package, error) {
+func Check(fset *token.FileSet, files map[string]*ast.File) (*ast.Package, error) {
 	return Default.Check(fset, files)
 }

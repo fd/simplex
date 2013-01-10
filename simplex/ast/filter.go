@@ -5,7 +5,7 @@
 package ast
 
 import (
-	go_token "go/token"
+	"github.com/fd/w/simplex/token"
 	"sort"
 )
 
@@ -324,7 +324,7 @@ func MergePackageFiles(pkg *Package, mode MergeMode) *File {
 	// there should be only one file with a package comment; but it's
 	// better to collect extra comments than drop them on the floor.
 	var doc *CommentGroup
-	var pos go_token.Pos
+	var pos token.Pos
 	if ndocs > 0 {
 		list := make([]*Comment, ndocs-1) // -1: no separator before first group
 		i := 0

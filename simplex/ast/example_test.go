@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"github.com/fd/w/simplex/ast"
 	"github.com/fd/w/simplex/parser"
-	go_token "go/token"
+	"github.com/fd/w/simplex/token"
 )
 
 // This example demonstrates how to inspect the AST of a Go program.
@@ -21,7 +21,7 @@ var X = f(3.14)*2 + c
 `
 
 	// Create the AST by parsing src.
-	fset := go_token.NewFileSet() // positions are relative to fset
+	fset := token.NewFileSet() // positions are relative to fset
 	f, err := parser.ParseFile(fset, "src.go", src, 0)
 	if err != nil {
 		panic(err)
@@ -64,7 +64,7 @@ func main() {
 `
 
 	// Create the AST by parsing src.
-	fset := go_token.NewFileSet() // positions are relative to fset
+	fset := token.NewFileSet() // positions are relative to fset
 	f, err := parser.ParseFile(fset, "", src, 0)
 	if err != nil {
 		panic(err)

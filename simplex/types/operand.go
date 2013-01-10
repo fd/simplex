@@ -11,9 +11,6 @@ import (
 	"fmt"
 	"github.com/fd/w/simplex/ast"
 	"github.com/fd/w/simplex/token"
-
-	go_ast "go/ast"
-	go_token "go/token"
 )
 
 // An operandMode specifies the (addressing) mode of an operand.
@@ -53,10 +50,10 @@ type operand struct {
 // pos returns the position of the expression corresponding to x.
 // If x is invalid the position is token.NoPos.
 //
-func (x *operand) pos() go_token.Pos {
+func (x *operand) pos() token.Pos {
 	// x.expr may not be set if x is invalid
 	if x.expr == nil {
-		return go_token.NoPos
+		return token.NoPos
 	}
 	return x.expr.Pos()
 }
@@ -269,7 +266,7 @@ func lookupFieldBreadthFirst(list []embeddedType, name string) (res lookupResult
 
 			// look for a matching attached method
 			if data := typ.Obj.Data; data != nil {
-				if obj := data.(*go_ast.Scope).Lookup(name); obj != nil {
+				if obj := data.(*ast.Scope).Lookup(name); obj != nil {
 					assert(obj.Type != nil)
 					if !potentialMatch(e.multiples, value, obj.Type.(Type)) {
 						return // name collision
@@ -356,7 +353,7 @@ func lookupField(typ Type, name string) (operandMode, Type) {
 
 	if typ, ok := typ.(*NamedType); ok {
 		if data := typ.Obj.Data; data != nil {
-			if obj := data.(*go_ast.Scope).Lookup(name); obj != nil {
+			if obj := data.(*ast.Scope).Lookup(name); obj != nil {
 				assert(obj.Type != nil)
 				return value, obj.Type.(Type)
 			}

@@ -25,7 +25,6 @@ package parser
 import (
 	"github.com/fd/w/simplex/scanner"
 	"github.com/fd/w/simplex/token"
-	go_token "go/token"
 	"io/ioutil"
 	"path/filepath"
 	"regexp"
@@ -36,8 +35,8 @@ import (
 const testdata = "testdata"
 
 // getFile assumes that each filename occurs at most once
-func getFile(filename string) (file *go_token.File) {
-	fset.Iterate(func(f *go_token.File) bool {
+func getFile(filename string) (file *token.File) {
+	fset.Iterate(func(f *token.File) bool {
 		if f.Name() == filename {
 			if file != nil {
 				panic(filename + " used multiple times")
@@ -49,11 +48,11 @@ func getFile(filename string) (file *go_token.File) {
 	return file
 }
 
-func getPos(filename string, offset int) go_token.Pos {
+func getPos(filename string, offset int) token.Pos {
 	if f := getFile(filename); f != nil {
 		return f.Pos(offset)
 	}
-	return go_token.NoPos
+	return token.NoPos
 }
 
 // ERROR comments must be of the form /* ERROR "rx" */ and rx is
@@ -64,15 +63,15 @@ var errRx = regexp.MustCompile(`^/\* *ERROR *"([^"]*)" *\*/$`)
 // expectedErrors collects the regular expressions of ERROR comments found
 // in files and returns them as a map of error positions to error messages.
 //
-func expectedErrors(t *testing.T, filename string, src []byte) map[go_token.Pos]string {
-	errors := make(map[go_token.Pos]string)
+func expectedErrors(t *testing.T, filename string, src []byte) map[token.Pos]string {
+	errors := make(map[token.Pos]string)
 
 	var s scanner.Scanner
 	// file was parsed already - do not add it again to the file
 	// set otherwise the position information returned here will
 	// not match the position information collected by the parser
 	s.Init(getFile(filename), src, nil, scanner.ScanComments)
-	var prev go_token.Pos // position of last non-comment, non-semicolon token
+	var prev token.Pos // position of last non-comment, non-semicolon token
 
 	for {
 		pos, tok, lit := s.Scan()
@@ -95,7 +94,7 @@ func expectedErrors(t *testing.T, filename string, src []byte) map[go_token.Pos]
 // compareErrors compares the map of expected error messages with the list
 // of found errors and reports discrepancies.
 //
-func compareErrors(t *testing.T, expected map[go_token.Pos]string, found scanner.ErrorList) {
+func compareErrors(t *testing.T, expected map[token.Pos]string, found scanner.ErrorList) {
 	for _, error := range found {
 		// error.Pos is a token.Position, but we want
 		// a token.Pos so we can do a map lookup
