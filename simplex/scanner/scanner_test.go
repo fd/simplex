@@ -169,7 +169,6 @@ var tokens = [...]elt{
 
 	{token.INTERFACE, "interface", keyword},
 	{token.MAP, "map", keyword},
-	{token.VIEW, "view", keyword},
 	{token.PACKAGE, "package", keyword},
 	{token.RANGE, "range", keyword},
 	{token.RETURN, "return", keyword},
@@ -180,14 +179,10 @@ var tokens = [...]elt{
 	{token.TYPE, "type", keyword},
 	{token.VAR, "var", keyword},
 
-	{token.SOURCE, "source", keyword},
-	{token.REJECT, "reject", keyword},
-	{token.DETECT, "detect", keyword},
-	{token.COLLECT, "collect", keyword},
-	{token.INJECT, "inject", keyword},
-	{token.GROUP, "group", keyword},
-	{token.INDEX, "index", keyword},
-	{token.SORT, "sort", keyword},
+	//=== start custom
+	{token.VIEW, "view", keyword},
+	{token.TABLE, "table", keyword},
+	//=== end custim
 }
 
 const whitespace = "  \t  \n\n\n" // to separate tokens
@@ -441,7 +436,6 @@ var lines = []string{
 
 	"interface\n",
 	"map\n",
-	"view\n",
 	"package\n",
 	"range\n",
 	"return$\n",
@@ -451,15 +445,6 @@ var lines = []string{
 	"switch\n",
 	"type\n",
 	"var\n",
-
-	"source\n",
-	"reject\n",
-	"detect\n",
-	"collect\n",
-	"inject\n",
-	"group\n",
-	"index\n",
-	"sort\n",
 
 	"foo$//comment\n",
 	"foo$//comment",
@@ -484,6 +469,11 @@ var lines = []string{
 
 	"package main$\n\nfunc main() {\n\tif {\n\t\treturn /* */ }$\n}$\n",
 	"package main$",
+
+	//=== start custom
+	"view\n",
+	"table\n",
+	//=== end custom
 }
 
 func TestSemis(t *testing.T) {

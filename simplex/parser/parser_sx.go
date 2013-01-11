@@ -19,58 +19,41 @@ func (p *parser) parseViewType() *ast.ViewType {
 	return &ast.ViewType{View: pos, Key: key, Value: value}
 }
 
-func (p *parser) parseSelectStep(x ast.Expr) ast.Step {
+func (p *parser) parseTableType() *ast.TableType {
 	if p.trace {
-		defer un(trace(p, "SelectStep"))
+		defer un(trace(p, "TableType"))
 	}
 
-	tok_pos := p.expect(token.SELECT)
-	lparen := p.expect(token.LPAREN)
+	pos := p.expect(token.TABLE)
+	p.expect(token.LBRACK)
+	key := p.parseType()
+	p.expect(token.RBRACK)
+	value := p.parseType()
 
-	p.exprLev++
-	f := p.parseRhs()
-	p.exprLev--
-
-	rparen := p.expectClosing(token.RPAREN, "argument list")
-
-	return &ast.SelectStep{
-		X:      x,
-		Select: tok_pos,
-		Lparen: lparen,
-		F:      f,
-		Rparen: rparen,
-	}
+	return &ast.TableType{Table: pos, Key: key, Value: value}
 }
 
-func (p *parser) parseRejectStep(x ast.Expr) ast.Step {
-	if p.trace {
-		defer un(trace(p, "RejectStep"))
+func (p *parser) parseStepOrCallOrConversion(x ast.Expr) ast.Expr {
+	sel, ok := x.(*ast.SelectorExpr)
+	if !ok {
+		return p.parseCallOrConversion(x)
 	}
 
-	tok_pos := p.expect(token.REJECT)
-	lparen := p.expect(token.LPAREN)
-
-	p.exprLev++
-	f := p.parseRhs()
-	p.exprLev--
-
-	rparen := p.expectClosing(token.RPAREN, "argument list")
-
-	return &ast.RejectStep{
-		X:      x,
-		Reject: tok_pos,
-		Lparen: lparen,
-		F:      f,
-		Rparen: rparen,
+	ident := sel.Sel
+	step_typ := ast.StepTypeNames[ident.Name]
+	step_pos := ident.Pos()
+	if step_typ == ast.BadStep {
+		return p.parseCallOrConversion(x)
 	}
+
+	return p.parseStepExpr(sel.X, step_typ, step_pos)
 }
 
-func (p *parser) parseDetectStep(x ast.Expr) ast.Step {
+func (p *parser) parseStepExpr(x ast.Expr, step_typ ast.StepType, step_pos token.Pos) *ast.StepExpr {
 	if p.trace {
-		defer un(trace(p, "DetectStep"))
+		defer un(trace(p, "StepExpr"))
 	}
 
-	tok_pos := p.expect(token.DETECT)
 	lparen := p.expect(token.LPAREN)
 
 	p.exprLev++
@@ -79,127 +62,13 @@ func (p *parser) parseDetectStep(x ast.Expr) ast.Step {
 
 	rparen := p.expectClosing(token.RPAREN, "argument list")
 
-	return &ast.DetectStep{
-		X:      x,
-		Detect: tok_pos,
-		Lparen: lparen,
-		F:      f,
-		Rparen: rparen,
-	}
-}
-
-func (p *parser) parseCollectStep(x ast.Expr) ast.Step {
-	if p.trace {
-		defer un(trace(p, "CollectStep"))
-	}
-
-	tok_pos := p.expect(token.COLLECT)
-	lparen := p.expect(token.LPAREN)
-
-	p.exprLev++
-	f := p.parseRhs()
-	p.exprLev--
-
-	rparen := p.expectClosing(token.RPAREN, "argument list")
-
-	return &ast.CollectStep{
-		X:       x,
-		Collect: tok_pos,
-		Lparen:  lparen,
-		F:       f,
-		Rparen:  rparen,
-	}
-}
-
-func (p *parser) parseInjectStep(x ast.Expr) ast.Step {
-	if p.trace {
-		defer un(trace(p, "InjectStep"))
-	}
-
-	tok_pos := p.expect(token.INJECT)
-	lparen := p.expect(token.LPAREN)
-
-	p.exprLev++
-	f := p.parseRhs()
-	p.exprLev--
-
-	rparen := p.expectClosing(token.RPAREN, "argument list")
-
-	return &ast.InjectStep{
-		X:      x,
-		Inject: tok_pos,
-		Lparen: lparen,
-		F:      f,
-		Rparen: rparen,
-	}
-}
-
-func (p *parser) parseGroupStep(x ast.Expr) ast.Step {
-	if p.trace {
-		defer un(trace(p, "GroupStep"))
-	}
-
-	tok_pos := p.expect(token.GROUP)
-	lparen := p.expect(token.LPAREN)
-
-	p.exprLev++
-	f := p.parseRhs()
-	p.exprLev--
-
-	rparen := p.expectClosing(token.RPAREN, "argument list")
-
-	return &ast.GroupStep{
-		X:      x,
-		Group:  tok_pos,
-		Lparen: lparen,
-		F:      f,
-		Rparen: rparen,
-	}
-}
-
-func (p *parser) parseIndexStep(x ast.Expr) ast.Step {
-	if p.trace {
-		defer un(trace(p, "IndexStep"))
-	}
-
-	tok_pos := p.expect(token.INDEX)
-	lparen := p.expect(token.LPAREN)
-
-	p.exprLev++
-	f := p.parseRhs()
-	p.exprLev--
-
-	rparen := p.expectClosing(token.RPAREN, "argument list")
-
-	return &ast.IndexStep{
-		X:      x,
-		Index:  tok_pos,
-		Lparen: lparen,
-		F:      f,
-		Rparen: rparen,
-	}
-}
-
-func (p *parser) parseSortStep(x ast.Expr) ast.Step {
-	if p.trace {
-		defer un(trace(p, "SortStep"))
-	}
-
-	tok_pos := p.expect(token.SORT)
-	lparen := p.expect(token.LPAREN)
-
-	p.exprLev++
-	f := p.parseRhs()
-	p.exprLev--
-
-	rparen := p.expectClosing(token.RPAREN, "argument list")
-
-	return &ast.SortStep{
-		X:      x,
-		Sort:   tok_pos,
-		Lparen: lparen,
-		F:      f,
-		Rparen: rparen,
+	return &ast.StepExpr{
+		X:        x,
+		TokPos:   step_pos,
+		StepType: step_typ,
+		Lparen:   lparen,
+		F:        f,
+		Rparen:   rparen,
 	}
 }
 
@@ -225,6 +94,8 @@ func (p *parser) tryIdentOrType() ast.Expr {
 		return p.parseMapType()
 	case token.VIEW:
 		return p.parseViewType()
+	case token.TABLE:
+		return p.parseTableType()
 	case token.CHAN, token.ARROW:
 		return p.parseChanType()
 	case token.LPAREN:
@@ -274,14 +145,6 @@ func (p *parser) parseOperand(lhs bool) ast.Expr {
 	case token.FUNC:
 		return p.parseFuncTypeOrLit()
 
-	case token.SOURCE:
-		pos := p.pos
-		p.next()
-		lparen := p.expect(token.LPAREN)
-		typ := p.parseType()
-		rparen := p.expectClosing(token.RPAREN, "argument list")
-		return &ast.SourceStep{Source: pos, Lparen: lparen, Type: typ, Rparen: rparen}
-
 	}
 
 	if typ := p.tryIdentOrType(); typ != nil {
@@ -324,15 +187,7 @@ func (p *parser) checkExpr(x ast.Expr) ast.Expr {
 	case *ast.UnaryExpr:
 	case *ast.BinaryExpr:
 
-	case *ast.SourceStep:
-	case *ast.SelectStep:
-	case *ast.RejectStep:
-	case *ast.DetectStep:
-	case *ast.CollectStep:
-	case *ast.InjectStep:
-	case *ast.GroupStep:
-	case *ast.IndexStep:
-	case *ast.SortStep:
+	case *ast.StepExpr:
 
 	default:
 		// all other nodes are not proper expressions
@@ -357,6 +212,7 @@ func isLiteralType(x ast.Expr) bool {
 	case *ast.MapType:
 
 	case *ast.ViewType:
+	case *ast.TableType:
 
 	default:
 		return false // all other nodes are not legal composite literal types
@@ -386,21 +242,9 @@ L:
 				x = p.parseSelector(p.checkExpr(x))
 
 			case token.SELECT:
-				x = p.parseSelectStep(p.checkExpr(x))
-			case token.REJECT:
-				x = p.parseRejectStep(p.checkExpr(x))
-			case token.DETECT:
-				x = p.parseDetectStep(p.checkExpr(x))
-			case token.COLLECT:
-				x = p.parseCollectStep(p.checkExpr(x))
-			case token.INJECT:
-				x = p.parseInjectStep(p.checkExpr(x))
-			case token.GROUP:
-				x = p.parseGroupStep(p.checkExpr(x))
-			case token.INDEX:
-				x = p.parseIndexStep(p.checkExpr(x))
-			case token.SORT:
-				x = p.parseSortStep(p.checkExpr(x))
+				pos := p.pos
+				p.next()
+				x = p.parseStepExpr(p.checkExpr(x), ast.SelectStep, pos)
 
 			case token.LPAREN:
 				x = p.parseTypeAssertion(p.checkExpr(x))
@@ -419,7 +263,7 @@ L:
 			if lhs {
 				p.resolve(x)
 			}
-			x = p.parseCallOrConversion(p.checkExprOrType(x))
+			x = p.parseStepOrCallOrConversion(p.checkExprOrType(x))
 		case token.LBRACE:
 			if isLiteralType(x) && (p.exprLev >= 0 || !isTypeName(x)) {
 				if lhs {

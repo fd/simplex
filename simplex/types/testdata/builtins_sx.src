@@ -1,0 +1,27 @@
+package builtins
+
+func _len() {
+  var v view[string]float64
+  var t table[string]float64
+	_ = len(v)
+	_ = len(t)
+}
+
+func _cap() {
+  var v view[string]float64
+  var t table[string]float64
+	_ = cap(v /* ERROR "invalid" */)
+	_ = cap(t /* ERROR "invalid" */)
+}
+
+func _make() {
+	n := 0
+
+	// tables
+	_ = make /* ERROR "arguments" */ (table[int]string, 10, 20)
+	_ = make(table[int]float32, int /* ERROR "not an expression" */)
+	_ = make(table[int]float32, "foo" /* ERROR "must be an integer" */)
+	_ = make(table[int]float32, 10)
+	_ = make(table[int]float32, n)
+	_ = make(table[int]float32, int64(n))
+}

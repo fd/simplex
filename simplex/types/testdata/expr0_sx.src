@@ -1,0 +1,156 @@
+// Copyright 2012 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+// simplex expressions
+
+package expr0_sx
+
+func _Select() {
+  var v view[string]float64
+  var w view[string]float64
+  var x view[string]int
+  var z int
+
+  f0 := func(f float64)bool{ return true }
+  f1 := func(){}
+  f2 := func(f string)bool{ return true }
+  f3 := func(f float64)int{ return 5 }
+
+  _ = z /* ERROR "not a view receiver" */ .select(f0)
+  _ = v.select(f1 /* ERROR "not a select func" */)
+  _ = v.select(f2 /* ERROR "not a select func" */)
+  _ = v.select(f3 /* ERROR "not a select func" */)
+  w = v.select(f0)
+  x = w /* ERROR "cannot assign" */
+}
+
+func _Reject() {
+  var v view[string]float64
+  var w view[string]float64
+  var x view[string]int
+  var z int
+
+  f0 := func(f float64)bool{ return true }
+  f1 := func(){}
+  f2 := func(f string)bool{ return true }
+  f3 := func(f float64)int{ return 5 }
+
+  _ = z /* ERROR "not a view receiver" */ .reject(f0)
+  _ = v.reject(f1 /* ERROR "not a reject func" */)
+  _ = v.reject(f2 /* ERROR "not a reject func" */)
+  _ = v.reject(f3 /* ERROR "not a reject func" */)
+  w = v.reject(f0)
+  x = w /* ERROR "cannot assign" */
+}
+
+func _Detect() {
+  var v view[string]float64
+  var w float64
+  var x int
+  var z int
+
+  f0 := func(f float64)bool{ return true }
+  f1 := func(){}
+  f2 := func(f string)bool{ return true }
+  f3 := func(f float64)int{ return 5 }
+
+  _ = z /* ERROR "not a view receiver" */ .detect(f0)
+  _ = v.detect(f1 /* ERROR "not a detect func" */)
+  _ = v.detect(f2 /* ERROR "not a detect func" */)
+  _ = v.detect(f3 /* ERROR "not a detect func" */)
+  w = v.detect(f0)
+  x = w /* ERROR "cannot assign" */
+}
+
+func _Collect() {
+  var v view[string]float64
+  var w view[string]int
+  var x view[string]string
+  var z int
+
+  f0 := func(f float64)int{ return int(f) * 5 }
+  f1 := func(){}
+  f2 := func(f string)bool{ return true }
+
+  _ = z /* ERROR "not a view receiver" */ .collect(f0)
+  _ = v.collect(f1 /* ERROR "not a collect func" */)
+  _ = v.collect(f2 /* ERROR "not a collect func" */)
+  w = v.collect(f0)
+  x = w /* ERROR "cannot assign" */
+}
+
+func _Inject() {
+  var v view[string]view[]int
+  var w view[string]float64
+  var x view[string]string
+  var z int
+
+  f0 := func(a []float64, f int)float64{
+    var r float64
+    r += float64(f)
+    for _, e := range a {
+      r += e
+    }
+    return r
+  }
+  f1 := func(){}
+  f2 := func(f string)bool{ return true }
+
+  _ = z /* ERROR "not a view receiver" */ .inject(f0)
+  _ = v.inject(f1 /* ERROR "not a inject func" */)
+  _ = v.inject(f2 /* ERROR "not a inject func" */)
+  w = v.inject(f0)
+  x = w /* ERROR "cannot assign" */
+}
+
+func _Group() {
+  var v view[string]float64
+  var w view[int]view[string]float64
+  var x view[string]string
+  var z int
+
+  f0 := func(f float64)int{ return int(f) * 5 }
+  f1 := func(){}
+  f2 := func(f string)bool{ return true }
+
+  _ = z /* ERROR "not a view receiver" */ .group(f0)
+  _ = v.group(f1 /* ERROR "not a group func" */)
+  _ = v.group(f2 /* ERROR "not a group func" */)
+  w = v.group(f0)
+  x = w /* ERROR "cannot assign" */
+}
+
+func _Index() {
+  var v view[string]float64
+  var w view[int]float64
+  var x view[string]string
+  var z int
+
+  f0 := func(f float64)int{ return int(f) * 5 }
+  f1 := func(){}
+  f2 := func(f string)bool{ return true }
+
+  _ = z /* ERROR "not a view receiver" */ .index(f0)
+  _ = v.index(f1 /* ERROR "not a index func" */)
+  _ = v.index(f2 /* ERROR "not a index func" */)
+  w = v.index(f0)
+  x = w /* ERROR "cannot assign" */
+}
+
+func _Sort() {
+  var v view[string]float64
+  var w view[]float64
+  var x view[string]string
+  var z int
+
+  f0 := func(f float64)int{ return int(f) * 5 }
+  f1 := func(){}
+  f2 := func(f string)bool{ return true }
+
+  _ = z /* ERROR "not a view receiver" */ .sort(f0)
+  _ = v.sort(f1 /* ERROR "not a sort func" */)
+  _ = v.sort(f2 /* ERROR "not a sort func" */)
+  w = v.sort(f0)
+  x = w /* ERROR "cannot assign" */
+}

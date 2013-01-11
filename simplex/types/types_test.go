@@ -95,6 +95,10 @@ var testTypes = []testEntry{
 	dup("map[string]int"),
 	{"map[struct{x, y int}][]byte", "map[struct{x int; y int}][]byte"},
 
+	// views
+	dup("view[]int"),
+	dup("view[string]int"),
+
 	// channels
 	dup("chan int"),
 	dup("chan<- func()"),

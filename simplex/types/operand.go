@@ -124,85 +124,87 @@ func (x *operand) isNil() bool {
 	return x.mode == constant && x.val == nilConst
 }
 
+/*Simplex
 // TODO(gri) The functions operand.isAssignable, checker.convertUntyped,
 //           checker.isRepresentable, and checker.assignOperand are
 //           overlapping in functionality. Need to simplify and clean up.
 
 // isAssignable reports whether x is assignable to a variable of type T.
 func (x *operand) isAssignable(T Type) bool {
-	if x.mode == invalid || T == Typ[Invalid] {
-		return true // avoid spurious errors
-	}
+  if x.mode == invalid || T == Typ[Invalid] {
+    return true // avoid spurious errors
+  }
 
-	V := x.typ
+  V := x.typ
 
-	// x's type is identical to T
-	if isIdentical(V, T) {
-		return true
-	}
+  // x's type is identical to T
+  if isIdentical(V, T) {
+    return true
+  }
 
-	Vu := underlying(V)
-	Tu := underlying(T)
+  Vu := underlying(V)
+  Tu := underlying(T)
 
-	// x's type V and T have identical underlying types
-	// and at least one of V or T is not a named type
-	if isIdentical(Vu, Tu) {
-		return !isNamed(V) || !isNamed(T)
-	}
+  // x's type V and T have identical underlying types
+  // and at least one of V or T is not a named type
+  if isIdentical(Vu, Tu) {
+    return !isNamed(V) || !isNamed(T)
+  }
 
-	// T is an interface type and x implements T
-	if Ti, ok := Tu.(*Interface); ok {
-		if m, _ := missingMethod(x.typ, Ti); m == nil {
-			return true
-		}
-	}
+  // T is an interface type and x implements T
+  if Ti, ok := Tu.(*Interface); ok {
+    if m, _ := missingMethod(x.typ, Ti); m == nil {
+      return true
+    }
+  }
 
-	// x is a bidirectional channel value, T is a channel
-	// type, x's type V and T have identical element types,
-	// and at least one of V or T is not a named type
-	if Vc, ok := Vu.(*Chan); ok && Vc.Dir == ast.SEND|ast.RECV {
-		if Tc, ok := Tu.(*Chan); ok && isIdentical(Vc.Elt, Tc.Elt) {
-			return !isNamed(V) || !isNamed(T)
-		}
-	}
+  // x is a bidirectional channel value, T is a channel
+  // type, x's type V and T have identical element types,
+  // and at least one of V or T is not a named type
+  if Vc, ok := Vu.(*Chan); ok && Vc.Dir == ast.SEND|ast.RECV {
+    if Tc, ok := Tu.(*Chan); ok && isIdentical(Vc.Elt, Tc.Elt) {
+      return !isNamed(V) || !isNamed(T)
+    }
+  }
 
-	// x is the predeclared identifier nil and T is a pointer,
-	// function, slice, map, channel, or interface type
-	if x.isNil() {
-		switch t := Tu.(type) {
-		case *Basic:
-			if t.Kind == UnsafePointer {
-				return true
-			}
-		case *Pointer, *Signature, *Slice, *Map, *Chan, *Interface:
-			return true
-		}
-		return false
-	}
+  // x is the predeclared identifier nil and T is a pointer,
+  // function, slice, map, channel, or interface type
+  if x.isNil() {
+    switch t := Tu.(type) {
+    case *Basic:
+      if t.Kind == UnsafePointer {
+        return true
+      }
+    case *Pointer, *Signature, *Slice, *Map, *Chan, *Interface:
+      return true
+    }
+    return false
+  }
 
-	// x is an untyped constant representable by a value of type T
-	// TODO(gri) This is borrowing from checker.convertUntyped and
-	//           checker.isRepresentable. Need to clean up.
-	if isUntyped(Vu) {
-		switch t := Tu.(type) {
-		case *Basic:
-			if x.mode == constant {
-				return isRepresentableConst(x.val, t.Kind)
-			}
-			// The result of a comparison is an untyped boolean,
-			// but may not be a constant.
-			if Vb, _ := Vu.(*Basic); Vb != nil {
-				return Vb.Kind == UntypedBool && isBoolean(Tu)
-			}
-		case *Interface:
-			return x.isNil() || len(t.Methods) == 0
-		case *Pointer, *Signature, *Slice, *Map, *Chan:
-			return x.isNil()
-		}
-	}
+  // x is an untyped constant representable by a value of type T
+  // TODO(gri) This is borrowing from checker.convertUntyped and
+  //           checker.isRepresentable. Need to clean up.
+  if isUntyped(Vu) {
+    switch t := Tu.(type) {
+    case *Basic:
+      if x.mode == constant {
+        return isRepresentableConst(x.val, t.Kind)
+      }
+      // The result of a comparison is an untyped boolean,
+      // but may not be a constant.
+      if Vb, _ := Vu.(*Basic); Vb != nil {
+        return Vb.Kind == UntypedBool && isBoolean(Tu)
+      }
+    case *Interface:
+      return x.isNil() || len(t.Methods) == 0
+    case *Pointer, *Signature, *Slice, *Map, *Chan:
+      return x.isNil()
+    }
+  }
 
-	return false
+  return false
 }
+*/
 
 // isInteger reports whether x is a (typed or untyped) integer value.
 func (x *operand) isInteger() bool {
