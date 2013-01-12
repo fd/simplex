@@ -127,3 +127,74 @@ func (x *operand) isAssignable(T Type) bool {
 
 	return false
 }
+
+// see operand.go:354
+func lookupField(typ Type, name string) (operandMode, Type) {
+	typ = deref(typ)
+
+	if typ, ok := typ.(*NamedType); ok {
+		if data := typ.Obj.Data; data != nil {
+			if obj := data.(*ast.Scope).Lookup(name); obj != nil {
+				assert(obj.Type != nil)
+				return value, obj.Type.(Type)
+			}
+		}
+	}
+
+	switch typ := underlying(typ).(type) {
+	case *Struct:
+		var next []embeddedType
+		for _, f := range typ.Fields {
+			if f.Name == name {
+				return variable, f.Type
+			}
+			if f.IsAnonymous {
+				// Possible optimization: If the embedded type
+				// is a pointer to the current type we could
+				// ignore it.
+				next = append(next, embeddedType{typ: deref(f.Type).(*NamedType)})
+			}
+		}
+		if len(next) > 0 {
+			res := lookupFieldBreadthFirst(next, name)
+			return res.mode, res.typ
+		}
+
+	case *Interface:
+		for _, m := range typ.Methods {
+			if m.Name == name {
+				return value, m.Type
+			}
+		}
+
+	//=== start custom
+	case *View, *Table:
+		for _, n := range sx_step_names {
+			if n == name {
+				return value, &builtin_step{Recv: typ, StepType: name}
+			}
+		}
+		//=== end custom
+
+	}
+
+	// not found
+	return invalid, nil
+}
+
+type builtin_step struct {
+	implementsType
+	Recv     Type
+	StepType string
+}
+
+var sx_step_names = [...]string{
+	"select",
+	"reject",
+	"detect",
+	"collect",
+	"inject",
+	"group",
+	"index",
+	"sort",
+}

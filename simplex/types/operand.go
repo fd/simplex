@@ -350,45 +350,47 @@ func findType(list []embeddedType, typ *NamedType) *embeddedType {
 	return nil
 }
 
+/*Simplex
 func lookupField(typ Type, name string) (operandMode, Type) {
-	typ = deref(typ)
+  typ = deref(typ)
 
-	if typ, ok := typ.(*NamedType); ok {
-		if data := typ.Obj.Data; data != nil {
-			if obj := data.(*ast.Scope).Lookup(name); obj != nil {
-				assert(obj.Type != nil)
-				return value, obj.Type.(Type)
-			}
-		}
-	}
+  if typ, ok := typ.(*NamedType); ok {
+    if data := typ.Obj.Data; data != nil {
+      if obj := data.(*ast.Scope).Lookup(name); obj != nil {
+        assert(obj.Type != nil)
+        return value, obj.Type.(Type)
+      }
+    }
+  }
 
-	switch typ := underlying(typ).(type) {
-	case *Struct:
-		var next []embeddedType
-		for _, f := range typ.Fields {
-			if f.Name == name {
-				return variable, f.Type
-			}
-			if f.IsAnonymous {
-				// Possible optimization: If the embedded type
-				// is a pointer to the current type we could
-				// ignore it.
-				next = append(next, embeddedType{typ: deref(f.Type).(*NamedType)})
-			}
-		}
-		if len(next) > 0 {
-			res := lookupFieldBreadthFirst(next, name)
-			return res.mode, res.typ
-		}
+  switch typ := underlying(typ).(type) {
+  case *Struct:
+    var next []embeddedType
+    for _, f := range typ.Fields {
+      if f.Name == name {
+        return variable, f.Type
+      }
+      if f.IsAnonymous {
+        // Possible optimization: If the embedded type
+        // is a pointer to the current type we could
+        // ignore it.
+        next = append(next, embeddedType{typ: deref(f.Type).(*NamedType)})
+      }
+    }
+    if len(next) > 0 {
+      res := lookupFieldBreadthFirst(next, name)
+      return res.mode, res.typ
+    }
 
-	case *Interface:
-		for _, m := range typ.Methods {
-			if m.Name == name {
-				return value, m.Type
-			}
-		}
-	}
+  case *Interface:
+    for _, m := range typ.Methods {
+      if m.Name == name {
+        return value, m.Type
+      }
+    }
+  }
 
-	// not found
-	return invalid, nil
+  // not found
+  return invalid, nil
 }
+*/

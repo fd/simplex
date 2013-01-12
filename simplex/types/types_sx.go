@@ -11,3 +11,14 @@ type Table struct {
 	implementsType
 	Key, Elt Type
 }
+
+type Viewish interface {
+	KeyType() Type
+	EltType() Type
+}
+
+func (v *View) KeyType() Type  { return v.Key }
+func (v *Table) KeyType() Type { return v.Key }
+
+func (v *View) EltType() Type  { return v.Elt }
+func (v *Table) EltType() Type { return v.Elt }

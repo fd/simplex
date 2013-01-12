@@ -1062,7 +1062,6 @@ func (p *parser) parseFuncTypeOrLit() ast.Expr {
 	return &ast.FuncLit{Type: typ, Body: body}
 }
 
-/* NOTE: customized for simplex
 // parseOperand may return an expression or a raw type (incl. array
 // types of the form [...]T. Callers must verify the result.
 // If lhs is set and the result is an identifier, it is not resolved.
@@ -1111,7 +1110,6 @@ func (p *parser) parseOperand(lhs bool) ast.Expr {
 	syncStmt(p)
 	return &ast.BadExpr{From: pos, To: p.pos}
 }
-*/
 
 func (p *parser) parseSelector(x ast.Expr) ast.Expr {
 	if p.trace {
@@ -1270,7 +1268,6 @@ func (p *parser) parseLiteralValue(typ ast.Expr) ast.Expr {
 	return &ast.CompositeLit{Type: typ, Lbrace: lbrace, Elts: elts, Rbrace: rbrace}
 }
 
-/* NOTE: customized for simplex
 // checkExpr checks that x is an expression (and not a type).
 func (p *parser) checkExpr(x ast.Expr) ast.Expr {
 	switch unparen(x).(type) {
@@ -1301,7 +1298,6 @@ func (p *parser) checkExpr(x ast.Expr) ast.Expr {
 	}
 	return x
 }
-*/
 
 // isTypeName returns true iff x is a (qualified) TypeName.
 func isTypeName(x ast.Expr) bool {
