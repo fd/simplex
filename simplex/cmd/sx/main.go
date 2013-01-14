@@ -130,7 +130,7 @@ func main() {
 	} else {
 		for _, p := range filepath.SplitList(gopath) {
 			if build.IsLocalImport(p) {
-				fmt.Fprintf(os.Stderr, "go: GOPATH entry is relative; must be absolute path: %q.\nRun 'go help gopath' for usage.\n", p)
+				fmt.Fprintf(os.Stderr, "go: GOPATH entry is relative; must be absolute path: %q.\nRun 'sx help gopath' for usage.\n", p)
 				os.Exit(2)
 			}
 		}
@@ -151,32 +151,32 @@ func main() {
 		}
 	}
 
-	fmt.Fprintf(os.Stderr, "go: unknown subcommand %q\nRun 'go help' for usage.\n", args[0])
+	fmt.Fprintf(os.Stderr, "go: unknown subcommand %q\nRun 'sx help' for usage.\n", args[0])
 	setExitStatus(2)
 	exit()
 }
 
-var usageTemplate = `Go is a tool for managing Go source code.
+var usageTemplate = `Sx is a tool for managing Go and Simplex source code.
 
 Usage:
 
-	go command [arguments]
+	sx command [arguments]
 
 The commands are:
 {{range .}}{{if .Runnable}}
     {{.Name | printf "%-11s"}} {{.Short}}{{end}}{{end}}
 
-Use "go help [command]" for more information about a command.
+Use "sx help [command]" for more information about a command.
 
 Additional help topics:
 {{range .}}{{if not .Runnable}}
     {{.Name | printf "%-11s"}} {{.Short}}{{end}}{{end}}
 
-Use "go help [topic]" for more information about that topic.
+Use "sx help [topic]" for more information about that topic.
 
 `
 
-var helpTemplate = `{{if .Runnable}}usage: go {{.UsageLine}}
+var helpTemplate = `{{if .Runnable}}usage: sx {{.UsageLine}}
 
 {{end}}{{.Long | trim}}
 `
@@ -190,7 +190,7 @@ var documentationTemplate = `// Copyright 2011 The Go Authors.  All rights reser
 
 {{end}}{{if .Runnable}}Usage:
 
-	go {{.UsageLine}}
+	sx {{.UsageLine}}
 
 {{end}}{{.Long | trim}}
 
@@ -236,7 +236,7 @@ func help(args []string) {
 		return
 	}
 	if len(args) != 1 {
-		fmt.Fprintf(os.Stderr, "usage: go help command\n\nToo many arguments given.\n")
+		fmt.Fprintf(os.Stderr, "usage: sx help command\n\nToo many arguments given.\n")
 		os.Exit(2) // failed at 'go help'
 	}
 
@@ -259,7 +259,7 @@ func help(args []string) {
 		}
 	}
 
-	fmt.Fprintf(os.Stderr, "Unknown help topic %#q.  Run 'go help'.\n", arg)
+	fmt.Fprintf(os.Stderr, "Unknown help topic %#q.  Run 'sx help'.\n", arg)
 	os.Exit(2) // failed at 'go help cmd'
 }
 

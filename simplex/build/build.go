@@ -285,6 +285,7 @@ type Package struct {
 
 	// Source files
 	GoFiles      []string // .go source files (excluding CgoFiles, TestGoFiles, XTestGoFiles)
+	SxFiles      []string // .sx source files
 	CgoFiles     []string // .go source files that import "C"
 	CFiles       []string // .c source files
 	HFiles       []string // .h source files
@@ -304,6 +305,7 @@ type Package struct {
 
 	// Test information
 	TestGoFiles    []string                    // _test.go files in package
+	TestSxFiles    []string                    // _test.sx files in package
 	TestImports    []string                    // imports from TestGoFiles
 	TestImportPos  map[string][]token.Position // line information for TestImports
 	XTestGoFiles   []string                    // _test.go files outside package
@@ -331,7 +333,7 @@ type NoGoError struct {
 }
 
 func (e *NoGoError) Error() string {
-	return "no Go source files in " + e.Dir
+	return "no Go or Sx source files in " + e.Dir
 }
 
 // Import returns details about the Go package named by the import path,
@@ -529,7 +531,7 @@ Found:
 		}
 		ext := name[i:]
 		switch ext {
-		case ".go", ".c", ".s", ".h", ".S", ".swig", ".swigcxx":
+		case ".go", ".sx", ".c", ".s", ".h", ".S", ".swig", ".swigcxx":
 			// tentatively okay - read to make sure
 		case ".syso":
 			// binary objects to add to package archive
@@ -549,7 +551,7 @@ Found:
 		}
 
 		var data []byte
-		if strings.HasSuffix(filename, ".go") {
+		if strings.HasSuffix(filename, ".go") || strings.HasSuffix(filename, ".sx") {
 			data, err = readImports(f, false)
 		} else {
 			data, err = readComments(f)
@@ -596,7 +598,7 @@ Found:
 			continue
 		}
 
-		isTest := strings.HasSuffix(name, "_test.go")
+		isTest := strings.HasSuffix(name, "_test.go") || strings.HasSuffix(name, "_test.sx")
 		isXTest := false
 		if isTest && strings.HasSuffix(pkg, "_test") {
 			isXTest = true
@@ -661,9 +663,17 @@ Found:
 		} else if isXTest {
 			p.XTestGoFiles = append(p.XTestGoFiles, name)
 		} else if isTest {
-			p.TestGoFiles = append(p.TestGoFiles, name)
+			if strings.HasSuffix(name, ".sx") {
+				p.TestSxFiles = append(p.TestSxFiles, name)
+			} else {
+				p.TestGoFiles = append(p.TestGoFiles, name)
+			}
 		} else {
-			p.GoFiles = append(p.GoFiles, name)
+			if strings.HasSuffix(name, ".sx") {
+				p.SxFiles = append(p.SxFiles, name)
+			} else {
+				p.GoFiles = append(p.GoFiles, name)
+			}
 		}
 	}
 	if p.Name == "" {

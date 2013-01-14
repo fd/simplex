@@ -17,9 +17,9 @@ var cmdRun = &Command{
 	Long: `
 Run compiles and runs the main package comprising the named Go source files.
 
-For more about build flags, see 'go help build'.
+For more about build flags, see 'sx help build'.
 
-See also: go build.
+See also: sx build.
 	`,
 }
 
@@ -44,7 +44,7 @@ func runRun(cmd *Command, args []string) {
 	}
 	files, cmdArgs := args[:i], args[i:]
 	if len(files) == 0 {
-		fatalf("go run: no go files listed")
+		fatalf("sx run: no go or sx files listed")
 	}
 	p := goFilesPackage(files)
 	if p.Error != nil {
@@ -55,7 +55,7 @@ func runRun(cmd *Command, args []string) {
 	}
 	exitIfErrors()
 	if p.Name != "main" {
-		fatalf("go run: cannot run non-main package")
+		fatalf("sx run: cannot run non-main package")
 	}
 	p.target = "" // must build - not up to date
 	a1 := b.action(modeBuild, modeBuild, p)

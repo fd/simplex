@@ -52,7 +52,7 @@ dependencies of the packages named by the import paths.
 
 The -x flag causes clean to print remove commands as it executes them.
 
-For more about specifying packages, see 'go help packages'.
+For more about specifying packages, see 'sx help packages'.
 	`,
 }
 
@@ -220,6 +220,6 @@ func clean(p *Package) {
 // occurs, it will report the error.
 func removeFile(f string) {
 	if err := os.Remove(f); err != nil && !os.IsNotExist(err) {
-		errorf("go clean: %v", err)
+		errorf("sx clean: %v", err)
 	}
 }

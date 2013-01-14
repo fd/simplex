@@ -12,7 +12,7 @@ func init() {
 var cmdFmt = &Command{
 	Run:       runFmt,
 	UsageLine: "fmt [-n] [-x] [packages]",
-	Short:     "run gofmt on package sources",
+	Short:     "run sxfmt on package sources",
 	Long: `
 Fmt runs the command 'gofmt -l -w' on the packages named
 by the import paths.  It prints the names of the files that are modified.
@@ -34,7 +34,7 @@ func runFmt(cmd *Command, args []string) {
 		// Use pkg.gofiles instead of pkg.Dir so that
 		// the command only applies to this package,
 		// not to packages in subdirectories.
-		run(stringList("gofmt", "-l", "-w", relPaths(pkg.gofiles)))
+		run(stringList("sxfmt", "-l", "-w", relPaths(pkg.gofiles)))
 	}
 }
 
@@ -65,9 +65,9 @@ func runDoc(cmd *Command, args []string) {
 			continue
 		}
 		if pkg.local {
-			run("godoc", pkg.Dir)
+			run("sxdoc", pkg.Dir)
 		} else {
-			run("godoc", pkg.ImportPath)
+			run("sxdoc", pkg.ImportPath)
 		}
 	}
 }

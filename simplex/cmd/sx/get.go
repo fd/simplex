@@ -43,12 +43,12 @@ rule is that if the local installation is running version "go1", get
 searches for a branch or tag named "go1". If no such version exists it
 retrieves the most recent version of the package.
 
-For more about specifying packages, see 'go help packages'.
+For more about specifying packages, see 'sx help packages'.
 
-For more about how 'go get' finds source code to
-download, see 'go help remote'.
+For more about how 'sx get' finds source code to
+download, see 'sx help remote'.
 
-See also: go build, go install, go clean.
+See also: sx build, sx install, sx clean.
 	`,
 }
 

@@ -32,7 +32,7 @@ var cmdBuild = &Command{
 Build compiles the packages named by the import paths,
 along with their dependencies, but it does not install the results.
 
-If the arguments are a list of .go files, build treats them as a list
+If the arguments are a list of .go or .sx files, build treats them as a list
 of source files specifying a single package.
 
 When the command line specifies a single main package,
@@ -194,20 +194,20 @@ func runBuild(cmd *Command, args []string) {
 	switch buildContext.Compiler {
 	case "gccgo":
 		if len(buildGcflags) != 0 {
-			fmt.Println("go build: when using gccgo toolchain, please pass compiler flags using -gccgoflags, not -gcflags")
+			fmt.Println("sx build: when using gccgo toolchain, please pass compiler flags using -gccgoflags, not -gcflags")
 		}
 		if len(buildLdflags) != 0 {
-			fmt.Println("go build: when using gccgo toolchain, please pass linker flags using -gccgoflags, not -ldflags")
+			fmt.Println("sx build: when using gccgo toolchain, please pass linker flags using -gccgoflags, not -ldflags")
 		}
 	case "gc":
 		if len(buildGccgoflags) != 0 {
-			fmt.Println("go build: when using gc toolchain, please pass compile flags using -gcflags, and linker flags using -ldflags")
+			fmt.Println("sx build: when using gc toolchain, please pass compile flags using -gcflags, and linker flags using -ldflags")
 		}
 	}
 
 	if *buildO != "" {
 		if len(pkgs) > 1 {
-			fatalf("go build: cannot use -o with multiple packages")
+			fatalf("sx build: cannot use -o with multiple packages")
 		}
 		p := pkgs[0]
 		p.target = "" // must build - not up to date
@@ -231,10 +231,10 @@ var cmdInstall = &Command{
 Install compiles and installs the packages named by the import paths,
 along with their dependencies.
 
-For more about the build flags, see 'go help build'.
-For more about specifying packages, see 'go help packages'.
+For more about the build flags, see 'sx help build'.
+For more about specifying packages, see 'sx help packages'.
 
-See also: go build, go get, go clean.
+See also: sx build, sx get, sx clean.
 	`,
 }
 
@@ -244,7 +244,7 @@ func runInstall(cmd *Command, args []string) {
 
 	for _, p := range pkgs {
 		if p.Target == "" && (!p.Standard || p.ImportPath != "unsafe") {
-			errorf("go install: no install location for %s", p.ImportPath)
+			errorf("sx install: no install location for %s", p.ImportPath)
 		}
 	}
 	exitIfErrors()
@@ -373,8 +373,8 @@ func (b *builder) init() {
 func goFilesPackage(gofiles []string) *Package {
 	// TODO: Remove this restriction.
 	for _, f := range gofiles {
-		if !strings.HasSuffix(f, ".go") {
-			fatalf("named files must be .go files")
+		if !strings.HasSuffix(f, ".go") && !strings.HasSuffix(f, ".sx") {
+			fatalf("named files must be .go or .sx files")
 		}
 	}
 
@@ -394,7 +394,7 @@ func goFilesPackage(gofiles []string) *Package {
 			fatalf("%s", err)
 		}
 		if fi.IsDir() {
-			fatalf("%s is a directory, should be a Go file", file)
+			fatalf("%s is a directory, should be a Go or Sx file", file)
 		}
 		dir1, _ := filepath.Split(file)
 		if dir == "" {
@@ -653,7 +653,7 @@ func (b *builder) do(root *action) {
 func (b *builder) build(a *action) (err error) {
 	defer func() {
 		if err != nil && err != errPrintedOutput {
-			err = fmt.Errorf("go build %s: %v", a.p.ImportPath, err)
+			err = fmt.Errorf("sx build %s: %v", a.p.ImportPath, err)
 		}
 	}()
 	if buildN {
@@ -679,6 +679,15 @@ func (b *builder) build(a *action) (err error) {
 	gofiles = append(gofiles, a.p.GoFiles...)
 	cfiles = append(cfiles, a.p.CFiles...)
 	sfiles = append(sfiles, a.p.SFiles...)
+
+	// Run sx.
+	if len(a.p.SxFiles) > 0 {
+		outGo, err := b.sxc(a.p, obj)
+		if err != nil {
+			return err
+		}
+		gofiles = append(gofiles, outGo...)
+	}
 
 	// Run cgo.
 	if len(a.p.CgoFiles) > 0 {
@@ -827,7 +836,7 @@ func (b *builder) build(a *action) (err error) {
 func (b *builder) install(a *action) (err error) {
 	defer func() {
 		if err != nil && err != errPrintedOutput {
-			err = fmt.Errorf("go install %s: %v", a.p.ImportPath, err)
+			err = fmt.Errorf("sx install %s: %v", a.p.ImportPath, err)
 		}
 	}()
 	a1 := a.deps[0]
@@ -1763,6 +1772,22 @@ func (b *builder) cgo(p *Package, cgoExe, obj string, gccfiles []string) (outGo,
 	return outGo, outObj, nil
 }
 
+// Run sx on all sx files.
+func (b *builder) sxc(p *Package, obj string) (outGo []string, err error) {
+	gofile := path.Join(obj, "smplx_generated.go")
+
+	args := []string{
+		"-o", gofile,
+	}
+
+	if err := b.run(p.Dir, p.ImportPath, "sxc", args, p.SxFiles); err != nil {
+		return outGo, err
+	}
+
+	outGo = append(outGo, gofile)
+	return outGo, nil
+}
+
 // Run SWIG on all SWIG input files.
 func (b *builder) swig(p *Package, obj string, gccfiles []string) (outGo, outObj []string, err error) {
 	for _, f := range p.SwigFiles {
@@ -1889,7 +1914,7 @@ func raceInit() {
 		return
 	}
 	if goarch != "amd64" || goos != "linux" && goos != "darwin" && goos != "windows" {
-		fmt.Fprintf(os.Stderr, "go %s: -race is only supported on linux/amd64, darwin/amd64 and windows/amd64\n", flag.Args()[0])
+		fmt.Fprintf(os.Stderr, "sx %s: -race is only supported on linux/amd64, darwin/amd64 and windows/amd64\n", flag.Args()[0])
 		os.Exit(2)
 	}
 	buildGcflags = append(buildGcflags, "-race")

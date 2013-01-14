@@ -10,7 +10,7 @@ var helpPackages = &Command{
 	Long: `
 Many commands apply to a set of packages:
 
-	go action [packages]
+	sx action [packages]
 
 Usually, [packages] is a list of import paths.
 
@@ -20,13 +20,13 @@ denotes the package in that directory.
 
 Otherwise, the import path P denotes the package found in
 the directory DIR/src/P for some DIR listed in the GOPATH
-environment variable (see 'go help gopath'). 
+environment variable (see 'go help gopath').
 
 If no import paths are given, the action applies to the
 package in the current directory.
 
 The special import path "all" expands to all package directories
-found in all the GOPATH trees.  For example, 'go list all' 
+found in all the GOPATH trees.  For example, 'go list all'
 lists all the packages on the local system.
 
 The special import path "std" is like all but expands to just the
@@ -232,7 +232,7 @@ Here's an example directory layout:
                     bar.a          (installed package object)
 
 Go searches each directory listed in GOPATH to find source code,
-but new packages are always downloaded into the first directory 
+but new packages are always downloaded into the first directory
 in the list.
 	`,
 }

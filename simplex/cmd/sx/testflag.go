@@ -225,7 +225,7 @@ func testFlag(args []string, i int) (f *testFlagSpec, value string, extra bool) 
 func setBoolFlag(flag *bool, value string) {
 	x, err := strconv.ParseBool(value)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "go test: illegal bool flag value %s\n", value)
+		fmt.Fprintf(os.Stderr, "sx test: illegal bool flag value %s\n", value)
 		usage()
 	}
 	*flag = x
@@ -235,7 +235,7 @@ func setBoolFlag(flag *bool, value string) {
 func setIntFlag(flag *int, value string) {
 	x, err := strconv.Atoi(value)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "go test: illegal int flag value %s\n", value)
+		fmt.Fprintf(os.Stderr, "sx test: illegal int flag value %s\n", value)
 		usage()
 	}
 	*flag = x

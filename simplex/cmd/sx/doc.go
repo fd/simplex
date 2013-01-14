@@ -106,7 +106,7 @@ Remove object files
 
 Usage:
 
-	go clean [-i] [-r] [-n] [-x] [packages]
+	sx clean [-i] [-r] [-n] [-x] [packages]
 
 Clean removes object files from package source directories.
 The go command builds most objects in a temporary directory,

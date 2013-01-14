@@ -23,7 +23,7 @@ To run the vet tool with specific options, run 'go tool vet'.
 The -n flag prints commands that would be executed.
 The -x flag prints commands as they are executed.
 
-See also: go fmt, go fix.
+See also: sx fmt, sx fix.
 	`,
 }
 

@@ -1,0 +1,42 @@
+package main
+
+type (
+	Location struct {
+		name    string
+		website string
+		gps     GPS
+	}
+
+	GPS struct {
+		Lat, Lng float64
+	}
+
+	Locations view[]Location
+)
+
+var (
+	locations            = make(table[string]Location)
+	Locations            = locations.select(has_website).sort(locations_gps_ne)
+	LocationsWithWebsite = Locations.WithWebsite()
+	Coordinates          = Locations.collect(gps).sort(gps_ne)
+)
+
+func has_website(loc Location) bool {
+	return loc.website != ""
+}
+
+func gps(loc Location) GPS {
+	return loc.gps
+}
+
+func locations_gps_ne(loc Location) []float64 {
+	return gps_ne(loc.gps)
+}
+
+func gps_ne(gps GPS) []float64 {
+	return []float64{gps.Lat, gps.Lng}
+}
+
+func (v Locations) WithWebsite() view[]Location {
+	return v.select(has_website)
+}

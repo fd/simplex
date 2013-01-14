@@ -36,7 +36,8 @@ type Package struct {
 	Root       string `json:",omitempty"` // Go root or Go path dir containing this package
 
 	// Source files
-	GoFiles      []string `json:",omitempty"` // .go source files (excluding CgoFiles, TestGoFiles, XTestGoFiles)
+	GoFiles      []string `json:",omitempty"` // .go source files (excluding CgoFiles, TestGoFiles, XTestGoFiles, SxFiles)
+	SxFiles      []string `json:",omitempty"` // .sx source files
 	CgoFiles     []string `json:",omitempty"` // .go sources files that import "C"
 	CFiles       []string `json:",omitempty"` // .c source files
 	HFiles       []string `json:",omitempty"` // .h source files
@@ -61,6 +62,7 @@ type Package struct {
 
 	// Test information
 	TestGoFiles  []string `json:",omitempty"` // _test.go files in package
+	TestSxFiles  []string `json:",omitempty"` // _test.sx files in package
 	TestImports  []string `json:",omitempty"` // imports from TestGoFiles
 	XTestGoFiles []string `json:",omitempty"` // _test.go files outside package
 	XTestImports []string `json:",omitempty"` // imports from XTestGoFiles
@@ -91,6 +93,7 @@ func (p *Package) copyBuild(pp *build.Package) {
 	p.Goroot = pp.Goroot
 	p.Standard = p.Goroot && p.ImportPath != "" && !strings.Contains(p.ImportPath, ".")
 	p.GoFiles = pp.GoFiles
+	p.SxFiles = pp.SxFiles
 	p.CgoFiles = pp.CgoFiles
 	p.CFiles = pp.CFiles
 	p.HFiles = pp.HFiles
@@ -103,6 +106,7 @@ func (p *Package) copyBuild(pp *build.Package) {
 	p.CgoPkgConfig = pp.CgoPkgConfig
 	p.Imports = pp.Imports
 	p.TestGoFiles = pp.TestGoFiles
+	p.TestSxFiles = pp.TestSxFiles
 	p.TestImports = pp.TestImports
 	p.XTestGoFiles = pp.XTestGoFiles
 	p.XTestImports = pp.XTestImports
@@ -550,7 +554,7 @@ func isStale(p *Package, topRoot map[string]bool) bool {
 		return false
 	}
 
-	srcs := stringList(p.GoFiles, p.CFiles, p.HFiles, p.SFiles, p.CgoFiles, p.SysoFiles)
+	srcs := stringList(p.GoFiles, p.SxFiles, p.CFiles, p.HFiles, p.SFiles, p.CgoFiles, p.SysoFiles)
 	for _, src := range srcs {
 		if olderThan(filepath.Join(p.Dir, src)) {
 			return true

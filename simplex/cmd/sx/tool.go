@@ -64,7 +64,7 @@ func runTool(cmd *Command, args []string) {
 		switch {
 		case 'a' <= c && c <= 'z', '0' <= c && c <= '9', c == '_':
 		default:
-			fmt.Fprintf(os.Stderr, "go tool: bad tool name %q\n", toolName)
+			fmt.Fprintf(os.Stderr, "sx tool: bad tool name %q\n", toolName)
 			setExitStatus(2)
 			return
 		}
@@ -72,7 +72,7 @@ func runTool(cmd *Command, args []string) {
 	toolPath := tool(toolName)
 	// Give a nice message if there is no tool with that name.
 	if _, err := os.Stat(toolPath); err != nil {
-		fmt.Fprintf(os.Stderr, "go tool: no such tool %q\n", toolName)
+		fmt.Fprintf(os.Stderr, "sx tool: no such tool %q\n", toolName)
 		setExitStatus(3)
 		return
 	}
@@ -81,7 +81,7 @@ func runTool(cmd *Command, args []string) {
 		var err error
 		toolPath, err = exec.LookPath("perl")
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "go tool: perl not found\n")
+			fmt.Fprintf(os.Stderr, "sx tool: perl not found\n")
 			setExitStatus(3)
 			return
 		}
@@ -100,7 +100,7 @@ func runTool(cmd *Command, args []string) {
 	}
 	err := toolCmd.Run()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "go tool %s: %s\n", toolName, err)
+		fmt.Fprintf(os.Stderr, "sx tool %s: %s\n", toolName, err)
 		setExitStatus(1)
 		return
 	}
@@ -110,14 +110,14 @@ func runTool(cmd *Command, args []string) {
 func listTools() {
 	f, err := os.Open(toolDir)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "go tool: no tool directory: %s\n", err)
+		fmt.Fprintf(os.Stderr, "sx tool: no tool directory: %s\n", err)
 		setExitStatus(2)
 		return
 	}
 	defer f.Close()
 	names, err := f.Readdirnames(-1)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "go tool: can't read directory: %s\n", err)
+		fmt.Fprintf(os.Stderr, "sx tool: can't read directory: %s\n", err)
 		setExitStatus(2)
 		return
 	}

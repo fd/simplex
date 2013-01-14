@@ -35,7 +35,7 @@ var cmdTest = &Command{
 	UsageLine:   "test [-c] [-i] [build flags] [packages] [flags for test binary]",
 	Short:       "test packages",
 	Long: `
-'Go test' automates testing the packages named by the import paths.
+'Sx test' automates testing the packages named by the import paths.
 It prints a summary of the test results in the format:
 
 	ok   archive/tar   0.011s
@@ -45,17 +45,17 @@ It prints a summary of the test results in the format:
 
 followed by detailed output for each failed package.
 
-'Go test' recompiles each package along with any files with names matching
-the file pattern "*_test.go".  These additional files can contain test functions,
-benchmark functions, and example functions.  See 'go help testfunc' for more.
+'Sx test' recompiles each package along with any files with names matching
+the file pattern "*_test.{go,sx}".  These additional files can contain test functions,
+benchmark functions, and example functions.  See 'sx help testfunc' for more.
 
-By default, go test needs no arguments.  It compiles and tests the package
+By default, sx test needs no arguments.  It compiles and tests the package
 with source in the current directory, including tests, and runs the tests.
 
 The package is built in a temporary directory so it does not interfere with the
 non-test installation.
 
-In addition to the build flags, the flags handled by 'go test' itself are:
+In addition to the build flags, the flags handled by 'sx test' itself are:
 
 	-c  Compile the test binary to pkg.test but do not run it.
 
@@ -64,12 +64,12 @@ In addition to the build flags, the flags handled by 'go test' itself are:
 	    Do not run the test.
 
 The test binary also accepts flags that control execution of the test; these
-flags are also accessible by 'go test'.  See 'go help testflag' for details.
+flags are also accessible by 'sx test'.  See 'sx help testflag' for details.
 
-For more about build flags, see 'go help build'.
-For more about specifying packages, see 'go help packages'.
+For more about build flags, see 'sx help build'.
+For more about specifying packages, see 'sx help packages'.
 
-See also: go build, go vet.
+See also: sx build, sx vet.
 `,
 }
 
@@ -390,7 +390,7 @@ func runTest(cmd *Command, args []string) {
 }
 
 func (b *builder) test(p *Package) (buildAction, runAction, printAction *action, err error) {
-	if len(p.TestGoFiles)+len(p.XTestGoFiles) == 0 {
+	if len(p.TestGoFiles)+len(p.TestSxFiles)+len(p.XTestGoFiles) == 0 {
 		build := &action{p: p}
 		run := &action{p: p}
 		print := &action{f: (*builder).notest, p: p, deps: []*action{build}}
@@ -457,12 +457,15 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
 	}
 
 	// Test package.
-	if len(p.TestGoFiles) > 0 {
+	if len(p.TestGoFiles) > 0 || len(p.TestSxFiles) > 0 {
 		ptest = new(Package)
 		*ptest = *p
 		ptest.GoFiles = nil
 		ptest.GoFiles = append(ptest.GoFiles, p.GoFiles...)
 		ptest.GoFiles = append(ptest.GoFiles, p.TestGoFiles...)
+		ptest.SxFiles = nil
+		ptest.SxFiles = append(ptest.SxFiles, p.SxFiles...)
+		ptest.SxFiles = append(ptest.SxFiles, p.TestSxFiles...)
 		ptest.target = ""
 		ptest.Imports = stringList(p.Imports, p.TestImports)
 		ptest.imports = append(append([]*Package{}, p.imports...), imports...)
