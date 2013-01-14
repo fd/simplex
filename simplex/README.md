@@ -2,19 +2,20 @@
 
 Simplex is a superset of Go.
 
-## Additional builtin type
+## Additional builtin types
 
 ```go
-StructType.(view)
-StructType.(table)
+view[K]M
+view[]M
+table[K]M
 ```
 
 ## Additional builtin functions (and methods)
 
 ```go
-type M view {}
-type V M.(view)
-type T M.(table)
+type M struct {}
+type V view[string]M
+type T view[string]M
 
 V.materialize()                => T
 len(V)                         => int
