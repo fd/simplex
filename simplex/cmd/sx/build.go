@@ -1780,7 +1780,7 @@ func (b *builder) sxc(p *Package, obj string) (outGo []string, err error) {
 		"-o", gofile,
 	}
 
-	if err := b.run(p.Dir, p.ImportPath, "sxc", args, p.SxFiles); err != nil {
+	if err := b.run(p.Dir, p.ImportPath, "sxc", args, p.GoFiles, p.SxFiles); err != nil {
 		return outGo, err
 	}
 

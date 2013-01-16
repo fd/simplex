@@ -61,15 +61,18 @@ func (p *parser) tryIdentOrType() ast.Expr {
 		typ := p.parseType()
 		rparen := p.expect(token.RPAREN)
 		return &ast.ParenExpr{Lparen: lparen, X: typ, Rparen: rparen}
-
-		//=== start custom
-	case token.VIEW:
-		return p.parseViewType()
-	case token.TABLE:
-		return p.parseTableType()
-		//=== end custom
-
 	}
+
+	//=== start custom
+	if p.mode&SimplexExtentions > 0 {
+		switch p.tok {
+		case token.VIEW:
+			return p.parseViewType()
+		case token.TABLE:
+			return p.parseTableType()
+		}
+	}
+	//=== end custom
 
 	// no type found
 	return nil
@@ -123,10 +126,14 @@ L:
 
 				//=== start custom
 			case token.SELECT:
-				pos := p.pos
-				sel := &ast.Ident{NamePos: pos, Name: "select"}
-				p.next()
-				x = &ast.SelectorExpr{X: p.checkExpr(x), Sel: sel}
+				if p.mode&SimplexExtentions > 0 {
+					pos := p.pos
+					sel := &ast.Ident{NamePos: pos, Name: "select"}
+					p.next()
+					x = &ast.SelectorExpr{X: p.checkExpr(x), Sel: sel}
+				} else {
+					break L
+				}
 				//=== end custom
 
 			case token.LPAREN:

@@ -11,13 +11,13 @@ type (
 		Lat, Lng float64
 	}
 
-	Locations view[]Location
+	LocationsView view[]Location
 )
 
 var (
 	locations            = make(table[string]Location)
 	Locations            = locations.select(has_website).sort(locations_gps_ne)
-	LocationsWithWebsite = Locations.WithWebsite()
+	LocationsWithWebsite = LocationsView(Locations).WithWebsite()
 	Coordinates          = Locations.collect(gps).sort(gps_ne)
 )
 
@@ -37,6 +37,6 @@ func gps_ne(gps GPS) []float64 {
 	return []float64{gps.Lat, gps.Lng}
 }
 
-func (v Locations) WithWebsite() view[]Location {
+func (v LocationsView) WithWebsite() view[]Location {
 	return v.select(has_website)
 }

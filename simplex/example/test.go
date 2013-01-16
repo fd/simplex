@@ -1,9 +1,9 @@
 package main
 
 import (
-	"fmt"
+	"github.com/fd/w/simplex/runtime"
 )
 
 func main() {
-	fmt.Println("Hello")
+	runtime.Dump(Locations)
 }

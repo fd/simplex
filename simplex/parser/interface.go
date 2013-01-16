@@ -58,6 +58,8 @@ const (
 	Trace                              // print a trace of parsed productions
 	DeclarationErrors                  // report declaration errors
 	SpuriousErrors                     // report all (not just the first) errors per line
+
+	SimplexExtentions
 )
 
 // ParseFile parses the source code of a single Go source file and returns
