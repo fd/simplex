@@ -16,7 +16,7 @@ import (
 const filename = "<src>"
 
 func makePkg(t *testing.T, src string) (*Package, error) {
-	file, err := parser.ParseFile(fset, filename, src, parser.DeclarationErrors)
+	file, err := parser.ParseFile(fset, filename, src, parser.DeclarationErrors|parser.SimplexExtentions)
 	if err != nil {
 		return nil, err
 	}
