@@ -1,8 +1,8 @@
 package compiler
 
 import (
-	sx_ast "github.com/fd/w/simplex/ast"
-	sx_parser "github.com/fd/w/simplex/parser"
+	sx_ast "github.com/fd/simplex/ast"
+	sx_parser "github.com/fd/simplex/parser"
 	go_ast "go/ast"
 	"go/parser"
 	"go/token"

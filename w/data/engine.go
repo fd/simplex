@@ -2,8 +2,8 @@ package data
 
 import (
 	"fmt"
-	"github.com/fd/w/data/storage"
-	"github.com/fd/w/util"
+	"github.com/fd/simplex/w/data/storage"
+	"github.com/fd/simplex/w/util"
 )
 
 var current_engine = NewEngine()

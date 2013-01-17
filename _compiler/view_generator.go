@@ -3,7 +3,7 @@ package compiler
 import (
 	"bytes"
 	"fmt"
-	sx_ast "github.com/fd/w/simplex/ast"
+	sx_ast "github.com/fd/simplex/ast"
 	"go/ast"
 	"go/parser"
 	"go/scanner"
@@ -25,7 +25,7 @@ func (pkg *Package) GenerateViews() error {
 	pkg.Files["smplx_generated.go"] = pkg.GeneratedFile
 	generated := &bytes.Buffer{}
 	fmt.Fprintf(generated, "package %s\n", pkg.BuildPackage.Name)
-	fmt.Fprintf(generated, "import sx_runtime \"github.com/fd/w/simplex/runtime\"\n")
+	fmt.Fprintf(generated, "import sx_runtime \"github.com/fd/simplex/runtime\"\n")
 
 	// resolve all simplex calls with dummy types and functions
 	for _, file := range pkg.SmplxFiles {

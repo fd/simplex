@@ -6,7 +6,7 @@ package main
 
 import (
 	"fmt"
-	"github.com/fd/w/simplex/build"
+	"github.com/fd/simplex/build"
 	"os"
 	"os/exec"
 	"path/filepath"

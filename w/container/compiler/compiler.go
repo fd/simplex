@@ -2,7 +2,7 @@ package compiler
 
 import (
 	"fmt"
-	template "github.com/fd/w/template/compiler"
+	template "github.com/fd/simplex/w/template/compiler"
 	"io/ioutil"
 	"os"
 	"path"
@@ -14,7 +14,7 @@ const src = `package main
 
 // Libraries
 import (
-  "github.com/fd/w/container"
+  "github.com/fd/simplex/w/container"
 )
 
 // Apps

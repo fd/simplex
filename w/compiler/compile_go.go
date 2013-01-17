@@ -1,7 +1,7 @@
 package compiler
 
 import (
-	template "github.com/fd/w/template/compiler"
+	template "github.com/fd/simplex/w/template/compiler"
 	"os"
 	"os/exec"
 )

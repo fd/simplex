@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/fd/w/simplex/runtime"
+	"github.com/fd/simplex/runtime"
 )
 
 func main() {

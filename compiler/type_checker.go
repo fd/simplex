@@ -1,7 +1,7 @@
 package compiler
 
 import (
-	"github.com/fd/w/simplex/types"
+	"github.com/fd/simplex/types"
 )
 
 func (c *Context) check_types() error {

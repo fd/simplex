@@ -10,7 +10,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"github.com/fd/w/simplex/build"
+	"github.com/fd/simplex/build"
 	"io"
 	"io/ioutil"
 	"log"

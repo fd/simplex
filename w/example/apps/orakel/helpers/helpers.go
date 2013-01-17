@@ -1,7 +1,7 @@
 package helpers
 
 import (
-	"github.com/fd/w/data"
+	"github.com/fd/simplex/w/data"
 )
 
 type HTML string

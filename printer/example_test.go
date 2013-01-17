@@ -7,10 +7,10 @@ package printer_test
 import (
 	"bytes"
 	"fmt"
-	"github.com/fd/w/simplex/ast"
-	"github.com/fd/w/simplex/parser"
-	"github.com/fd/w/simplex/printer"
-	"github.com/fd/w/simplex/token"
+	"github.com/fd/simplex/ast"
+	"github.com/fd/simplex/parser"
+	"github.com/fd/simplex/printer"
+	"github.com/fd/simplex/token"
 	"strings"
 	"testing"
 )

@@ -1,8 +1,8 @@
 package file_system
 
 import (
-	"github.com/fd/w/data/ident"
-	"github.com/fd/w/data/storage/driver"
+	"github.com/fd/simplex/w/data/ident"
+	"github.com/fd/simplex/w/data/storage/driver"
 	"io/ioutil"
 	"net/url"
 	"os"

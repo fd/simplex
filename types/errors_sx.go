@@ -3,7 +3,7 @@ package types
 import (
 	"bytes"
 	"fmt"
-	"github.com/fd/w/simplex/ast"
+	"github.com/fd/simplex/ast"
 )
 
 // see errors.go:247

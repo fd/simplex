@@ -6,7 +6,7 @@
 
 package doc
 
-import "github.com/fd/w/simplex/ast"
+import "github.com/fd/simplex/ast"
 
 // filterIdentList removes unexported names from list in place
 // and returns the resulting list.

@@ -2,7 +2,7 @@ package data
 
 import (
 	"fmt"
-	"github.com/fd/w/util"
+	"github.com/fd/simplex/w/util"
 )
 
 type View struct {

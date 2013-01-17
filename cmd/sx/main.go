@@ -8,7 +8,7 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
-	"github.com/fd/w/simplex/build"
+	"github.com/fd/simplex/build"
 	"io"
 	"log"
 	"os"

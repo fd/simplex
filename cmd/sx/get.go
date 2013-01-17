@@ -8,7 +8,7 @@ package main
 
 import (
 	"fmt"
-	"github.com/fd/w/simplex/build"
+	"github.com/fd/simplex/build"
 	"os"
 	"path/filepath"
 	"regexp"

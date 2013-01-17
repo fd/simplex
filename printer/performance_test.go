@@ -9,8 +9,8 @@ package printer
 
 import (
 	"bytes"
-	"github.com/fd/w/simplex/ast"
-	"github.com/fd/w/simplex/parser"
+	"github.com/fd/simplex/ast"
+	"github.com/fd/simplex/parser"
 	"io"
 	"io/ioutil"
 	"log"

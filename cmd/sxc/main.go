@@ -3,7 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/fd/w/simplex/compiler"
+	"github.com/fd/simplex/compiler"
 	"os"
 	"strings"
 )

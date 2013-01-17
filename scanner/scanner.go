@@ -11,7 +11,7 @@ package scanner
 import (
 	"bytes"
 	"fmt"
-	"github.com/fd/w/simplex/token"
+	"github.com/fd/simplex/token"
 	"path/filepath"
 	"strconv"
 	"unicode"

@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 	"github.com/fd/options"
-	"github.com/fd/w/compiler"
+	"github.com/fd/simplex/w/compiler"
 	"os"
 )
 

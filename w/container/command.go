@@ -3,7 +3,7 @@ package container
 import (
 	"fmt"
 	"github.com/fd/options"
-	"github.com/fd/w/data"
+	"github.com/fd/simplex/w/data"
 	"os"
 	"os/signal"
 	"runtime"
@@ -11,7 +11,7 @@ import (
 )
 
 import (
-	_ "github.com/fd/w/data/storage/file_system"
+	_ "github.com/fd/simplex/w/data/storage/file_system"
 )
 
 var spec = options.MustParse(`

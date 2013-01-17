@@ -1,8 +1,8 @@
 package types
 
 import (
-	"github.com/fd/w/simplex/ast"
-	"github.com/fd/w/simplex/token"
+	"github.com/fd/simplex/ast"
+	"github.com/fd/simplex/token"
 )
 
 // builtin typechecks a built-in call. The built-in type is bin, and iota is the current

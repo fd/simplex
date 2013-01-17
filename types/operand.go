@@ -9,8 +9,8 @@ package types
 import (
 	"bytes"
 	"fmt"
-	"github.com/fd/w/simplex/ast"
-	"github.com/fd/w/simplex/token"
+	"github.com/fd/simplex/ast"
+	"github.com/fd/simplex/token"
 )
 
 // An operandMode specifies the (addressing) mode of an operand.

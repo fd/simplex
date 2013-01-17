@@ -12,8 +12,8 @@ package main
 
 import (
 	"fmt"
-	"github.com/fd/w/simplex/scanner"
-	"github.com/fd/w/simplex/token"
+	"github.com/fd/simplex/scanner"
+	"github.com/fd/simplex/token"
 	"io"
 	"regexp"
 	"strconv"

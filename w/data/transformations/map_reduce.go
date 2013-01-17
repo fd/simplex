@@ -2,11 +2,11 @@ package transformations
 
 import (
 	"fmt"
-	"github.com/fd/w/data/ident"
-	"github.com/fd/w/data/storage"
-	"github.com/fd/w/data/transaction"
-	trie "github.com/fd/w/data/trie/storage"
-	"github.com/fd/w/data/value"
+	"github.com/fd/simplex/w/data/ident"
+	"github.com/fd/simplex/w/data/storage"
+	"github.com/fd/simplex/w/data/transaction"
+	trie "github.com/fd/simplex/w/data/trie/storage"
+	"github.com/fd/simplex/w/data/value"
 )
 
 type Emiter interface {

@@ -7,8 +7,8 @@ package parser
 import (
 	"bytes"
 	"fmt"
-	"github.com/fd/w/simplex/ast"
-	"github.com/fd/w/simplex/token"
+	"github.com/fd/simplex/ast"
+	"github.com/fd/simplex/token"
 	"os"
 	"strings"
 	"testing"

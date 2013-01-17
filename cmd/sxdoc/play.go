@@ -9,7 +9,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/fd/w/simplex/format"
+	"github.com/fd/simplex/format"
 	"net/http"
 )
 

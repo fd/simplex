@@ -3,7 +3,7 @@ package driver
 import (
 	"errors"
 	"fmt"
-	"github.com/fd/w/data/ident"
+	"github.com/fd/simplex/w/data/ident"
 	"strings"
 )
 

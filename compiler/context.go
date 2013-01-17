@@ -3,8 +3,8 @@ package compiler
 import (
 	"bytes"
 	"fmt"
-	"github.com/fd/w/simplex/ast"
-	"github.com/fd/w/simplex/token"
+	"github.com/fd/simplex/ast"
+	"github.com/fd/simplex/token"
 )
 
 type Context struct {
@@ -59,7 +59,7 @@ const intro = `
 package %s
 
 import (
-	sx_runtime "github.com/fd/w/simplex/runtime"
+	sx_runtime "github.com/fd/simplex/runtime"
 )
 `
 

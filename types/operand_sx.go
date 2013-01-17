@@ -1,7 +1,7 @@
 package types
 
 import (
-	"github.com/fd/w/simplex/ast"
+	"github.com/fd/simplex/ast"
 )
 
 // TODO(gri) The functions operand.isAssignable, checker.convertUntyped,

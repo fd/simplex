@@ -1,7 +1,7 @@
 package transaction
 
 import (
-	"github.com/fd/w/data/ident"
+	"github.com/fd/simplex/w/data/ident"
 )
 
 type Action struct {

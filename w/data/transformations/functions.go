@@ -2,7 +2,7 @@ package transformations
 
 import (
 	"fmt"
-	"github.com/fd/w/data/value"
+	"github.com/fd/simplex/w/data/value"
 )
 
 type (

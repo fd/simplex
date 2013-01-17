@@ -1,7 +1,7 @@
 package transformations
 
 import (
-	"github.com/fd/w/data/value"
+	"github.com/fd/simplex/w/data/value"
 )
 
 type WhereFunc func(key, val value.Any) bool

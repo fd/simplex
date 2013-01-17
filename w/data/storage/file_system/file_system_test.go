@@ -1,7 +1,7 @@
 package file_system
 
 import (
-	storageT "github.com/fd/w/data/storage/testing"
+	storageT "github.com/fd/simplex/w/data/storage/testing"
 	"io/ioutil"
 	"os"
 	"testing"

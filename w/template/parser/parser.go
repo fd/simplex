@@ -2,8 +2,8 @@ package parser
 
 import (
 	"fmt"
-	"github.com/fd/w/template/ast"
-	"github.com/fd/w/template/lexer"
+	"github.com/fd/simplex/w/template/ast"
+	"github.com/fd/simplex/w/template/lexer"
 	"io/ioutil"
 )
 

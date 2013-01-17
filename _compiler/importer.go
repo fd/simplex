@@ -1,7 +1,7 @@
 package compiler
 
 import (
-	sx_ast "github.com/fd/w/simplex/ast"
+	sx_ast "github.com/fd/simplex/ast"
 	"go/build"
 	"os"
 	"path"

@@ -34,9 +34,9 @@ import (
 	_ "expvar" // to serve /debug/vars
 	"flag"
 	"fmt"
-	"github.com/fd/w/simplex/ast"
-	"github.com/fd/w/simplex/build"
-	"github.com/fd/w/simplex/printer"
+	"github.com/fd/simplex/ast"
+	"github.com/fd/simplex/build"
+	"github.com/fd/simplex/printer"
 	"io"
 	"log"
 	"net/http"

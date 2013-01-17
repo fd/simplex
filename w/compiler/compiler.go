@@ -1,8 +1,8 @@
 package compiler
 
 import (
-	container "github.com/fd/w/container/compiler"
-	template "github.com/fd/w/template/compiler"
+	container "github.com/fd/simplex/w/container/compiler"
+	template "github.com/fd/simplex/w/template/compiler"
 )
 
 func Compile(pwd string) error {
