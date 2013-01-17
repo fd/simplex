@@ -954,7 +954,7 @@ func (p *parser) parseChanType() *ast.ChanType {
 	return &ast.ChanType{Begin: pos, Arrow: arrow, Dir: dir, Value: value}
 }
 
-/* NOTE: customized for simplex
+/*Simplex
 // If the result is an identifier, it is not resolved.
 func (p *parser) tryIdentOrType() ast.Expr {
 	switch p.tok {
@@ -1313,7 +1313,7 @@ func isTypeName(x ast.Expr) bool {
 	return true
 }
 
-/* NOTE: customized for simplex
+/*Simplex
 // isLiteralType returns true iff x is a legal composite literal type.
 func isLiteralType(x ast.Expr) bool {
 	switch t := x.(type) {
@@ -1367,7 +1367,7 @@ func (p *parser) checkExprOrType(x ast.Expr) ast.Expr {
 	return x
 }
 
-/* NOTE: customized for simplex
+/*Simplex
 // If lhs is set and the result is an identifier, it is not resolved.
 func (p *parser) parsePrimaryExpr(lhs bool) ast.Expr {
 	if p.trace {

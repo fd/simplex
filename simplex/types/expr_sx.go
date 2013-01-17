@@ -34,21 +34,17 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
 			check.invalidOp(e.Pos(), "cannot use _ as value or type")
 			goto Error
 		}
-		obj := e.Obj
+		obj := check.lookup(e)
 		if obj == nil {
 			goto Error // error was reported before
 		}
-		if obj.Type == nil {
-			check.object(obj, cycleOk)
-		}
-		switch obj.Kind {
-		case ast.Bad:
-			goto Error // error was reported before
-		case ast.Pkg:
+		check.object(obj, cycleOk)
+		switch obj := obj.(type) {
+		case *Package:
 			check.errorf(e.Pos(), "use of package %s not in selector", obj.Name)
 			goto Error
-		case ast.Con:
-			if obj.Data == nil {
+		case *Const:
+			if obj.Val == nil {
 				goto Error // cycle detected
 			}
 			x.mode = constant
@@ -59,24 +55,24 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
 				}
 				x.val = int64(iota)
 			} else {
-				x.val = obj.Data
+				x.val = obj.Val
 			}
-		case ast.Typ:
+		case *TypeName:
 			x.mode = typexpr
-			if !cycleOk && underlying(obj.Type.(Type)) == nil {
-				check.errorf(obj.Pos(), "illegal cycle in declaration of %s", obj.Name)
+			if !cycleOk && underlying(obj.Type) == nil {
+				check.errorf(obj.spec.Pos(), "illegal cycle in declaration of %s", obj.Name)
 				x.expr = e
 				x.typ = Typ[Invalid]
 				return // don't goto Error - need x.mode == typexpr
 			}
-		case ast.Var:
+		case *Var:
 			x.mode = variable
-		case ast.Fun:
+		case *Func:
 			x.mode = value
 		default:
 			unreachable()
 		}
-		x.typ = obj.Type.(Type)
+		x.typ = obj.GetType()
 
 	case *ast.Ellipsis:
 		// ellipses are handled explicitly where they are legal
@@ -245,30 +241,35 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
 		// can only appear in qualified identifiers which are mapped to
 		// selector expressions.
 		if ident, ok := e.X.(*ast.Ident); ok {
-			if obj := ident.Obj; obj != nil && obj.Kind == ast.Pkg {
-				exp := obj.Data.(*ast.Scope).Lookup(sel)
+			if pkg, ok := check.lookup(ident).(*Package); ok {
+				exp := pkg.Scope.Lookup(sel)
 				if exp == nil {
 					check.errorf(e.Sel.Pos(), "cannot refer to unexported %s", sel)
 					goto Error
 				}
-				// simplified version of the code for *ast.Idents:
-				// imported objects are always fully initialized
-				switch exp.Kind {
-				case ast.Con:
-					assert(exp.Data != nil)
+				check.register(e.Sel, exp)
+				// Simplified version of the code for *ast.Idents:
+				// - imported packages use types.Scope and types.Objects
+				// - imported objects are always fully initialized
+				switch exp := exp.(type) {
+				case *Const:
+					assert(exp.Val != nil)
 					x.mode = constant
-					x.val = exp.Data
-				case ast.Typ:
+					x.typ = exp.Type
+					x.val = exp.Val
+				case *TypeName:
 					x.mode = typexpr
-				case ast.Var:
+					x.typ = exp.Type
+				case *Var:
 					x.mode = variable
-				case ast.Fun:
+					x.typ = exp.Type
+				case *Func:
 					x.mode = value
+					x.typ = exp.Type
 				default:
 					unreachable()
 				}
 				x.expr = e
-				x.typ = exp.Type.(Type)
 				return
 			}
 		}
@@ -277,7 +278,7 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
 		if x.mode == invalid {
 			goto Error
 		}
-		mode, typ := lookupField(x.typ, sel)
+		mode, typ := lookupField(x.typ, QualifiedName{check.pkg, sel})
 		if mode == invalid {
 			check.invalidOp(e.Pos(), "%s has no single field or method %s", x, sel)
 			goto Error
@@ -295,7 +296,7 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
 			// pointer vs non-pointer receivers => typechecker is too lenient
 			x.mode = value
 			x.typ = &Signature{
-				Params:     append([]*Var{{"", x.typ}}, sig.Params...),
+				Params:     append([]*Var{{Type: x.typ}}, sig.Params...),
 				Results:    sig.Results,
 				IsVariadic: sig.IsVariadic,
 			}
@@ -512,7 +513,7 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
 					for i, obj := range t.Values {
 						x.mode = value
 						x.expr = nil // TODO(gri) can we do better here? (for good error messages)
-						x.typ = obj.Type.(Type)
+						x.typ = obj.Type
 						check.argument(sig, i, nil, x, passSlice && i+1 == n)
 					}
 				} else {
@@ -546,7 +547,7 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
 				x.mode = novalue
 			case 1:
 				x.mode = value
-				x.typ = sig.Results[0].Type.(Type)
+				x.typ = sig.Results[0].Type
 			default:
 				x.mode = value
 				x.typ = &Result{Values: sig.Results}

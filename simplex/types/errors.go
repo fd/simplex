@@ -20,11 +20,6 @@ func assert(p bool) {
 	}
 }
 
-func unimplemented() {
-	// enable for debugging
-	// panic("unimplemented")
-}
-
 func unreachable() {
 	panic("unreachable")
 }
@@ -312,7 +307,11 @@ func writeType(buf *bytes.Buffer, typ Type) {
     writeType(buf, t.Elt)
 
   case *NamedType:
-    buf.WriteString(t.Obj.Name)
+    s := "<NamedType w/o object>"
+    if t.Obj != nil {
+      s = t.Obj.GetName()
+    }
+    buf.WriteString(s)
 
   default:
     fmt.Fprintf(buf, "<type %T>", t)

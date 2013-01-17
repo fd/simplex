@@ -51,11 +51,10 @@ func isIdentical(x, y Type) bool {
 		// and identical tags. Two anonymous fields are considered to have the same
 		// name. Lower-case field names from different packages are always different.
 		if y, ok := y.(*Struct); ok {
-			// TODO(gri) handle structs from different packages
 			if len(x.Fields) == len(y.Fields) {
 				for i, f := range x.Fields {
 					g := y.Fields[i]
-					if f.Name != g.Name ||
+					if !f.QualifiedName.IsSame(g.QualifiedName) ||
 						!isIdentical(f.Type, g.Type) ||
 						f.Tag != g.Tag ||
 						f.IsAnonymous != g.IsAnonymous {

@@ -129,23 +129,24 @@ func (x *operand) isAssignable(T Type) bool {
 }
 
 // see operand.go:354
-func lookupField(typ Type, name string) (operandMode, Type) {
+func lookupField(typ Type, name QualifiedName) (operandMode, Type) {
 	typ = deref(typ)
 
-	if typ, ok := typ.(*NamedType); ok {
-		if data := typ.Obj.Data; data != nil {
-			if obj := data.(*ast.Scope).Lookup(name); obj != nil {
-				assert(obj.Type != nil)
-				return value, obj.Type.(Type)
+	if t, ok := typ.(*NamedType); ok {
+		for _, m := range t.Methods {
+			if name.IsSame(m.QualifiedName) {
+				assert(m.Type != nil)
+				return value, m.Type
 			}
 		}
+		typ = t.Underlying
 	}
 
-	switch typ := underlying(typ).(type) {
+	switch t := typ.(type) {
 	case *Struct:
 		var next []embeddedType
-		for _, f := range typ.Fields {
-			if f.Name == name {
+		for _, f := range t.Fields {
+			if name.IsSame(f.QualifiedName) {
 				return variable, f.Type
 			}
 			if f.IsAnonymous {
@@ -161,8 +162,8 @@ func lookupField(typ Type, name string) (operandMode, Type) {
 		}
 
 	case *Interface:
-		for _, m := range typ.Methods {
-			if m.Name == name {
+		for _, m := range t.Methods {
+			if name.IsSame(m.QualifiedName) {
 				return value, m.Type
 			}
 		}
@@ -170,8 +171,8 @@ func lookupField(typ Type, name string) (operandMode, Type) {
 	//=== start custom
 	case *View, *Table:
 		for _, n := range sx_step_names {
-			if n == name {
-				return value, &builtin_step{Recv: typ, StepType: name}
+			if n == name.Name {
+				return value, &builtin_step{Recv: typ, StepType: name.Name}
 			}
 		}
 		//=== end custom
@@ -183,10 +184,11 @@ func lookupField(typ Type, name string) (operandMode, Type) {
 }
 
 type builtin_step struct {
-	implementsType
 	Recv     Type
 	StepType string
 }
+
+func (*builtin_step) aType() {}
 
 var sx_step_names = [...]string{
 	"select",

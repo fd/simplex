@@ -12,7 +12,6 @@ import (
 	"strings"
 	"unicode"
 	"unicode/utf8"
-	//go_ast "go/ast"
 )
 
 // ----------------------------------------------------------------------------
@@ -36,27 +35,23 @@ import (
 type Node interface {
 	Pos() token.Pos // position of first character belonging to the node
 	End() token.Pos // position of first character immediately after the node
-	//GoNode() go_ast.Node
 }
 
 // All expression nodes implement the Expr interface.
 type Expr interface {
 	Node
-	//GoExpr() go_ast.Expr
 	exprNode()
 }
 
 // All statement nodes implement the Stmt interface.
 type Stmt interface {
 	Node
-	//GoStmt() go_ast.Stmt
 	stmtNode()
 }
 
 // All declaration nodes implement the Decl interface.
 type Decl interface {
 	Node
-	//GoDecl() go_ast.Decl
 	declNode()
 }
 

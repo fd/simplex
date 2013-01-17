@@ -308,14 +308,14 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, bin *builtin, iota
 
 	case _Recover:
 		x.mode = value
-		x.typ = emptyInterface
+		x.typ = new(Interface)
 
 	case _Alignof:
 		x.mode = constant
 		x.typ = Typ[Uintptr]
 		// For now we return 1 always as it satisfies the spec's alignment guarantees.
 		// TODO(gri) Extend typechecker API so that platform-specific values can be
-		//           provided.
+		//                                                          provided.
 		x.val = int64(1)
 
 	case _Offsetof:
