@@ -53,9 +53,15 @@ func (x *operand) isAssignable(T Type) bool {
 	// x is a keyed view value, T is a view type,
 	// x's type V and T have identical element types,
 	// and at least one of V or T is not a named type
-	if Vv, ok := Vu.(*View); ok && Vv.Key != nil {
-		if Tv, ok := Tu.(*View); ok && isIdentical(Vv.Elt, Tv.Elt) {
+	if Vv, ok := Vu.(*View); ok {
+		if Tv, ok := Tu.(*View); ok && Vv.Key != nil && isIdentical(Vv.Elt, Tv.Elt) {
 			return !isNamed(V) || !isNamed(T)
+		}
+		if _, ok := Tu.(*Interface); ok && isNamed(T) {
+			n := T.(*NamedType).Obj.GetName()
+			if n == "GenericView" {
+				return true
+			}
 		}
 	}
 
@@ -66,6 +72,12 @@ func (x *operand) isAssignable(T Type) bool {
 		if Tv, ok := Tu.(*View); ok && isIdentical(Vv.Elt, Tv.Elt) && isIdentical(Vv.Key, Tv.Key) {
 			return !isNamed(V) || !isNamed(T)
 		}
+		if _, ok := Tu.(*Interface); ok && isNamed(T) {
+			n := T.(*NamedType).Obj.GetName()
+			if n == "GenericView" || n == "GenericTable" {
+				return true
+			}
+		}
 	}
 
 	// x is a table value, T is a view type,
@@ -74,6 +86,12 @@ func (x *operand) isAssignable(T Type) bool {
 	if Vv, ok := Vu.(*Table); ok {
 		if Tv, ok := Tu.(*View); ok && isIdentical(Vv.Elt, Tv.Elt) && Tv.Key == nil {
 			return !isNamed(V) || !isNamed(T)
+		}
+		if _, ok := Tu.(*Interface); ok && isNamed(T) {
+			n := T.(*NamedType).Obj.GetName()
+			if n == "GenericView" || n == "GenericTable" {
+				return true
+			}
 		}
 	}
 
