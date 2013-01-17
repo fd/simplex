@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/fd/simplex/ast"
 	"github.com/fd/simplex/token"
+	"github.com/fd/simplex/types"
 )
 
 type Context struct {
@@ -12,9 +13,9 @@ type Context struct {
 	GoFiles    []string
 	SxFiles    []string
 
-	AstFiles   map[string]*ast.File
-	AstPackage *ast.Package
-	FileSet    *token.FileSet
+	AstFiles     map[string]*ast.File
+	TypesPackage *types.Package
+	FileSet      *token.FileSet
 }
 
 func (c *Context) Compile() error {
@@ -36,7 +37,7 @@ func (c *Context) Compile() error {
 func (c *Context) generate_go() error {
 	var b bytes.Buffer
 
-	fmt.Fprintf(&b, intro, c.AstPackage.Name)
+	fmt.Fprintf(&b, intro, c.TypesPackage.Name)
 
 	// print table interfaces
 	// print table structs
@@ -44,7 +45,7 @@ func (c *Context) generate_go() error {
 	// print keyed view structs
 	// print indexed view interfaces
 	// print indexed view structs
-	ast.Walk(&type_printer{&b}, c.AstPackage)
+	//ast.Walk(&type_printer{&b}, c.AstPackage)
 
 	// parse generated go file
 	// replace type expr in .sx files
