@@ -140,7 +140,7 @@ func indentLen(s string) int {
 }
 
 func isBlank(s string) bool {
-	return len(s) == 0 || (len(s) == 1 && s[0] == '\n')
+	return len(s) == 0 || len(s) == 1 && s[0] == '\n'
 }
 
 func commonPrefix(a, b string) string {
@@ -204,7 +204,7 @@ func heading(line string) string {
 		if i < 0 {
 			break
 		}
-		if i+1 >= len(b) || b[i+1] != 's' || (i+2 < len(b) && b[i+2] != ' ') {
+		if i+1 >= len(b) || b[i+1] != 's' || i+2 < len(b) && b[i+2] != ' ' {
 			return "" // not followed by "s "
 		}
 		b = b[i+2:]

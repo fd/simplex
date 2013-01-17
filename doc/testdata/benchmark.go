@@ -118,10 +118,10 @@ func roundDown10(n int) int {
 // roundUp rounds x up to a number of the form [1eX, 2eX, 5eX].
 func roundUp(n int) int {
 	base := roundDown10(n)
-	if n < (2 * base) {
+	if n < 2*base {
 		return 2 * base
 	}
-	if n < (5 * base) {
+	if n < 5*base {
 		return 5 * base
 	}
 	return 10 * base
@@ -189,7 +189,7 @@ func (r BenchmarkResult) mbPerSec() float64 {
 	if r.Bytes <= 0 || r.T <= 0 || r.N <= 0 {
 		return 0
 	}
-	return (float64(r.Bytes) * float64(r.N) / 1e6) / r.T.Seconds()
+	return float64(r.Bytes) * float64(r.N) / 1e6 / r.T.Seconds()
 }
 
 func (r BenchmarkResult) String() string {

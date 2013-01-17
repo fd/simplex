@@ -253,7 +253,7 @@ func runTest(cmd *Command, args []string) {
 	// output produces the same result as not streaming,
 	// just more immediately.
 	testStreamOutput = len(pkgArgs) == 0 || testBench ||
-		(len(pkgs) <= 1 && testShowPass)
+		len(pkgs) <= 1 && testShowPass
 
 	var b builder
 	b.init()

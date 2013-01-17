@@ -107,7 +107,7 @@ type nodeStack []Node
 //
 func (s *nodeStack) push(n Node) {
 	s.pop(n.Pos())
-	*s = append((*s), n)
+	*s = append(*s, n)
 }
 
 // pop pops all nodes that appear lexically before pos

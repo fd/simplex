@@ -497,7 +497,7 @@ Found:
 	if mode&FindOnly != 0 {
 		return p, pkgerr
 	}
-	if binaryOnly && (mode&AllowBinary) != 0 {
+	if binaryOnly && mode&AllowBinary != 0 {
 		return p, pkgerr
 	}
 
@@ -800,7 +800,7 @@ func (ctxt *Context) saveCgo(filename string, di *Package, cg *ast.CommentGroup)
 		//	#cgo [GOOS/GOARCH...] LDFLAGS: stuff
 		//
 		line = strings.TrimSpace(line)
-		if len(line) < 5 || line[:4] != "#cgo" || (line[4] != ' ' && line[4] != '\t') {
+		if len(line) < 5 || line[:4] != "#cgo" || line[4] != ' ' && line[4] != '\t' {
 			continue
 		}
 
