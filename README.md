@@ -1,4 +1,4 @@
-# Simplex
+# Simplex -- [![Build Status](https://travis-ci.org/fd/simplex.png?branch=master)](https://travis-ci.org/fd/simplex)
 
 Simplex is a superset of Go.
 
