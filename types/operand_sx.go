@@ -190,7 +190,7 @@ func lookupField(typ Type, name QualifiedName) (operandMode, Type) {
 	case *View, *Table:
 		for _, n := range sx_step_names {
 			if n == name.Name {
-				return value, &builtin_step{Recv: typ, StepType: name.Name}
+				return value, &Signature{Recv: &Var{Type: typ}}
 			}
 		}
 		//=== end custom
@@ -200,13 +200,6 @@ func lookupField(typ Type, name QualifiedName) (operandMode, Type) {
 	// not found
 	return invalid, nil
 }
-
-type builtin_step struct {
-	Recv     Type
-	StepType string
-}
-
-func (*builtin_step) aType() {}
 
 var sx_step_names = [...]string{
 	"select",

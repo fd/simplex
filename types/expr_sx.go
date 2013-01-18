@@ -476,7 +476,14 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
 			goto Error
 		} else if x.mode == typexpr {
 			check.conversion(x, e, x.typ, iota)
+
 		} else if sig, ok := underlying(x.typ).(*Signature); ok {
+			if sig.Recv != nil {
+				if _, ok := sig.Recv.Type.(Viewish); ok {
+					check.sx_step(x, e, sig, hint, iota)
+				}
+			}
+
 			// check parameters
 
 			// If we have a trailing ... at the end of the parameter
@@ -555,9 +562,6 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
 
 		} else if bin, ok := x.typ.(*builtin); ok {
 			check.builtin(x, e, bin, iota)
-
-		} else if bin, ok := x.typ.(*builtin_step); ok {
-			check.sx_step(x, e, bin, iota)
 
 		} else {
 			check.invalidOp(x.pos(), "cannot call non-function %s", x)
@@ -669,58 +673,69 @@ Error:
 	x.expr = e
 }
 
-func (check *checker) sx_step(x *operand, e *ast.CallExpr, hint Type, iota int) {
-	bin, ok := x.typ.(*builtin_step)
+func (check *checker) sx_step(x *operand, e *ast.CallExpr, sig *Signature, hint Type, iota int) {
+	sel, ok := e.Fun.(*ast.SelectorExpr)
 	if !ok {
 		x.mode = invalid
 		return
 	}
+	builtin := sel.Sel.Name
 
-	switch bin.StepType {
+	switch builtin {
 
 	case "select", "reject":
-		check.sx_predicate_function(x, e, bin, hint, iota)
-		x.typ = bin.Recv
+		check.sx_predicate_function(x, e, sig, hint, iota)
+		if x.mode != invalid {
+			v := sig.Recv.Type.(Viewish)
+			r := &View{Key: v.KeyType(), Elt: v.EltType()}
+			sig.Results = []*Var{{Type: r}}
+		}
 
 	case "detect":
-		check.sx_predicate_function(x, e, bin, hint, iota)
+		check.sx_predicate_function(x, e, sig, hint, iota)
 		if x.mode != invalid {
-			x.typ = bin.Recv.(Viewish).EltType()
+			r := sig.Recv.Type.(Viewish).EltType()
+			sig.Results = []*Var{{Type: r}}
 		}
 
 	case "collect":
-		res_typ := check.sx_map_function(x, e, bin, hint, iota)
+		res_typ := check.sx_map_function(x, e, sig, hint, iota)
 		if x.mode != invalid {
-			view_typ := bin.Recv.(Viewish)
-			x.typ = &View{Key: view_typ.KeyType(), Elt: res_typ}
+			v := sig.Recv.Type.(Viewish)
+			r := &View{Key: v.KeyType(), Elt: res_typ}
+			sig.Results = []*Var{{Type: r}}
 		}
 
 	case "inject":
-		res_typ := check.sx_inject_function(x, e, bin, hint, iota)
+		res_typ := check.sx_inject_function(x, e, sig, hint, iota)
 		if x.mode != invalid {
-			view_typ := bin.Recv.(Viewish)
-			x.typ = &View{Key: view_typ.KeyType(), Elt: res_typ}
+			v := sig.Recv.Type.(Viewish)
+			r := &View{Key: v.KeyType(), Elt: res_typ}
+			sig.Results = []*Var{{Type: r}}
 		}
 
 	case "group":
-		res_typ := check.sx_map_function(x, e, bin, hint, iota)
+		res_typ := check.sx_map_function(x, e, sig, hint, iota)
 		if x.mode != invalid {
-			view_typ := bin.Recv.(Viewish)
-			x.typ = &View{Key: res_typ, Elt: &View{Key: view_typ.KeyType(), Elt: view_typ.EltType()}}
+			v := sig.Recv.Type.(Viewish)
+			r := &View{Key: res_typ, Elt: &View{Key: v.KeyType(), Elt: v.EltType()}}
+			sig.Results = []*Var{{Type: r}}
 		}
 
 	case "index":
-		res_typ := check.sx_map_function(x, e, bin, hint, iota)
+		res_typ := check.sx_map_function(x, e, sig, hint, iota)
 		if x.mode != invalid {
-			view_typ := bin.Recv.(Viewish)
-			x.typ = &View{Key: res_typ, Elt: view_typ.EltType()}
+			v := sig.Recv.Type.(Viewish)
+			r := &View{Key: res_typ, Elt: v.EltType()}
+			sig.Results = []*Var{{Type: r}}
 		}
 
 	case "sort":
-		check.sx_map_function(x, e, bin, hint, iota)
+		check.sx_map_function(x, e, sig, hint, iota)
 		if x.mode != invalid {
-			view_typ := bin.Recv.(Viewish)
-			x.typ = &View{Elt: view_typ.EltType()}
+			v := sig.Recv.Type.(Viewish)
+			r := &View{Elt: v.EltType()}
+			sig.Results = []*Var{{Type: r}}
 		}
 
 	default:
@@ -729,8 +744,8 @@ func (check *checker) sx_step(x *operand, e *ast.CallExpr, hint Type, iota int) 
 	}
 }
 
-func (check *checker) sx_predicate_function(x *operand, e *ast.CallExpr, bin *builtin_step, hint Type, iota int) {
-	_, ok := e.Fun.(*ast.SelectorExpr)
+func (check *checker) sx_predicate_function(x *operand, e *ast.CallExpr, sig *Signature, hint Type, iota int) {
+	sel, ok := e.Fun.(*ast.SelectorExpr)
 	if !ok {
 		check.errorf(e.Pos(), "not a view or table receiver %s", e.Fun)
 		x.mode = invalid
@@ -738,7 +753,7 @@ func (check *checker) sx_predicate_function(x *operand, e *ast.CallExpr, bin *bu
 	}
 
 	var view_typ Viewish
-	switch v := bin.Recv.(type) {
+	switch v := sig.Recv.Type.(type) {
 	case *View:
 		view_typ = v
 	case *Table:
@@ -752,7 +767,7 @@ func (check *checker) sx_predicate_function(x *operand, e *ast.CallExpr, bin *bu
 	var f_op operand
 	var f ast.Expr
 
-	switch bin.StepType {
+	switch sel.Sel.Name {
 	case "select", "detect", "reject", "collect", "inject", "group", "index", "sort":
 		if len(e.Args) != 1 {
 			check.errorf(e.Pos(), "%s expects one argument", e)
@@ -767,38 +782,40 @@ func (check *checker) sx_predicate_function(x *operand, e *ast.CallExpr, bin *bu
 		unreachable()
 	}
 
-	if sig, ok := f_op.typ.(*Signature); ok {
-		if len(sig.Results) != 1 {
-			check.errorf(f.Pos(), "not a "+bin.StepType+" function %s", f)
+	if f_sig, ok := f_op.typ.(*Signature); ok {
+		if len(f_sig.Results) != 1 {
+			check.errorf(f.Pos(), "not a "+sel.Sel.Name+" function %s", f)
 			x.mode = invalid
 			return
 		}
-		if !isBoolean(sig.Results[0].Type) {
-			check.errorf(f.Pos(), "not a "+bin.StepType+" function %s", f)
+		if !isBoolean(f_sig.Results[0].Type) {
+			check.errorf(f.Pos(), "not a "+sel.Sel.Name+" function %s", f)
 			x.mode = invalid
 			return
 		}
-		if len(sig.Params) != 1 {
-			check.errorf(f.Pos(), "not a "+bin.StepType+" function %s", f)
+		if len(f_sig.Params) != 1 {
+			check.errorf(f.Pos(), "not a "+sel.Sel.Name+" function %s", f)
 			x.mode = invalid
 			return
 		}
-		if !isIdentical(sig.Params[0].Type, view_typ.EltType()) {
-			check.errorf(f.Pos(), "not a "+bin.StepType+" function %s", f)
+		if !isIdentical(f_sig.Params[0].Type, view_typ.EltType()) {
+			check.errorf(f.Pos(), "not a "+sel.Sel.Name+" function %s", f)
 			x.mode = invalid
 			return
 		}
+
+		sig.Params = []*Var{{Type: f_sig}}
 	} else {
-		check.errorf(f.Pos(), "not a "+bin.StepType+" function %s", f)
+		check.errorf(f.Pos(), "not a "+sel.Sel.Name+" function %s", f)
 		x.mode = invalid
 		return
 	}
 }
 
-func (check *checker) sx_map_function(x *operand, e *ast.CallExpr, bin *builtin_step, hint Type, iota int) Type {
+func (check *checker) sx_map_function(x *operand, e *ast.CallExpr, sig *Signature, hint Type, iota int) Type {
 	var res_typ Type
 
-	_, ok := e.Fun.(*ast.SelectorExpr)
+	sel, ok := e.Fun.(*ast.SelectorExpr)
 	if !ok {
 		check.errorf(e.Pos(), "not a view or table receiver %s", e.Fun)
 		x.mode = invalid
@@ -806,7 +823,7 @@ func (check *checker) sx_map_function(x *operand, e *ast.CallExpr, bin *builtin_
 	}
 
 	var view_typ Viewish
-	switch v := bin.Recv.(type) {
+	switch v := sig.Recv.Type.(type) {
 	case *View:
 		view_typ = v
 	case *Table:
@@ -820,7 +837,7 @@ func (check *checker) sx_map_function(x *operand, e *ast.CallExpr, bin *builtin_
 	var f_op operand
 	var f ast.Expr
 
-	switch bin.StepType {
+	switch sel.Sel.Name {
 	case "select", "detect", "reject", "collect", "inject", "group", "index", "sort":
 		if len(e.Args) != 1 {
 			check.errorf(e.Pos(), "%s expects one argument", e)
@@ -835,32 +852,34 @@ func (check *checker) sx_map_function(x *operand, e *ast.CallExpr, bin *builtin_
 		unreachable()
 	}
 
-	if sig, ok := f_op.typ.(*Signature); ok {
-		if len(sig.Results) != 1 {
-			check.errorf(f.Pos(), "not a "+bin.StepType+" function %s", f)
+	if f_sig, ok := f_op.typ.(*Signature); ok {
+		if len(f_sig.Results) != 1 {
+			check.errorf(f.Pos(), "not a "+sel.Sel.Name+" function %s", f)
 			x.mode = invalid
 			return nil
 		}
-		if _, isSig := sig.Results[0].Type.(*Signature); isSig {
-			check.errorf(f.Pos(), "not a "+bin.StepType+" function %s", f)
+		if _, isSig := f_sig.Results[0].Type.(*Signature); isSig {
+			check.errorf(f.Pos(), "not a "+sel.Sel.Name+" function %s", f)
 			x.mode = invalid
 			return nil
 		}
-		res_typ = sig.Results[0].Type
+		res_typ = f_sig.Results[0].Type
 
-		if len(sig.Params) != 1 {
-			check.errorf(f.Pos(), "not a "+bin.StepType+" function %s", f)
+		if len(f_sig.Params) != 1 {
+			check.errorf(f.Pos(), "not a "+sel.Sel.Name+" function %s", f)
 			x.mode = invalid
 			return nil
 		}
-		if !isIdentical(sig.Params[0].Type, view_typ.EltType()) {
-			check.errorf(f.Pos(), "not a "+bin.StepType+" function %s", f)
+		if !isIdentical(f_sig.Params[0].Type, view_typ.EltType()) {
+			check.errorf(f.Pos(), "not a "+sel.Sel.Name+" function %s", f)
 			x.mode = invalid
 			return nil
 		}
+
+		sig.Params = []*Var{{Type: f_sig}}
 
 	} else {
-		check.errorf(f.Pos(), "not a "+bin.StepType+" function %s", f)
+		check.errorf(f.Pos(), "not a "+sel.Sel.Name+" function %s", f)
 		x.mode = invalid
 		return nil
 	}
@@ -868,10 +887,10 @@ func (check *checker) sx_map_function(x *operand, e *ast.CallExpr, bin *builtin_
 	return res_typ
 }
 
-func (check *checker) sx_inject_function(x *operand, e *ast.CallExpr, bin *builtin_step, hint Type, iota int) Type {
+func (check *checker) sx_inject_function(x *operand, e *ast.CallExpr, sig *Signature, hint Type, iota int) Type {
 	var res_typ Type
 
-	_, ok := e.Fun.(*ast.SelectorExpr)
+	sel, ok := e.Fun.(*ast.SelectorExpr)
 	if !ok {
 		check.errorf(e.Pos(), "not a view or table receiver %s", e.Fun)
 		x.mode = invalid
@@ -880,7 +899,7 @@ func (check *checker) sx_inject_function(x *operand, e *ast.CallExpr, bin *built
 
 	var view_typ Viewish
 	var group_view_typ *View
-	switch v := bin.Recv.(type) {
+	switch v := sig.Recv.Type.(type) {
 	case *View:
 		view_typ = v
 	case *Table:
@@ -901,7 +920,7 @@ func (check *checker) sx_inject_function(x *operand, e *ast.CallExpr, bin *built
 	var f_op operand
 	var f ast.Expr
 
-	switch bin.StepType {
+	switch sel.Sel.Name {
 	case "select", "detect", "reject", "collect", "inject", "group", "index", "sort":
 		if len(e.Args) != 1 {
 			check.errorf(e.Pos(), "%s expects one argument", e)
@@ -916,39 +935,41 @@ func (check *checker) sx_inject_function(x *operand, e *ast.CallExpr, bin *built
 		unreachable()
 	}
 
-	if sig, ok := f_op.typ.(*Signature); ok {
-		if len(sig.Results) != 1 {
-			check.errorf(f.Pos(), "not a "+bin.StepType+" function %s", f)
+	if f_sig, ok := f_op.typ.(*Signature); ok {
+		if len(f_sig.Results) != 1 {
+			check.errorf(f.Pos(), "not a "+sel.Sel.Name+" function %s", f)
 			x.mode = invalid
 			return nil
 		}
-		if _, isSig := sig.Results[0].Type.(*Signature); isSig {
-			check.errorf(f.Pos(), "not a "+bin.StepType+" function %s", f)
+		if _, isSig := f_sig.Results[0].Type.(*Signature); isSig {
+			check.errorf(f.Pos(), "not a "+sel.Sel.Name+" function %s", f)
 			x.mode = invalid
 			return nil
 		}
-		res_typ = sig.Results[0].Type
+		res_typ = f_sig.Results[0].Type
 
-		if len(sig.Params) != 2 {
-			check.errorf(f.Pos(), "not a "+bin.StepType+" function %s", f)
+		if len(f_sig.Params) != 2 {
+			check.errorf(f.Pos(), "not a "+sel.Sel.Name+" function %s", f)
 			x.mode = invalid
 			return nil
 		}
 
 		acc_typ := &Slice{Elt: res_typ}
-		if !isIdentical(sig.Params[0].Type, acc_typ) {
-			check.errorf(f.Pos(), "not a "+bin.StepType+" function %s", f)
+		if !isIdentical(f_sig.Params[0].Type, acc_typ) {
+			check.errorf(f.Pos(), "not a "+sel.Sel.Name+" function %s", f)
 			x.mode = invalid
 			return nil
 		}
-		if !isIdentical(sig.Params[1].Type, group_view_typ.EltType()) {
-			check.errorf(f.Pos(), "not a "+bin.StepType+" function %s", f)
+		if !isIdentical(f_sig.Params[1].Type, group_view_typ.EltType()) {
+			check.errorf(f.Pos(), "not a "+sel.Sel.Name+" function %s", f)
 			x.mode = invalid
 			return nil
 		}
 
+		sig.Params = []*Var{{Type: f_sig}}
+
 	} else {
-		check.errorf(f.Pos(), "not a "+bin.StepType+" function %s", f)
+		check.errorf(f.Pos(), "not a "+sel.Sel.Name+" function %s", f)
 		x.mode = invalid
 		return nil
 	}

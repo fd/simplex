@@ -15,6 +15,8 @@ type Context struct {
 
 	AstFiles     map[string]*ast.File
 	TypesPackage *types.Package
+	ViewTypes    map[string]*types.View
+	TableTypes   map[string]*types.Table
 	FileSet      *token.FileSet
 }
 
@@ -31,6 +33,11 @@ func (c *Context) Compile() error {
 		return err
 	}
 
+	err = c.generate_go()
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -38,6 +45,13 @@ func (c *Context) generate_go() error {
 	var b bytes.Buffer
 
 	fmt.Fprintf(&b, intro, c.TypesPackage.Name)
+
+	for view := range c.ViewTypes {
+		fmt.Printf("- view: %+v\n", view)
+	}
+	for table := range c.TableTypes {
+		fmt.Printf("- table: %+v\n", table)
+	}
 
 	// print table interfaces
 	// print table structs
