@@ -19,9 +19,11 @@ func (c *Context) check_types() error {
 	views := map[string]*types.View{}
 	tables := map[string]*types.Table{}
 	cache := map[types.Type]bool{}
+	mapping := map[ast.Node]types.Type{}
 
 	ctx := types.Default
 	ctx.Expr = func(x ast.Expr, typ types.Type, val interface{}) {
+		mapping[x] = typ
 		collect_types(typ, views, tables, cache)
 	}
 
@@ -33,6 +35,7 @@ func (c *Context) check_types() error {
 	c.TypesPackage = pkg
 	c.ViewTypes = views
 	c.TableTypes = tables
+	c.NodeTypes = mapping
 
 	return nil
 }

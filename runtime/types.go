@@ -4,24 +4,36 @@ import (
 	"reflect"
 )
 
+type Table struct {
+}
+
 type GenericTable interface {
-	GenericKeyedView
-	InnerTable()
+	InnerTable() *Table
 }
 
 type GenericKeyedView interface {
-	GenericIndexedView
 	KeyType() reflect.Type
 }
 
 type GenericIndexedView interface {
-	GenericView
 	EltType() reflect.Type
 }
 
 type GenericView interface {
-	InnerView()
+	InnerView() *Table
 }
 
 func Dump(v GenericView) {
+}
+
+func Select(v GenericView, f interface{}) *Table {
+	return nil
+}
+
+func Collect(v GenericView, f interface{}) *Table {
+	return nil
+}
+
+func Sort(v GenericView, f interface{}) *Table {
+	return nil
 }

@@ -1,0 +1,12 @@
+package main
+
+import (
+  "github.com/fd/simplex/runtime"
+  "fmt"
+)
+
+func main() {
+  /*locations["gent"] = Location{ name: "Gent" }*/
+  fmt.Printf("Locations:\n")
+  runtime.Dump(Locations)
+}

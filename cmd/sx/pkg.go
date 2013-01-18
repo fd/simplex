@@ -355,7 +355,7 @@ func (p *Package) load(stk *importStack, bp *build.Package, err error) *Package 
 
 	// Build list of full paths to all Go files in the package,
 	// for use by commands like go fmt.
-	p.gofiles = stringList(p.GoFiles, p.CgoFiles, p.TestGoFiles, p.XTestGoFiles)
+	p.gofiles = stringList(p.SxFiles, p.TestSxFiles, p.GoFiles, p.CgoFiles, p.TestGoFiles, p.XTestGoFiles)
 	for i := range p.gofiles {
 		p.gofiles[i] = filepath.Join(p.Dir, p.gofiles[i])
 	}
