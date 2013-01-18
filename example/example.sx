@@ -18,7 +18,7 @@ var (
 	locations            = make(table[string]Location)
 	Locations            = locations.select(has_website).sort(locations_gps_ne)
 	LocationsWithWebsite = LocationsView(locations).WithWebsite()
-  Coordinates          = Locations.collect(gps).sort(gps_ne)
+	Coordinates          = Locations.collect(gps).sort(gps_ne)
 )
 
 func has_website(loc Location) bool {

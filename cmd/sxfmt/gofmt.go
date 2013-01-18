@@ -256,7 +256,7 @@ func diff(b1, b2 []byte) (data []byte, err error) {
 // as a Go source file or statement list.
 func parse(fset *token.FileSet, filename string, src []byte, stdin bool) (*ast.File, func(orig, src []byte) []byte, error) {
 	// Try as whole source file.
-	file, err := parser.ParseFile(fset, filename, src, parserMode)
+	file, err := parser.ParseFile(fset, filename, src, parserMode|parser.SimplexExtentions)
 	if err == nil {
 		return file, nil, nil
 	}
@@ -272,7 +272,7 @@ func parse(fset *token.FileSet, filename string, src []byte, stdin bool) (*ast.F
 	// Insert using a ;, not a newline, so that the line numbers
 	// in psrc match the ones in src.
 	psrc := append([]byte("package p;"), src...)
-	file, err = parser.ParseFile(fset, filename, psrc, parserMode)
+	file, err = parser.ParseFile(fset, filename, psrc, parserMode|parser.SimplexExtentions)
 	if err == nil {
 		adjust := func(orig, src []byte) []byte {
 			// Remove the package clause.
@@ -295,7 +295,7 @@ func parse(fset *token.FileSet, filename string, src []byte, stdin bool) (*ast.F
 	// Insert using a ;, not a newline, so that the line numbers
 	// in fsrc match the ones in src.
 	fsrc := append(append([]byte("package p; func _() {"), src...), '}')
-	file, err = parser.ParseFile(fset, filename, fsrc, parserMode)
+	file, err = parser.ParseFile(fset, filename, fsrc, parserMode|parser.SimplexExtentions)
 	if err == nil {
 		adjust := func(orig, src []byte) []byte {
 			// Remove the wrapping.
