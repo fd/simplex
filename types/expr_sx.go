@@ -481,6 +481,9 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
 			if sig.Recv != nil {
 				if _, ok := sig.Recv.Type.(Viewish); ok {
 					check.sx_step(x, e, sig, hint, iota)
+					if x.mode == invalid {
+						goto Error
+					}
 				}
 			}
 

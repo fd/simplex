@@ -17,10 +17,10 @@ func _Select() {
   f2 := func(f string)bool{ return true }
   f3 := func(f float64)int{ return 5 }
 
-  _ = z /* ERROR "not a view receiver" */ .select(f0)
-  _ = v.select(f1 /* ERROR "not a select func" */)
-  _ = v.select(f2 /* ERROR "not a select func" */)
-  _ = v.select(f3 /* ERROR "not a select func" */)
+  _0 := z /* ERROR "not a view receiver" */ .select(f0)
+  _1 := v.select(f1 /* ERROR "not a select func" */)
+  _2 := v.select(f2 /* ERROR "not a select func" */)
+  _3 := v.select(f3 /* ERROR "not a select func" */)
   w = v.select(f0)
   x = w /* ERROR "cannot assign" */
 }
@@ -36,10 +36,10 @@ func _Reject() {
   f2 := func(f string)bool{ return true }
   f3 := func(f float64)int{ return 5 }
 
-  _ = z /* ERROR "not a view receiver" */ .reject(f0)
-  _ = v.reject(f1 /* ERROR "not a reject func" */)
-  _ = v.reject(f2 /* ERROR "not a reject func" */)
-  _ = v.reject(f3 /* ERROR "not a reject func" */)
+  _0 := z /* ERROR "not a view receiver" */ .reject(f0)
+  _1 := v.reject(f1 /* ERROR "not a reject func" */)
+  _2 := v.reject(f2 /* ERROR "not a reject func" */)
+  _3 := v.reject(f3 /* ERROR "not a reject func" */)
   w = v.reject(f0)
   x = w /* ERROR "cannot assign" */
 }
@@ -55,10 +55,10 @@ func _Detect() {
   f2 := func(f string)bool{ return true }
   f3 := func(f float64)int{ return 5 }
 
-  _ = z /* ERROR "not a view receiver" */ .detect(f0)
-  _ = v.detect(f1 /* ERROR "not a detect func" */)
-  _ = v.detect(f2 /* ERROR "not a detect func" */)
-  _ = v.detect(f3 /* ERROR "not a detect func" */)
+  _0 := z /* ERROR "not a view receiver" */ .detect(f0)
+  _1 := v.detect(f1 /* ERROR "not a detect func" */)
+  _2 := v.detect(f2 /* ERROR "not a detect func" */)
+  _3 := v.detect(f3 /* ERROR "not a detect func" */)
   w = v.detect(f0)
   x = w /* ERROR "cannot assign" */
 }
@@ -73,9 +73,9 @@ func _Collect() {
   f1 := func(){}
   f2 := func(f string)bool{ return true }
 
-  _ = z /* ERROR "not a view receiver" */ .collect(f0)
-  _ = v.collect(f1 /* ERROR "not a collect func" */)
-  _ = v.collect(f2 /* ERROR "not a collect func" */)
+  _0 := z /* ERROR "not a view receiver" */ .collect(f0)
+  _1 := v.collect(f1 /* ERROR "not a collect func" */)
+  _2 := v.collect(f2 /* ERROR "not a collect func" */)
   w = v.collect(f0)
   x = w /* ERROR "cannot assign" */
 }
@@ -97,9 +97,9 @@ func _Inject() {
   f1 := func(){}
   f2 := func(f string)bool{ return true }
 
-  _ = z /* ERROR "not a view receiver" */ .inject(f0)
-  _ = v.inject(f1 /* ERROR "not a inject func" */)
-  _ = v.inject(f2 /* ERROR "not a inject func" */)
+  _0 := z /* ERROR "not a view receiver" */ .inject(f0)
+  _1 := v.inject(f1 /* ERROR "not a inject func" */)
+  _2 := v.inject(f2 /* ERROR "not a inject func" */)
   w = v.inject(f0)
   x = w /* ERROR "cannot assign" */
 }
@@ -114,9 +114,9 @@ func _Group() {
   f1 := func(){}
   f2 := func(f string)bool{ return true }
 
-  _ = z /* ERROR "not a view receiver" */ .group(f0)
-  _ = v.group(f1 /* ERROR "not a group func" */)
-  _ = v.group(f2 /* ERROR "not a group func" */)
+  _0 := z /* ERROR "not a view receiver" */ .group(f0)
+  _1 := v.group(f1 /* ERROR "not a group func" */)
+  _2 := v.group(f2 /* ERROR "not a group func" */)
   w = v.group(f0)
   x = w /* ERROR "cannot assign" */
 }
@@ -131,9 +131,9 @@ func _Index() {
   f1 := func(){}
   f2 := func(f string)bool{ return true }
 
-  _ = z /* ERROR "not a view receiver" */ .index(f0)
-  _ = v.index(f1 /* ERROR "not a index func" */)
-  _ = v.index(f2 /* ERROR "not a index func" */)
+  _0 := z /* ERROR "not a view receiver" */ .index(f0)
+  _1 := v.index(f1 /* ERROR "not a index func" */)
+  _2 := v.index(f2 /* ERROR "not a index func" */)
   w = v.index(f0)
   x = w /* ERROR "cannot assign" */
 }
@@ -148,9 +148,9 @@ func _Sort() {
   f1 := func(){}
   f2 := func(f string)bool{ return true }
 
-  _ = z /* ERROR "not a view receiver" */ .sort(f0)
-  _ = v.sort(f1 /* ERROR "not a sort func" */)
-  _ = v.sort(f2 /* ERROR "not a sort func" */)
+  _0 := z /* ERROR "not a view receiver" */ .sort(f0)
+  _1 := v.sort(f1 /* ERROR "not a sort func" */)
+  _2 := v.sort(f2 /* ERROR "not a sort func" */)
   w = v.sort(f0)
   x = w /* ERROR "cannot assign" */
 }
