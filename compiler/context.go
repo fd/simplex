@@ -7,9 +7,9 @@ import (
 )
 
 type Context struct {
-	OutputFile string
-	GoFiles    []string
-	SxFiles    []string
+	OutputDir string
+	GoFiles   []string
+	SxFiles   []string
 
 	AstFiles     map[string]*ast.File
 	TypesPackage *types.Package

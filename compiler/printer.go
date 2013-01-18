@@ -1,13 +1,11 @@
 package compiler
 
 import (
-	"fmt"
-	"github.com/fd/simplex/ast"
 	"github.com/fd/simplex/printer"
-	"github.com/fd/simplex/token"
 	"github.com/fd/simplex/types"
 	"io"
 	"os"
+	"path"
 	"sort"
 	"text/template"
 )
@@ -21,7 +19,24 @@ type printer_t struct {
 func (c *Context) print_go() error {
 	var w io.Writer
 
-	f, err := os.Create(c.OutputFile)
+	conf := printer.Config{Mode: printer.SourcePos, Tabwidth: 8}
+	for _, name := range c.SxFiles {
+		f, err := os.Create(path.Join(c.OutputDir, name[:len(name)-3]+".go"))
+		if err != nil {
+			return err
+		}
+		defer f.Close()
+
+		w = f
+		w = io.MultiWriter(w, os.Stdout)
+
+		err = conf.Fprint(w, c.FileSet, c.AstFiles[name])
+		if err != nil {
+			return err
+		}
+	}
+
+	f, err := os.Create(path.Join(c.OutputDir, "smplx_generated.go"))
 	if err != nil {
 		return err
 	}
@@ -30,11 +45,9 @@ func (c *Context) print_go() error {
 	w = f
 	w = io.MultiWriter(w, os.Stdout)
 
-	merged_sx_file := c.merge_simplex_files()
-
 	p := &printer_t{ctx: c}
 
-	err = p.print_intro_and_merged_sx_file(w, c.TypesPackage.Name, merged_sx_file)
+	err = p.print_intro(w, c.TypesPackage.Name)
 	if err != nil {
 		return err
 	}
@@ -63,123 +76,25 @@ func (c *Context) print_go() error {
 	return nil
 }
 
-func (c *Context) merge_simplex_files() *ast.File {
-	sx_files := make(map[string]*ast.File, len(c.SxFiles))
-	for _, name := range c.SxFiles {
-		sx_files[name] = c.AstFiles[name]
+var intro_tmpl = template.Must(template.New("intro_tmpl").Parse(`
+package {{.PkgName}}
+
+import (
+  sx_reflect "reflect"
+  sx_runtime "github.com/fd/simplex/runtime"
+)
+
+`))
+
+func (p *printer_t) print_intro(w io.Writer, pkg_name string) error {
+	p.reflect_import_name = "sx_reflect"
+	p.runtime_import_name = "sx_runtime"
+
+	type data struct {
+		PkgName string
 	}
 
-	pkg := &ast.Package{
-		Name:  c.TypesPackage.Name,
-		Files: sx_files,
-	}
-	file := ast.MergePackageFiles(pkg, ast.FilterImportDuplicates)
-	collect_imports_at_the_top(file)
-
-	return file
-}
-
-func collect_imports_at_the_top(f *ast.File) {
-	decl := f.Decls
-	imports := []ast.Decl{}
-
-	for i := len(decl) - 1; i >= 0; i-- {
-		n := decl[i]
-		d, ok := n.(*ast.GenDecl)
-		if !ok || d.Tok != token.IMPORT {
-			continue
-		}
-
-		imports = append(imports, d)
-
-		if i > 0 {
-			decl = append(decl[:i], decl[i+1:]...)
-		} else {
-			decl = decl[i+1:]
-		}
-	}
-
-	f.Decls = append(imports, decl...)
-}
-
-func (p *printer_t) print_intro_and_merged_sx_file(w io.Writer, pkg_name string, sx_file *ast.File) error {
-	var (
-		reflect_import_name string
-		runtime_import_name string
-	)
-
-	for _, spec := range sx_file.Imports {
-		if spec.Path.Kind == token.STRING {
-			switch spec.Path.Value {
-
-			case `"reflect"`:
-				reflect_import_name = "reflect"
-				if spec.Name != nil {
-					reflect_import_name = spec.Name.Name
-				}
-
-			case `"github.com/fd/simplex/runtime"`:
-				runtime_import_name = "runtime"
-				if spec.Name != nil {
-					runtime_import_name = spec.Name.Name
-				}
-
-			}
-		}
-	}
-
-	if reflect_import_name == "" {
-		reflect_import_name = "sx_reflect"
-
-		imp := &ast.ImportSpec{
-			Name: ast.NewIdent("sx_reflect"),
-			Path: &ast.BasicLit{
-				Kind:  token.STRING,
-				Value: `"reflect"`,
-			},
-		}
-
-		decl := &ast.GenDecl{
-			Tok:   token.IMPORT,
-			Specs: []ast.Spec{imp},
-		}
-
-		sx_file.Imports = append(sx_file.Imports, imp)
-		sx_file.Decls = append([]ast.Decl{decl}, sx_file.Decls...)
-	}
-
-	if runtime_import_name == "" {
-		runtime_import_name = "sx_runtime"
-
-		imp := &ast.ImportSpec{
-			Name: ast.NewIdent("sx_runtime"),
-			Path: &ast.BasicLit{
-				Kind:  token.STRING,
-				Value: `"github.com/fd/simplex/runtime"`,
-			},
-		}
-
-		decl := &ast.GenDecl{
-			Tok:   token.IMPORT,
-			Specs: []ast.Spec{imp},
-		}
-
-		sx_file.Imports = append(sx_file.Imports, imp)
-		sx_file.Decls = append([]ast.Decl{decl}, sx_file.Decls...)
-	}
-
-	p.reflect_import_name = reflect_import_name
-	p.runtime_import_name = runtime_import_name
-
-	conf := printer.Config{Mode: printer.SourcePos, Tabwidth: 8}
-	err := conf.Fprint(w, p.ctx.FileSet, sx_file)
-	if err != nil {
-		return err
-	}
-
-	fmt.Fprintln(w, "\n//line sx_generated.go:1")
-
-	return nil
+	return intro_tmpl.Execute(w, data{pkg_name})
 }
 
 var table_tmpl = template.Must(template.New("table_tmpl").Parse(`

@@ -37,9 +37,9 @@ func main() {
 	}
 
 	ctx := compiler.Context{
-		OutputFile: *output,
-		GoFiles:    gofiles,
-		SxFiles:    sxfiles,
+		OutputDir: *output,
+		GoFiles:   gofiles,
+		SxFiles:   sxfiles,
 	}
 
 	err := ctx.Compile()

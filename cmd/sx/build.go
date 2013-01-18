@@ -1777,11 +1777,15 @@ func (b *builder) sxc(p *Package, obj string) (outGo []string, err error) {
 	gofile := path.Join(obj, "smplx_generated.go")
 
 	args := []string{
-		"-o", gofile,
+		"-o", obj,
 	}
 
 	if err := b.run(p.Dir, p.ImportPath, "sxc", args, p.GoFiles, p.SxFiles); err != nil {
 		return outGo, err
+	}
+
+	for _, f := range p.SxFiles {
+		outGo = append(outGo, path.Join(obj, f[:len(f)-3]+".go"))
 	}
 
 	outGo = append(outGo, gofile)
