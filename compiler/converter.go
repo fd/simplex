@@ -2,6 +2,7 @@ package compiler
 
 import (
 	"github.com/fd/simplex/ast"
+	"github.com/fd/simplex/token"
 	"github.com/fd/simplex/types"
 )
 
@@ -9,14 +10,45 @@ func (c *Context) convert_sx_to_go() error {
 
 	for _, name := range c.SxFiles {
 		file := c.AstFiles[name]
-		ast.Walk(&builtin_function_conv{c.NodeTypes}, file)
+
+		runtime_name := ""
+		for _, imp := range file.Imports {
+			if imp.Path.Value == `"github.com/fd/simplex/runtime"` {
+				if imp.Name == nil {
+					runtime_name = "runtime"
+				} else {
+					runtime_name = imp.Name.Name
+				}
+			}
+		}
+		if runtime_name == "" {
+			runtime_name = "sx_runtime"
+			imp := &ast.ImportSpec{
+				Name: ast.NewIdent("sx_runtime"),
+				Path: &ast.BasicLit{
+					Kind:  token.STRING,
+					Value: `"github.com/fd/simplex/runtime"`,
+				},
+			}
+			decl := &ast.GenDecl{
+				Tok:   token.IMPORT,
+				Specs: []ast.Spec{imp},
+			}
+			file.Decls = append([]ast.Decl{decl}, file.Decls...)
+			file.Imports = append(file.Imports, imp)
+		}
+
+		ast.Walk(&builtin_function_conv{c.NodeTypes, runtime_name}, file)
 	}
 
 	return nil
 }
 
 type (
-	builtin_function_conv struct{ mapping map[ast.Node]types.Type }
+	builtin_function_conv struct {
+		mapping      map[ast.Node]types.Type
+		runtime_name string
+	}
 )
 
 func (conv *builtin_function_conv) Visit(node ast.Node) ast.Visitor {
@@ -227,7 +259,7 @@ func (conv *builtin_function_conv) convert_method(call *ast.CallExpr, name strin
 	call.Args = []ast.Expr{
 		&ast.CallExpr{
 			Fun: &ast.SelectorExpr{
-				ast.NewIdent("sx_runtime"),
+				ast.NewIdent(conv.runtime_name),
 				ast.NewIdent(name),
 			},
 			Args: args,

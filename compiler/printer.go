@@ -17,24 +17,21 @@ type printer_t struct {
 }
 
 func (c *Context) print_go() error {
-	var w io.Writer
-
-	conf := printer.Config{Mode: printer.SourcePos, Tabwidth: 8}
-	for _, name := range c.SxFiles {
-		f, err := os.Create(path.Join(c.OutputDir, name[:len(name)-3]+".go"))
-		if err != nil {
-			return err
-		}
-		defer f.Close()
-
-		w = f
-		w = io.MultiWriter(w, os.Stdout)
-
-		err = conf.Fprint(w, c.FileSet, c.AstFiles[name])
-		if err != nil {
-			return err
-		}
+	err := c.print_sx_files_as_go_files()
+	if err != nil {
+		return err
 	}
+
+	err = c.print_generated_go()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (c *Context) print_generated_go() error {
+	var w io.Writer
 
 	f, err := os.Create(path.Join(c.OutputDir, "smplx_generated.go"))
 	if err != nil {
@@ -71,6 +68,29 @@ func (c *Context) print_go() error {
 	err = p.print_indexed_views(w, c.ViewTypes)
 	if err != nil {
 		return err
+	}
+
+	return nil
+}
+
+func (c *Context) print_sx_files_as_go_files() error {
+	var w io.Writer
+
+	conf := printer.Config{Mode: printer.SourcePos, Tabwidth: 8}
+	for _, name := range c.SxFiles {
+		f, err := os.Create(path.Join(c.OutputDir, name[:len(name)-3]+".go"))
+		if err != nil {
+			return err
+		}
+		defer f.Close()
+
+		w = f
+		w = io.MultiWriter(w, os.Stdout)
+
+		err = conf.Fprint(w, c.FileSet, c.AstFiles[name])
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
