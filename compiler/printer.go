@@ -120,19 +120,19 @@ func (p *printer_t) print_intro(w io.Writer, pkg_name string) error {
 var table_tmpl = template.Must(template.New("table_tmpl").Parse(`
 type (
   {{.TypeName}} interface {
-    {{.Runtime}}.GenericTable
     {{.ViewTypeName}}
+    TableId() string
   }
 
   sx_{{.TypeName}} struct {
     sx_{{.ViewTypeName}}
   }
 )
-func (s sx_{{.TypeName}}) InnerTable() *{{.Runtime}}.Table { return s.Table }
+func (s sx_{{.TypeName}}) TableId() string { return "" }
 func new_{{.TypeName}}() {{.TypeName}} { return sx_{{.TypeName}}{} }
-func wrap_{{.TypeName}}(tab *{{.Runtime}}.Table) {{.TypeName}} {
+func wrap_{{.TypeName}}(def {{.Runtime}}.Deferred) {{.TypeName}} {
   t := sx_{{.TypeName}}{}
-  t.Table = tab
+  t.Deferred = def
   return t
 }
 `))
@@ -182,8 +182,8 @@ func (p *printer_t) print_tables(w io.Writer, tables map[string]*types.Table) er
 var keyed_view_tmpl = template.Must(template.New("keyed_view_tmpl").Parse(`
 type (
   {{.TypeName}} interface {
-    {{.Runtime}}.GenericKeyedView
     {{.IndexedTypeName}}
+    KeyType() sx_reflect.Type
     KeyZero() {{.KeyType}}
   }
 
@@ -193,9 +193,9 @@ type (
 )
 func (s sx_{{.TypeName}}) KeyType() {{.Reflect}}.Type { return {{.Reflect}}.TypeOf(s.KeyZero()) }
 func (s sx_{{.TypeName}}) KeyZero() {{.KeyType}} { return {{.KeyZero}} }
-func wrap_{{.TypeName}}(tab *{{.Runtime}}.Table) {{.TypeName}} {
+func wrap_{{.TypeName}}(def {{.Runtime}}.Deferred) {{.TypeName}} {
   t := sx_{{.TypeName}}{}
-  t.Table = tab
+  t.Deferred = def
   return t
 }
 `))
@@ -249,19 +249,23 @@ func (p *printer_t) print_keyed_views(w io.Writer, views map[string]*types.View)
 var indexed_view_tmpl = template.Must(template.New("indexed_view_tmpl").Parse(`
 type (
   {{.TypeName}} interface {
-    {{.Runtime}}.GenericView
-    {{.Runtime}}.GenericIndexedView
+    EltType() sx_reflect.Type
     EltZero() {{.EltType}}
+    Resolve()
   }
 
   sx_{{.TypeName}} struct {
-    *{{.Runtime}}.Table
+    Deferred {{.Runtime}}.Deferred
   }
 )
-func wrap_{{.TypeName}}(tab *{{.Runtime}}.Table) {{.TypeName}} { return sx_{{.TypeName}}{ Table: tab } }
 func (s sx_{{.TypeName}}) EltType() {{.Reflect}}.Type { return {{.Reflect}}.TypeOf(s.EltZero()) }
 func (s sx_{{.TypeName}}) EltZero() {{.EltType}} { return {{.EltZero}} }
-func (s sx_{{.TypeName}}) InnerView() *{{.Runtime}}.Table { return s.Table }
+func (s sx_{{.TypeName}}) Resolve() { }
+func wrap_{{.TypeName}}(def {{.Runtime}}.Deferred) {{.TypeName}} {
+  t := sx_{{.TypeName}}{}
+  t.Deferred = def
+  return t
+}
 `))
 
 func (p *printer_t) print_indexed_views(w io.Writer, views map[string]*types.View) error {

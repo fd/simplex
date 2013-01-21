@@ -4,36 +4,27 @@ import (
 	"reflect"
 )
 
-type Table struct {
+type Deferred interface {
+	Resolve(txn *Transaction, events chan<- Event)
 }
 
-type GenericTable interface {
-	InnerTable() *Table
-}
-
-type GenericKeyedView interface {
+type Table interface {
+	TableId() string
 	KeyType() reflect.Type
-}
-
-type GenericIndexedView interface {
 	EltType() reflect.Type
+	Resolve()
 }
 
-type GenericView interface {
-	InnerView() *Table
+type KeyedView interface {
+	KeyType() reflect.Type
+	EltType() reflect.Type
+	Resolve()
 }
 
-func Dump(v GenericView) {
+type IndexedView interface {
+	EltType() reflect.Type
+	Resolve()
 }
 
-func Select(v GenericView, f interface{}) *Table {
-	return nil
-}
-
-func Collect(v GenericView, f interface{}) *Table {
-	return nil
-}
-
-func Sort(v GenericView, f interface{}) *Table {
-	return nil
+func Dump(v Deferred) {
 }

@@ -38,7 +38,7 @@ func (c *Context) convert_sx_to_go() error {
 			file.Imports = append(file.Imports, imp)
 		}
 
-		ast.Walk(&builtin_function_conv{c.NodeTypes, runtime_name}, file)
+		ast.Replace(&builtin_function_conv{c.NodeTypes, runtime_name}, file)
 	}
 
 	return nil
@@ -51,7 +51,7 @@ type (
 	}
 )
 
-func (conv *builtin_function_conv) Visit(node ast.Node) ast.Visitor {
+func (conv *builtin_function_conv) Replace(node ast.Node) (ast.Replacer, ast.Node) {
 	switch n := node.(type) {
 
 	case *ast.ArrayType:
@@ -67,8 +67,27 @@ func (conv *builtin_function_conv) Visit(node ast.Node) ast.Visitor {
 		//case *ast.BranchStmt:
 
 	case *ast.CallExpr:
-		if ident, ok := n.Fun.(*ast.Ident); ok && ident.Name == "make" {
-			conv.convert_make(n)
+		if ident, ok := n.Fun.(*ast.Ident); ok {
+
+			switch ident.Name {
+			case "make":
+				conv.convert_make(n)
+
+			default:
+				if ident.Obj != nil && ident.Obj.Kind == ast.Typ {
+					typ := conv.mapping[ident]
+					if n_typ, ok := typ.(*types.NamedType); ok {
+						if _, ok := n_typ.Underlying.(types.Viewish); ok {
+							r := &ast.CompositeLit{
+								Type: ident,
+								Elts: n.Args,
+							}
+							return conv, r
+						}
+					}
+				}
+
+			}
 		}
 
 		if sel, ok := n.Fun.(*ast.SelectorExpr); ok {
@@ -125,43 +144,7 @@ func (conv *builtin_function_conv) Visit(node ast.Node) ast.Visitor {
 	//case *ast.FieldList:
 	//case *ast.File:
 	//case *ast.ForStmt:
-
-	case *ast.FuncDecl:
-		if n.Recv != nil {
-			var (
-				field    = n.Recv.List[0]
-				typ_expr = field.Type
-			)
-
-			if ident, ok := typ_expr.(*ast.Ident); ok {
-				var (
-					typ  = conv.mapping[typ_expr]
-					decl = ident.Obj.Decl
-				)
-
-				if named_typ, ok := typ.(*types.NamedType); ok {
-					if _, ok := named_typ.Underlying.(types.Viewish); ok {
-						if spec, ok := decl.(*ast.TypeSpec); ok {
-							ast.Walk(conv, spec)
-
-							var (
-								interf = spec.Type.(*ast.InterfaceType)
-								m      = interf.Methods.List
-							)
-
-							m = append(m, &ast.Field{
-								Names: []*ast.Ident{n.Name},
-								Type:  n.Type,
-							})
-							interf.Methods.List = m
-
-							field.Type = ast.NewIdent("sx_" + type_name(named_typ.Underlying))
-						}
-					}
-				}
-			}
-		}
-
+	//case *ast.FuncDecl:
 	//case *ast.FuncLit:
 	//case *ast.FuncType:
 	//case *ast.GenDecl:
@@ -201,8 +184,8 @@ func (conv *builtin_function_conv) Visit(node ast.Node) ast.Visitor {
 	case *ast.TypeSpec:
 		switch n.Type.(type) {
 		case *ast.ViewType, *ast.TableType:
-			n.Type = &ast.InterfaceType{
-				Methods: &ast.FieldList{
+			n.Type = &ast.StructType{
+				Fields: &ast.FieldList{
 					List: []*ast.Field{
 						{Type: conv.convert_type(n.Type)},
 					},
@@ -223,7 +206,7 @@ func (conv *builtin_function_conv) Visit(node ast.Node) ast.Visitor {
 		n.Value = conv.convert_type(n.Value)
 
 	}
-	return conv
+	return conv, nil
 }
 
 func (conv *builtin_function_conv) convert_type(expr ast.Expr) ast.Expr {
@@ -267,22 +250,161 @@ func (conv *builtin_function_conv) convert_method(call *ast.CallExpr, name strin
 	}
 }
 
+func (conv *builtin_function_conv) wrap_predicate_function(e ast.Expr) ast.Expr {
+	typ := conv.mapping[e]
+	if typ == nil {
+		return nil
+	}
+
+	sig, ok := typ.(*types.Signature)
+	if !ok {
+		return nil
+	}
+
+	if sig.Recv != nil {
+		return nil
+	}
+
+	if len(sig.Params) != 1 {
+		return nil
+	}
+
+	if len(sig.Results) != 1 {
+		return nil
+	}
+
+	wrapper := &ast.FuncLit{
+		Type: &ast.FuncType{
+			Params: &ast.FieldList{
+				List: []*ast.Field{
+					{
+						Names: []*ast.Ident{
+							ast.NewIdent("sx_m"),
+						},
+						Type: &ast.InterfaceType{
+							Methods: &ast.FieldList{Opening: e.Pos(), Closing: e.Pos()},
+						},
+					},
+				},
+			},
+			Results: &ast.FieldList{
+				List: []*ast.Field{
+					{
+						Type: ast.NewIdent("bool"),
+					},
+				},
+			},
+		},
+		Body: &ast.BlockStmt{
+			List: []ast.Stmt{
+				&ast.ReturnStmt{
+					Results: []ast.Expr{
+						&ast.CallExpr{
+							Fun: e,
+							Args: []ast.Expr{
+								&ast.TypeAssertExpr{
+									X:    ast.NewIdent("sx_m"),
+									Type: ast.NewIdent(type_name(sig.Params[0].Type)),
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	return wrapper
+}
+
+func (conv *builtin_function_conv) wrap_map_function(e ast.Expr) ast.Expr {
+	typ := conv.mapping[e]
+	if typ == nil {
+		return nil
+	}
+
+	sig, ok := typ.(*types.Signature)
+	if !ok {
+		return nil
+	}
+
+	if sig.Recv != nil {
+		return nil
+	}
+
+	if len(sig.Params) != 1 {
+		return nil
+	}
+
+	if len(sig.Results) != 1 {
+		return nil
+	}
+
+	wrapper := &ast.FuncLit{
+		Type: &ast.FuncType{
+			Params: &ast.FieldList{
+				List: []*ast.Field{
+					{
+						Names: []*ast.Ident{
+							ast.NewIdent("sx_m"),
+						},
+						Type: &ast.InterfaceType{
+							Methods: &ast.FieldList{Opening: e.Pos(), Closing: e.Pos()},
+						},
+					},
+				},
+			},
+			Results: &ast.FieldList{
+				List: []*ast.Field{
+					{
+						Type: &ast.InterfaceType{
+							Methods: &ast.FieldList{Opening: e.Pos(), Closing: e.Pos()},
+						},
+					},
+				},
+			},
+		},
+		Body: &ast.BlockStmt{
+			List: []ast.Stmt{
+				&ast.ReturnStmt{
+					Results: []ast.Expr{
+						&ast.CallExpr{
+							Fun: e,
+							Args: []ast.Expr{
+								&ast.TypeAssertExpr{
+									X:    ast.NewIdent("sx_m"),
+									Type: ast.NewIdent(type_name(sig.Params[0].Type)),
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	return wrapper
+}
+
 func (conv *builtin_function_conv) convert_select(call *ast.CallExpr) {
 	var (
 		recv  = call.Fun.(*ast.SelectorExpr).X
 		i_typ = conv.mapping[recv]
 	)
 
-	switch t := i_typ.(type) {
-	case *types.View:
-	case *types.Table:
-	case *types.NamedType:
-		if _, ok := t.Underlying.(types.Viewish); !ok {
-			return
-		}
-	default:
+	if _, ok := underlying_type(i_typ).(types.Viewish); !ok {
 		return
 	}
+
+	if len(call.Args) != 1 {
+		return
+	}
+
+	arg0 := conv.wrap_predicate_function(call.Args[0])
+	if arg0 == nil {
+		return
+	}
+	call.Args[0] = arg0
 
 	conv.convert_method(call, "Select")
 }
@@ -293,16 +415,19 @@ func (conv *builtin_function_conv) convert_reject(call *ast.CallExpr) {
 		i_typ = conv.mapping[recv]
 	)
 
-	switch t := i_typ.(type) {
-	case *types.View:
-	case *types.Table:
-	case *types.NamedType:
-		if _, ok := t.Underlying.(types.Viewish); !ok {
-			return
-		}
-	default:
+	if _, ok := underlying_type(i_typ).(types.Viewish); !ok {
 		return
 	}
+
+	if len(call.Args) != 1 {
+		return
+	}
+
+	arg0 := conv.wrap_predicate_function(call.Args[0])
+	if arg0 == nil {
+		return
+	}
+	call.Args[0] = arg0
 
 	conv.convert_method(call, "Reject")
 }
@@ -313,16 +438,19 @@ func (conv *builtin_function_conv) convert_detect(call *ast.CallExpr) {
 		i_typ = conv.mapping[recv]
 	)
 
-	switch t := i_typ.(type) {
-	case *types.View:
-	case *types.Table:
-	case *types.NamedType:
-		if _, ok := t.Underlying.(types.Viewish); !ok {
-			return
-		}
-	default:
+	if _, ok := underlying_type(i_typ).(types.Viewish); !ok {
 		return
 	}
+
+	if len(call.Args) != 1 {
+		return
+	}
+
+	arg0 := conv.wrap_predicate_function(call.Args[0])
+	if arg0 == nil {
+		return
+	}
+	call.Args[0] = arg0
 
 	conv.convert_method(call, "Detect")
 }
@@ -333,16 +461,19 @@ func (conv *builtin_function_conv) convert_collect(call *ast.CallExpr) {
 		i_typ = conv.mapping[recv]
 	)
 
-	switch t := i_typ.(type) {
-	case *types.View:
-	case *types.Table:
-	case *types.NamedType:
-		if _, ok := t.Underlying.(types.Viewish); !ok {
-			return
-		}
-	default:
+	if _, ok := underlying_type(i_typ).(types.Viewish); !ok {
 		return
 	}
+
+	if len(call.Args) != 1 {
+		return
+	}
+
+	arg0 := conv.wrap_map_function(call.Args[0])
+	if arg0 == nil {
+		return
+	}
+	call.Args[0] = arg0
 
 	conv.convert_method(call, "Collect")
 }
@@ -373,16 +504,19 @@ func (conv *builtin_function_conv) convert_group(call *ast.CallExpr) {
 		i_typ = conv.mapping[recv]
 	)
 
-	switch t := i_typ.(type) {
-	case *types.View:
-	case *types.Table:
-	case *types.NamedType:
-		if _, ok := t.Underlying.(types.Viewish); !ok {
-			return
-		}
-	default:
+	if _, ok := underlying_type(i_typ).(types.Viewish); !ok {
 		return
 	}
+
+	if len(call.Args) != 1 {
+		return
+	}
+
+	arg0 := conv.wrap_map_function(call.Args[0])
+	if arg0 == nil {
+		return
+	}
+	call.Args[0] = arg0
 
 	conv.convert_method(call, "Group")
 }
@@ -393,16 +527,19 @@ func (conv *builtin_function_conv) convert_index(call *ast.CallExpr) {
 		i_typ = conv.mapping[recv]
 	)
 
-	switch t := i_typ.(type) {
-	case *types.View:
-	case *types.Table:
-	case *types.NamedType:
-		if _, ok := t.Underlying.(types.Viewish); !ok {
-			return
-		}
-	default:
+	if _, ok := underlying_type(i_typ).(types.Viewish); !ok {
 		return
 	}
+
+	if len(call.Args) != 1 {
+		return
+	}
+
+	arg0 := conv.wrap_map_function(call.Args[0])
+	if arg0 == nil {
+		return
+	}
+	call.Args[0] = arg0
 
 	conv.convert_method(call, "Index")
 }
@@ -413,16 +550,19 @@ func (conv *builtin_function_conv) convert_sort(call *ast.CallExpr) {
 		i_typ = conv.mapping[recv]
 	)
 
-	switch t := i_typ.(type) {
-	case *types.View:
-	case *types.Table:
-	case *types.NamedType:
-		if _, ok := t.Underlying.(types.Viewish); !ok {
-			return
-		}
-	default:
+	if _, ok := underlying_type(i_typ).(types.Viewish); !ok {
 		return
 	}
+
+	if len(call.Args) != 1 {
+		return
+	}
+
+	arg0 := conv.wrap_map_function(call.Args[0])
+	if arg0 == nil {
+		return
+	}
+	call.Args[0] = arg0
 
 	conv.convert_method(call, "Sort")
 }
