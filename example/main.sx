@@ -1,12 +1,12 @@
 package main
 
 import (
-  "github.com/fd/simplex/runtime"
-  "fmt"
+	"fmt"
+	"github.com/fd/simplex/runtime"
 )
 
 func main() {
-  /*locations["gent"] = Location{ name: "Gent" }*/
-  fmt.Printf("Locations:\n")
-  runtime.Dump(Locations)
+	/*locations["gent"] = Location{ name: "Gent" }*/
+	fmt.Printf("Locations:\n")
+	runtime.Dump(Locations)
 }
