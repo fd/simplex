@@ -31,3 +31,7 @@ func Index(v Deferred, f func(interface{}) interface{}) Deferred {
 func Sort(v Deferred, f func(interface{}) interface{}) Deferred {
 	return nil
 }
+
+func Union(v ...Deferred) Deferred {
+	return nil
+}

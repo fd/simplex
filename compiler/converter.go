@@ -4,6 +4,7 @@ import (
 	"github.com/fd/simplex/ast"
 	"github.com/fd/simplex/token"
 	"github.com/fd/simplex/types"
+	"strconv"
 )
 
 func (c *Context) convert_sx_to_go() error {
@@ -38,7 +39,11 @@ func (c *Context) convert_sx_to_go() error {
 			file.Imports = append(file.Imports, imp)
 		}
 
-		ast.Replace(&builtin_function_conv{c.NodeTypes, runtime_name}, file)
+		ast.Replace(&builtin_function_conv{
+			c.NodeTypes,
+			runtime_name,
+			c.ImportPath,
+		}, file)
 	}
 
 	return nil
@@ -48,6 +53,7 @@ type (
 	builtin_function_conv struct {
 		mapping      map[ast.Node]types.Type
 		runtime_name string
+		package_name string
 	}
 )
 
@@ -213,7 +219,7 @@ func (conv *builtin_function_conv) convert_type(expr ast.Expr) ast.Expr {
 	switch expr.(type) {
 	case *ast.ViewType, *ast.TableType:
 		typ := conv.mapping[expr]
-		name := type_name(typ)
+		name := view_type_name(typ)
 		return ast.NewIdent(name)
 	}
 	return expr
@@ -225,8 +231,17 @@ func (conv *builtin_function_conv) convert_make(call *ast.CallExpr) {
 		return
 	}
 
-	call.Fun = ast.NewIdent("new_" + type_name(typ))
-	call.Args = nil
+	call.Fun = ast.NewIdent("new_" + view_type_name(typ))
+	call.Args = []ast.Expr{
+		&ast.SelectorExpr{
+			X:   ast.NewIdent(conv.runtime_name),
+			Sel: ast.NewIdent("Env"),
+		},
+		&ast.BasicLit{
+			Kind:  token.STRING,
+			Value: strconv.QuoteToASCII(strconv.Quote(conv.package_name) + "." + sx_type_string(typ)),
+		},
+	}
 }
 
 func (conv *builtin_function_conv) convert_method(call *ast.CallExpr, name string) {
@@ -238,7 +253,7 @@ func (conv *builtin_function_conv) convert_method(call *ast.CallExpr, name strin
 
 	args = append([]ast.Expr{recv}, args...)
 
-	call.Fun = ast.NewIdent("wrap_" + type_name(o_typ))
+	call.Fun = ast.NewIdent("wrap_" + view_type_name(o_typ))
 	call.Args = []ast.Expr{
 		&ast.CallExpr{
 			Fun: &ast.SelectorExpr{
@@ -304,7 +319,7 @@ func (conv *builtin_function_conv) wrap_predicate_function(e ast.Expr) ast.Expr 
 							Args: []ast.Expr{
 								&ast.TypeAssertExpr{
 									X:    ast.NewIdent("sx_m"),
-									Type: ast.NewIdent(type_name(sig.Params[0].Type)),
+									Type: ast.NewIdent(view_type_name(sig.Params[0].Type)),
 								},
 							},
 						},
@@ -373,7 +388,7 @@ func (conv *builtin_function_conv) wrap_map_function(e ast.Expr) ast.Expr {
 							Args: []ast.Expr{
 								&ast.TypeAssertExpr{
 									X:    ast.NewIdent("sx_m"),
-									Type: ast.NewIdent(type_name(sig.Params[0].Type)),
+									Type: ast.NewIdent(view_type_name(sig.Params[0].Type)),
 								},
 							},
 						},

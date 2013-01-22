@@ -1778,6 +1778,7 @@ func (b *builder) sxc(p *Package, obj string) (outGo []string, err error) {
 
 	args := []string{
 		"-o", obj,
+		"-ip", p.ImportPath,
 	}
 
 	if err := b.run(p.Dir, p.ImportPath, "sxc", args, p.GoFiles, p.SxFiles); err != nil {

@@ -9,7 +9,8 @@ import (
 )
 
 var (
-	output = flag.String("o", "", "path of generated go file")
+	output      = flag.String("o", "", "path of generated go file")
+	import_path = flag.String("ip", "", "import path")
 )
 
 func usage() {
@@ -37,9 +38,10 @@ func main() {
 	}
 
 	ctx := compiler.Context{
-		OutputDir: *output,
-		GoFiles:   gofiles,
-		SxFiles:   sxfiles,
+		OutputDir:  *output,
+		ImportPath: *import_path,
+		GoFiles:    gofiles,
+		SxFiles:    sxfiles,
 	}
 
 	err := ctx.Compile()

@@ -1,5 +1,9 @@
 package runtime
 
+import (
+	"fmt"
+)
+
 type (
 	Transaction struct {
 		env     *Environment
@@ -36,23 +40,19 @@ func (txn *Transaction) Unset(table Table, key interface{}) {
 func (txn *Transaction) Commit() {
 	// wait for prev txn to resolve
 
-	dones := make([]<-chan bool, len(txn.env.terminals))
-	for i, t := range txn.env.terminals {
-		dones[i] = ResolveTerminal(txn, t)
+	pool := &worker_pool_t{}
+	events := pool.run()
+
+	for _, t := range txn.env.terminals {
+		pool.schedule(txn, t)
 	}
 
-	for _, done := range dones {
-		<-done
+	for event := range events {
+		// handle events
+		fmt.Printf("Ev (%T): %+v\n", event, event)
 	}
 }
 
-func ResolveTerminal(txn *Transaction, t Terminal) <-chan bool {
-	done := make(chan bool)
-	go func() {
-		defer func() {
-			done <- true
-		}()
-		t.Resolve(txn)
-	}()
-	return done
+func (txn *Transaction) Resolve(def ...Deferred) <-chan Event {
+	return nil
 }

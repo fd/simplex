@@ -48,11 +48,11 @@ func collect_types(typ types.Type, views map[string]*types.View, tables map[stri
 
 	switch t := typ.(type) {
 	case *types.View:
-		name := type_name(t)
+		name := view_type_name(t)
 		views[name] = t
 		collect_types(t.Elt, views, tables, cache)
 	case *types.Table:
-		name := type_name(t)
+		name := view_type_name(t)
 		tables[name] = t
 		collect_types(t.Elt, views, tables, cache)
 

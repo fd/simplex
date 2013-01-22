@@ -29,9 +29,9 @@ func (w *worker_t) run(worker_events chan<- Event) {
 func (w *worker_t) go_resolve(events chan<- Event) {
 	defer func() {
 		if e := recover(); e != nil {
-			events <- &ev_error{w, e}
+			events <- &ev_ERROR{w, e}
 		}
-		events <- &ev_done{w}
+		events <- &ev_DONE_worker{w}
 		close(events)
 	}()
 
@@ -43,9 +43,9 @@ func (w *worker_t) go_run(events <-chan Event, worker_events chan<- Event) {
 
 	defer func() {
 		if e := recover(); e != nil {
-			worker_events <- &ev_error{w, e}
+			worker_events <- &ev_ERROR{w, e}
 		}
-		worker_events <- &ev_done{w}
+		worker_events <- &ev_DONE_worker{w}
 	}()
 
 	for {
@@ -59,11 +59,11 @@ func (w *worker_t) go_run(events <-chan Event, worker_events chan<- Event) {
 				sub <- e
 			}
 
-			if _, ok := e.(*ev_error); ok {
+			if _, ok := e.(*ev_ERROR); ok {
 				worker_events <- e
 			}
 
-			if _, ok := e.(*ev_done); ok {
+			if _, ok := e.(*ev_DONE_worker); ok {
 				return
 			}
 

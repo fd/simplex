@@ -17,7 +17,7 @@ func (p *worker_pool_t) run() <-chan Event {
 
 func (p *worker_pool_t) go_run(events chan<- Event) {
 	defer func() {
-		events <- &ev_done{}
+		events <- &ev_DONE_pool{p}
 		close(events)
 	}()
 
@@ -27,7 +27,7 @@ func (p *worker_pool_t) go_run(events chan<- Event) {
 		select {
 
 		case e := <-worker_events:
-			if done, ok := e.(*ev_done); ok {
+			if done, ok := e.(*ev_DONE_worker); ok {
 				delete(p.workers, done.w)
 				if len(p.workers) == 0 {
 					return
@@ -42,4 +42,8 @@ func (p *worker_pool_t) go_run(events chan<- Event) {
 
 		}
 	}
+}
+
+func (p *worker_pool_t) schedule(txn *Transaction, def Deferred) {
+	p.scheduled_workers <- &worker_t{txn: txn, def: def}
 }

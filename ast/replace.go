@@ -269,7 +269,7 @@ func Replace(v Replacer, node Node) Node {
 		if n.Value != nil {
 			n.Value = Replace(v, n.Value).(Expr)
 		}
-		n.Value = Replace(v, n.X).(Expr)
+		n.X = Replace(v, n.X).(Expr)
 		n.Body = Replace(v, n.Body).(*BlockStmt)
 
 	// Declarations

@@ -1,0 +1,20 @@
+package main
+
+import (
+  "time"
+)
+
+type (
+
+  Post struct {
+    Title  string
+    Body   string
+    Author string
+    PublishedAt time.Time
+  }
+
+)
+
+var (
+  posts = make(table[string]Post)
+)

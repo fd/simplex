@@ -14,6 +14,7 @@ type printer_t struct {
 	ctx                 *Context
 	reflect_import_name string
 	runtime_import_name string
+	printed_types       map[string]bool
 }
 
 func (c *Context) print_go() error {
@@ -42,7 +43,7 @@ func (c *Context) print_generated_go() error {
 	w = f
 	w = io.MultiWriter(w, os.Stdout)
 
-	p := &printer_t{ctx: c}
+	p := &printer_t{ctx: c, printed_types: map[string]bool{}}
 
 	err = p.print_intro(w, c.TypesPackage.Name)
 	if err != nil {
@@ -126,13 +127,14 @@ type (
 
   sx_{{.TypeName}} struct {
     sx_{{.ViewTypeName}}
+    Id string
   }
 )
-func (s sx_{{.TypeName}}) TableId() string { return "" }
-func new_{{.TypeName}}() {{.TypeName}} { return sx_{{.TypeName}}{} }
-func wrap_{{.TypeName}}(def {{.Runtime}}.Deferred) {{.TypeName}} {
+func (t sx_{{.TypeName}}) TableId() string { return t.Id }
+func new_{{.TypeName}}(env *{{.Runtime}}.Environment, id string) {{.TypeName}} {
   t := sx_{{.TypeName}}{}
-  t.Deferred = def
+  t.Id = id
+  env.RegisterTable(t)
   return t
 }
 `))
@@ -158,18 +160,26 @@ func (p *printer_t) print_tables(w io.Writer, tables map[string]*types.Table) er
 	sort.Strings(names)
 
 	for _, name := range names {
+		if p.printed_types[name] {
+			continue
+		}
+		p.printed_types[name] = true
+
 		typ := tables[name]
+		parent := &types.View{typ.Key, typ.Elt}
+		p.ctx.ViewTypes[go_type_string(parent)] = parent
+
 		err := table_tmpl.Execute(w, data{
 			Runtime: p.runtime_import_name,
 			Reflect: p.reflect_import_name,
 
 			TypeName: name,
-			KeyType:  type_string(typ.Key),
-			EltType:  type_string(typ.Elt),
+			KeyType:  go_type_string(typ.Key),
+			EltType:  go_type_string(typ.Elt),
 			KeyZero:  type_zero(typ.Key),
 			EltZero:  type_zero(typ.Elt),
 
-			ViewTypeName: type_string(&types.View{typ.Key, typ.Elt}),
+			ViewTypeName: go_type_string(parent),
 		})
 		if err != nil {
 			return err
@@ -226,17 +236,25 @@ func (p *printer_t) print_keyed_views(w io.Writer, views map[string]*types.View)
 			continue
 		}
 
+		if p.printed_types[name] {
+			continue
+		}
+		p.printed_types[name] = true
+
+		parent := &types.View{nil, typ.Elt}
+		p.ctx.ViewTypes[go_type_string(parent)] = parent
+
 		err := keyed_view_tmpl.Execute(w, &data{
 			Runtime: p.runtime_import_name,
 			Reflect: p.reflect_import_name,
 
 			TypeName: name,
-			KeyType:  type_string(typ.Key),
-			EltType:  type_string(typ.Elt),
+			KeyType:  go_type_string(typ.Key),
+			EltType:  go_type_string(typ.Elt),
 			KeyZero:  type_zero(typ.Key),
 			EltZero:  type_zero(typ.Elt),
 
-			IndexedTypeName: type_string(&types.View{nil, typ.Elt}),
+			IndexedTypeName: go_type_string(parent),
 		})
 		if err != nil {
 			return err
@@ -251,7 +269,7 @@ type (
   {{.TypeName}} interface {
     EltType() sx_reflect.Type
     EltZero() {{.EltType}}
-    Resolve()
+    Resolve(txn *{{.Runtime}}.Transaction, events chan<- {{.Runtime}}.Event)
   }
 
   sx_{{.TypeName}} struct {
@@ -260,7 +278,7 @@ type (
 )
 func (s sx_{{.TypeName}}) EltType() {{.Reflect}}.Type { return {{.Reflect}}.TypeOf(s.EltZero()) }
 func (s sx_{{.TypeName}}) EltZero() {{.EltType}} { return {{.EltZero}} }
-func (s sx_{{.TypeName}}) Resolve() { }
+func (s sx_{{.TypeName}}) Resolve(txn *{{.Runtime}}.Transaction, events chan<- {{.Runtime}}.Event) { }
 func wrap_{{.TypeName}}(def {{.Runtime}}.Deferred) {{.TypeName}} {
   t := sx_{{.TypeName}}{}
   t.Deferred = def
@@ -290,12 +308,17 @@ func (p *printer_t) print_indexed_views(w io.Writer, views map[string]*types.Vie
 			continue
 		}
 
+		if p.printed_types[name] {
+			continue
+		}
+		p.printed_types[name] = true
+
 		err := indexed_view_tmpl.Execute(w, data{
 			Runtime: p.runtime_import_name,
 			Reflect: p.reflect_import_name,
 
 			TypeName: name,
-			EltType:  type_string(typ.Elt),
+			EltType:  go_type_string(typ.Elt),
 			EltZero:  type_zero(typ.Elt),
 		})
 		if err != nil {

@@ -1,0 +1,13 @@
+package cron
+
+import (
+	"time"
+)
+
+type Cron struct {
+	RunAt time.Time
+}
+
+func Register(v view[]Cron) {
+	cron_service.Register(v)
+}

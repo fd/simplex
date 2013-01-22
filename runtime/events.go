@@ -1,17 +1,36 @@
 package runtime
 
-type Event interface {
-	isEvent()
-}
+type (
+	Event interface {
+		isEvent()
+	}
 
-type ev_done struct {
-	w *worker_t
-}
+	EvError interface {
+		Event
+		Error() string
+	}
 
-type ev_error struct {
-	w    *worker_t
-	data interface{}
-}
+	EvResolvedTable interface {
+		Event
+		Table() Table
+	}
 
-func (*ev_done) isEvent()  {}
-func (*ev_error) isEvent() {}
+	ev_DONE_worker struct {
+		w *worker_t
+	}
+
+	ev_DONE_pool struct {
+		p *worker_pool_t
+	}
+
+	ev_ERROR struct {
+		w    *worker_t
+		data interface{}
+	}
+)
+
+func (*ev_DONE_worker) isEvent() {}
+func (*ev_DONE_pool) isEvent()   {}
+func (*ev_ERROR) isEvent()       {}
+
+func (*ev_ERROR) Error() string { return "(error)" }
