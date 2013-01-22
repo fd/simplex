@@ -1,20 +1,18 @@
 package main
 
 import (
-  "time"
+	"time"
 )
 
 type (
-
-  Post struct {
-    Title  string
-    Body   string
-    Author string
-    PublishedAt time.Time
-  }
-
+	Post struct {
+		Title       string
+		Body        string
+		Author      string
+		PublishedAt time.Time
+	}
 )
 
 var (
-  posts = make(table[string]Post)
+	posts = make(table[string]Post)
 )
