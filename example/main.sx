@@ -12,6 +12,6 @@ func main() {
 		fmt.Println(name)
 	}
 
-	fmt.Printf("Locations:\n")
-	runtime.Dump(Locations)
+	txn := runtime.Env.Transaction()
+	txn.Commit()
 }

@@ -53,6 +53,24 @@ func (txn *Transaction) Commit() {
 	}
 }
 
+func (txn *Transaction) GetTable(name string) *InternalTable {
+	var table *InternalTable
+
+	table_ref, ok := txn.tables.Get(name)
+	if !ok {
+		table = &InternalTable{txn: txn}
+		return table
+	}
+
+	ok = txn.storage.Get(table_ref, &table)
+	if !ok {
+		table = &InternalTable{txn: txn}
+		return table
+	}
+
+	return table
+}
+
 func (txn *Transaction) Resolve(def ...Deferred) <-chan Event {
-	return nil
+	panic("not implemented")
 }

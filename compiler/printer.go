@@ -131,9 +131,13 @@ type (
   }
 )
 func (t sx_{{.TypeName}}) TableId() string { return t.Id }
+func (t sx_{{.TypeName}}) Resolve(txn *{{.Runtime}}.Transaction, events chan<- {{.Runtime}}.Event) {
+  t.Deferred.Resolve(txn, events)
+}
 func new_{{.TypeName}}(env *{{.Runtime}}.Environment, id string) {{.TypeName}} {
   t := sx_{{.TypeName}}{}
   t.Id = id
+  t.Deferred = {{.Runtime}}.DeclareTable(t.Id)
   env.RegisterTable(t)
   return t
 }
@@ -203,6 +207,9 @@ type (
 )
 func (s sx_{{.TypeName}}) KeyType() {{.Reflect}}.Type { return {{.Reflect}}.TypeOf(s.KeyZero()) }
 func (s sx_{{.TypeName}}) KeyZero() {{.KeyType}} { return {{.KeyZero}} }
+func (t sx_{{.TypeName}}) Resolve(txn *{{.Runtime}}.Transaction, events chan<- {{.Runtime}}.Event) {
+  t.Deferred.Resolve(txn, events)
+}
 func wrap_{{.TypeName}}(def {{.Runtime}}.Deferred) {{.TypeName}} {
   t := sx_{{.TypeName}}{}
   t.Deferred = def
@@ -278,7 +285,9 @@ type (
 )
 func (s sx_{{.TypeName}}) EltType() {{.Reflect}}.Type { return {{.Reflect}}.TypeOf(s.EltZero()) }
 func (s sx_{{.TypeName}}) EltZero() {{.EltType}} { return {{.EltZero}} }
-func (s sx_{{.TypeName}}) Resolve(txn *{{.Runtime}}.Transaction, events chan<- {{.Runtime}}.Event) { }
+func (t sx_{{.TypeName}}) Resolve(txn *{{.Runtime}}.Transaction, events chan<- {{.Runtime}}.Event) {
+  t.Deferred.Resolve(txn, events)
+}
 func wrap_{{.TypeName}}(def {{.Runtime}}.Deferred) {{.TypeName}} {
   t := sx_{{.TypeName}}{}
   t.Deferred = def

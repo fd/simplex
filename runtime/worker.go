@@ -1,5 +1,10 @@
 package runtime
 
+import (
+	"fmt"
+	"runtime/debug"
+)
+
 type worker_op_k uint
 
 type worker_op_t struct {
@@ -29,7 +34,11 @@ func (w *worker_t) run(worker_events chan<- Event) {
 func (w *worker_t) go_resolve(events chan<- Event) {
 	defer func() {
 		if e := recover(); e != nil {
-			events <- &ev_ERROR{w, e}
+			if err, ok := e.(error); ok {
+				events <- &ev_ERROR{w, e, err, debug.Stack()}
+			} else {
+				events <- &ev_ERROR{w, e, fmt.Errorf("error: %+v", e), debug.Stack()}
+			}
 		}
 		events <- &ev_DONE_worker{w}
 		close(events)
@@ -43,7 +52,11 @@ func (w *worker_t) go_run(events <-chan Event, worker_events chan<- Event) {
 
 	defer func() {
 		if e := recover(); e != nil {
-			worker_events <- &ev_ERROR{w, e}
+			if err, ok := e.(error); ok {
+				worker_events <- &ev_ERROR{w, e, err, debug.Stack()}
+			} else {
+				worker_events <- &ev_ERROR{w, e, fmt.Errorf("error: %+v", e), debug.Stack()}
+			}
 		}
 		worker_events <- &ev_DONE_worker{w}
 	}()
