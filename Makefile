@@ -1,4 +1,7 @@
-SX='./ast/...' './build/...' './cmd/...' './compiler/...' './doc/...' './format/...' './parser/...' './printer/...' './scanner/...' './token/...' './types/...'
+SX='./ast/...' './build/...' './cmd/...' './compiler/...' \
+	 './cron/...' './data/...' './doc/...' './format/...' \
+	 './parser/...'  './printer/...' './scanner/...' './token/...' \
+	 './types/...'
 
 all: commands
 

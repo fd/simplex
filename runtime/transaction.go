@@ -27,6 +27,12 @@ const (
 	UNSET
 )
 
+func (env *Environment) Transaction() *Transaction {
+	return &Transaction{
+		env: env,
+	}
+}
+
 func (txn *Transaction) Set(table Table, key interface{}, val interface{}) {
 	change := &Change{SET, table.TableId(), key, val}
 	txn.changes = append(txn.changes, change)

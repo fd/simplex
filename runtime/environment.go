@@ -1,6 +1,7 @@
 package runtime
 
 import (
+	"github.com/fd/simplex/data/storage"
 	"sort"
 )
 
@@ -10,6 +11,7 @@ type (
 	Environment struct {
 		tables    map[string]Table
 		terminals []Terminal
+		store     *storage.S
 	}
 
 	Terminal interface {
@@ -23,10 +25,14 @@ func init() {
 	}
 }
 
-func (env *Environment) Transaction() *Transaction {
-	return &Transaction{
-		env: env,
+func (env *Environment) ConnectToStorage(url string) error {
+	s, err := storage.New(url)
+	if err != nil {
+		return err
 	}
+
+	env.store = s
+	return nil
 }
 
 func (env *Environment) RegisterTerminal(terminal Terminal) {

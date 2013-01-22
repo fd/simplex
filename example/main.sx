@@ -3,10 +3,12 @@ package main
 import (
 	"fmt"
 	"github.com/fd/simplex/runtime"
+	_ "github.com/fd/simplex/data/storage/memory"
 )
 
 func main() {
 	/*locations["gent"] = Location{ name: "Gent" }*/
+  runtime.Env.ConnectToStorage("mem://hello")
 
 	for _, name := range runtime.Env.Tables() {
 		fmt.Println(name)
