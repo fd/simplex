@@ -1,6 +1,7 @@
 package runtime
 
 import (
+	"bytes"
 	s "github.com/fd/simplex/data/storage"
 	t "github.com/fd/simplex/data/trie/storage"
 )
@@ -48,7 +49,10 @@ func (t *InternalTable) Set(key, value interface{}) (prev, curr s.SHA, changed b
 		panic("insert failed")
 	}
 
-	return prev, curr, (curr != prev)
+	curr_bytes := [20]byte(curr)
+	prev_bytes := [20]byte(prev)
+
+	return prev, curr, bytes.Compare(curr_bytes[:], prev_bytes[:]) != 0
 }
 
 func (t *InternalTable) Del(key interface{}) (prev s.SHA, changed bool) {

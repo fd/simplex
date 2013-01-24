@@ -1,6 +1,7 @@
 package file_system
 
 import (
+	"bytes"
 	"encoding/hex"
 	"fmt"
 	"github.com/fd/simplex/data/storage/driver"
@@ -42,19 +43,29 @@ func (s *S) Get(key [20]byte) ([]byte, error) {
 	return dat, nil
 }
 
+var entry_key = [20]byte{
+	0, 0, 0, 0, 0,
+	0, 0, 0, 0, 0,
+	0, 0, 0, 0, 0,
+	0, 0, 0, 0, 1,
+}
+
 func (s *S) Set(key [20]byte, val []byte) error {
 	var (
 		pat = s.path_for_sha(key)
+		err error
 	)
 
-	_, err := os.Stat(pat)
-	if err == nil {
-		return nil
-	} else {
-		if os.IsNotExist(err) {
-			err = nil
+	if bytes.Compare(entry_key[:], key[:]) != 0 {
+		_, err = os.Stat(pat)
+		if err == nil {
+			return nil
 		} else {
-			return err
+			if os.IsNotExist(err) {
+				err = nil
+			} else {
+				return err
+			}
 		}
 	}
 

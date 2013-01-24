@@ -39,7 +39,7 @@ func (env *Environment) Transaction() *Transaction {
 
 		ok := env.store.Get(tip_sha, &parent)
 		if !ok {
-			panic("coruppted data store")
+			panic("corrupted data store")
 		}
 
 		// copy the *InternalTable structure
