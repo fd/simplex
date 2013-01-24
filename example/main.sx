@@ -15,6 +15,8 @@ func main() {
 	}
 
 	txn := runtime.Env.Transaction()
-	txn.Set(posts, "post-1", Post{Title: "Hello world"})
+	for i := 0; i < 10; i++ {
+		txn.Set(posts, fmt.Sprintf("post-%d", i), Post{Title: fmt.Sprintf("Hello world! (%d)", i)})
+	}
 	txn.Commit()
 }

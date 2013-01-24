@@ -69,7 +69,7 @@ func (s *S) Set(key [20]byte, val []byte) error {
 func (s *S) path_for_sha(sha [20]byte) string {
 	hex := hex.EncodeToString(sha[:])
 	a := hex[0:4]
-	b := hex[4:4]
+	b := hex[4:8]
 	c := hex[8:]
 	return path.Join(s.Root, "objects", a, b, c)
 }
