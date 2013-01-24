@@ -72,6 +72,10 @@ func (w *worker_t) go_run(events <-chan Event, worker_events chan<- Event) {
 				sub <- e
 			}
 
+			if _, ok := e.(*ev_CONSISTENT); ok {
+				worker_events <- e
+			}
+
 			if _, ok := e.(*ev_ERROR); ok {
 				worker_events <- e
 			}

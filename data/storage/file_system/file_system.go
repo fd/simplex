@@ -2,21 +2,24 @@ package file_system
 
 import (
 	"encoding/hex"
+	"fmt"
 	"github.com/fd/simplex/data/storage/driver"
 	"io/ioutil"
-	"net/url"
 	"os"
-	"path"
+	path "path/filepath"
 )
 
 func init() {
 	driver.Register("file", func(us string) (driver.I, error) {
-		u, err := url.Parse(us)
+		p := us[len("file://"):]
+
+		p, err := path.Abs(p)
 		if err != nil {
 			return nil, err
 		}
+		fmt.Println("DB:", p)
 
-		return &S{Root: u.Path}, nil
+		return &S{Root: p}, nil
 	})
 }
 

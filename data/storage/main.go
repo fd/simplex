@@ -12,6 +12,12 @@ import (
 type SHA [20]byte
 
 var ZeroSHA = SHA{}
+var EntrySHA = SHA{
+	0, 0, 0, 0, 0,
+	0, 0, 0, 0, 0,
+	0, 0, 0, 0, 0,
+	0, 0, 0, 0, 1,
+}
 
 type S struct {
 	d driver.I
@@ -77,14 +83,14 @@ func (s *S) Set(val interface{}) SHA {
 }
 
 func (s *S) SetEntry(key SHA) {
-	err := s.d.Set(ZeroSHA, []byte(key[:]))
+	err := s.d.Set(EntrySHA, []byte(key[:]))
 	if err != nil {
 		panic(err)
 	}
 }
 
 func (s *S) GetEntry() (sha SHA, found bool) {
-	b, err := s.d.Get(ZeroSHA)
+	b, err := s.d.Get(EntrySHA)
 	if err == driver.NotFound {
 		return ZeroSHA, false
 	}

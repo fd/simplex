@@ -51,3 +51,12 @@ func (env *Environment) Tables() []string {
 	sort.Strings(names)
 	return names
 }
+
+func (env *Environment) GetCurrentTransaction() (storage.SHA, bool) {
+	return env.store.GetEntry()
+}
+
+func (env *Environment) SetCurrentTransaction(curr, prev storage.SHA) {
+	// conditional atomic ...
+	env.store.SetEntry(curr)
+}

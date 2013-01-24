@@ -2,18 +2,19 @@ package main
 
 import (
 	"fmt"
-	"github.com/fd/simplex/runtime"
+	_ "github.com/fd/simplex/data/storage/file_system"
 	_ "github.com/fd/simplex/data/storage/memory"
+	"github.com/fd/simplex/runtime"
 )
 
 func main() {
-	/*locations["gent"] = Location{ name: "Gent" }*/
-  runtime.Env.ConnectToStorage("mem://hello")
+	runtime.Env.ConnectToStorage("file://hello")
 
 	for _, name := range runtime.Env.Tables() {
 		fmt.Println(name)
 	}
 
 	txn := runtime.Env.Transaction()
+	txn.Set(posts, "post-1", Post{Title: "Hello world"})
 	txn.Commit()
 }

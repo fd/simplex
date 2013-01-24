@@ -2,15 +2,18 @@ package runtime
 
 import (
 	"fmt"
+	"github.com/fd/simplex/data/storage"
 )
 
 type (
 	Transaction struct {
 		env     *Environment
 		changes []*Change
+		errors  []interface{}
 
-		errors []interface{}
-		tables *InternalTable
+		// parent transaction
+		Parent storage.SHA
+		Tables *InternalTable
 	}
 
 	ChangeKind uint
@@ -29,9 +32,31 @@ const (
 )
 
 func (env *Environment) Transaction() *Transaction {
-	return &Transaction{
-		env: env,
+	txn := &Transaction{env: env}
+
+	if tip_sha, ok := env.GetCurrentTransaction(); ok {
+		var parent *Transaction
+
+		ok := env.store.Get(tip_sha, &parent)
+		if !ok {
+			panic("coruppted data store")
+		}
+
+		// copy the *InternalTable structure
+		txn.Tables = parent.Tables
+		txn.Parent = tip_sha
 	}
+
+	if txn.Tables == nil {
+		txn.Tables = &InternalTable{
+			Name: "_tables",
+		}
+	}
+
+	txn.Tables.txn = txn
+	txn.Tables.setup()
+
+	return txn
 }
 
 func (txn *Transaction) Set(table Table, key interface{}, val interface{}) {
@@ -58,21 +83,28 @@ func (txn *Transaction) Commit() {
 		// handle events
 		fmt.Printf("Ev (%T): %+v\n", event, event)
 	}
+
+	// commit the _tables table
+	txn.Tables.Commit()
+	txn_sha := txn.env.store.Set(&txn)
+	txn.env.SetCurrentTransaction(txn_sha, txn.Parent)
 }
 
 func (txn *Transaction) GetTable(name string) *InternalTable {
 	var table *InternalTable
 
-	ok := txn.tables.Get(name, &table)
+	ok := txn.Tables.Get(name, &table)
 	if !ok {
 		table = &InternalTable{
 			txn:  txn,
 			Name: name,
 		}
+		table.setup()
 		return table
 	}
 
 	table.txn = txn
+	table.setup()
 	return table
 }
 
