@@ -10,6 +10,7 @@ type (
 		changes []*Change
 
 		errors []interface{}
+		tables *InternalTable
 	}
 
 	ChangeKind uint
@@ -62,18 +63,16 @@ func (txn *Transaction) Commit() {
 func (txn *Transaction) GetTable(name string) *InternalTable {
 	var table *InternalTable
 
-	table_ref, ok := txn.tables.Get(name)
+	ok := txn.tables.Get(name, &table)
 	if !ok {
-		table = &InternalTable{txn: txn}
+		table = &InternalTable{
+			txn:  txn,
+			Name: name,
+		}
 		return table
 	}
 
-	ok = txn.storage.Get(table_ref, &table)
-	if !ok {
-		table = &InternalTable{txn: txn}
-		return table
-	}
-
+	table.txn = txn
 	return table
 }
 

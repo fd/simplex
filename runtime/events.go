@@ -2,6 +2,7 @@ package runtime
 
 import (
 	"fmt"
+	"github.com/fd/simplex/data/storage"
 )
 
 type (
@@ -36,19 +37,19 @@ type (
 
 	ev_SET struct {
 		table   string
-		old_sha string
-		new_sha string
+		old_sha storage.SHA
+		new_sha storage.SHA
 	}
 
 	ev_DEL struct {
 		table   string
-		old_sha string
+		old_sha storage.SHA
 	}
 
 	ev_CONSISTENT struct {
 		table   string
-		old_sha string
-		new_sha string
+		old_sha storage.SHA
+		new_sha storage.SHA
 	}
 )
 
