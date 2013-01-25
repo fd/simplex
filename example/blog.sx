@@ -19,5 +19,10 @@ var (
 )
 
 func init() {
-	runtime.Void(posts)
+	runtime.Void(posts.select(func(p Post) bool {
+		if len(p.Title) > len("Hello World! (1") {
+			return true
+		}
+		return false
+	}))
 }

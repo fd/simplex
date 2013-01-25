@@ -12,6 +12,10 @@ type void_terminal struct {
 	def Deferred
 }
 
+func (t *void_terminal) DeferredId() string {
+	return "void(" + t.def.DeferredId() + ")"
+}
+
 func (t *void_terminal) Resolve(txn *Transaction, events chan<- Event) {
 	t.def.Resolve(txn, events)
 }

@@ -19,6 +19,10 @@ var EntrySHA = SHA{
 	0, 0, 0, 0, 1,
 }
 
+func (s SHA) IsZero() bool {
+	return s == ZeroSHA || bytes.Compare([]byte(s[:]), []byte(ZeroSHA[:])) == 0
+}
+
 type S struct {
 	d driver.I
 }

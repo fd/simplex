@@ -10,6 +10,7 @@ type (
 		env     *Environment
 		changes []*Change
 		errors  []interface{}
+		pool    *worker_pool_t
 
 		// parent transaction
 		Parent storage.SHA
@@ -73,6 +74,7 @@ func (txn *Transaction) Commit() {
 	// wait for prev txn to resolve
 
 	pool := &worker_pool_t{}
+	txn.pool = pool
 	events := pool.run()
 
 	for _, t := range txn.env.terminals {
@@ -108,6 +110,11 @@ func (txn *Transaction) GetTable(name string) *InternalTable {
 	return table
 }
 
-func (txn *Transaction) Resolve(def ...Deferred) <-chan Event {
-	panic("not implemented")
+func (txn *Transaction) Resolve(def Deferred) <-chan Event {
+	if txn.pool == nil {
+		panic("transcation has no running worker pool")
+	}
+
+	worker := txn.pool.schedule(txn, def)
+	return worker.subscribe()
 }

@@ -15,6 +15,7 @@ type (
 	}
 
 	Terminal interface {
+		DeferredId() string
 		Resolve(txn *Transaction, events chan<- Event)
 	}
 )

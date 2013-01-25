@@ -5,10 +5,13 @@ import (
 	_ "github.com/fd/simplex/data/storage/file_system"
 	_ "github.com/fd/simplex/data/storage/memory"
 	"github.com/fd/simplex/runtime"
+	go_runtime "runtime"
 )
 
 func main() {
-	runtime.Env.ConnectToStorage("file://hello")
+	go_runtime.GOMAXPROCS(go_runtime.NumCPU() * 2)
+
+	runtime.Env.ConnectToStorage("file://example/db")
 
 	for _, name := range runtime.Env.Tables() {
 		fmt.Println(name)

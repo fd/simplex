@@ -41,6 +41,7 @@ func (c *Context) convert_sx_to_go() error {
 
 		ast.Replace(&builtin_function_conv{
 			c.NodeTypes,
+			c.FileSet,
 			runtime_name,
 			c.ImportPath,
 		}, file)
@@ -52,6 +53,7 @@ func (c *Context) convert_sx_to_go() error {
 type (
 	builtin_function_conv struct {
 		mapping      map[ast.Node]types.Type
+		fset         *token.FileSet
 		runtime_name string
 		package_name string
 	}
@@ -253,6 +255,8 @@ func (conv *builtin_function_conv) convert_method(call *ast.CallExpr, name strin
 
 	args = append([]ast.Expr{recv}, args...)
 
+	pos := conv.fset.Position(call.Pos()).String()
+
 	call.Fun = ast.NewIdent("wrap_" + view_type_name(o_typ))
 	call.Args = []ast.Expr{
 		&ast.CallExpr{
@@ -261,6 +265,13 @@ func (conv *builtin_function_conv) convert_method(call *ast.CallExpr, name strin
 				ast.NewIdent(name),
 			},
 			Args: args,
+		},
+		&ast.BasicLit{
+			Kind: token.STRING,
+			Value: strconv.QuoteToASCII(
+				strconv.Quote(conv.package_name) + "." + sx_type_string(o_typ) + "[" +
+					pos + "]",
+			),
 		},
 	}
 }
@@ -294,10 +305,22 @@ func (conv *builtin_function_conv) wrap_predicate_function(e ast.Expr) ast.Expr 
 				List: []*ast.Field{
 					{
 						Names: []*ast.Ident{
-							ast.NewIdent("sx_m"),
+							ast.NewIdent("sx_ctx"),
 						},
-						Type: &ast.InterfaceType{
-							Methods: &ast.FieldList{Opening: e.Pos(), Closing: e.Pos()},
+						Type: &ast.StarExpr{
+							X: &ast.SelectorExpr{
+								X:   ast.NewIdent(conv.runtime_name),
+								Sel: ast.NewIdent("Context"),
+							},
+						},
+					},
+					{
+						Names: []*ast.Ident{
+							ast.NewIdent("sx_m_sha"),
+						},
+						Type: &ast.SelectorExpr{
+							X:   ast.NewIdent(conv.runtime_name),
+							Sel: ast.NewIdent("SHA"),
 						},
 					},
 				},
@@ -312,15 +335,38 @@ func (conv *builtin_function_conv) wrap_predicate_function(e ast.Expr) ast.Expr 
 		},
 		Body: &ast.BlockStmt{
 			List: []ast.Stmt{
+				&ast.DeclStmt{
+					Decl: &ast.GenDecl{
+						Tok: token.VAR,
+						Specs: []ast.Spec{
+							&ast.ValueSpec{
+								Names: []*ast.Ident{ast.NewIdent("sx_m")},
+								Type:  ast.NewIdent(view_type_name(sig.Params[0].Type)),
+							},
+						},
+					},
+				},
+				&ast.ExprStmt{
+					X: &ast.CallExpr{
+						Fun: &ast.SelectorExpr{
+							X:   ast.NewIdent("sx_ctx"),
+							Sel: ast.NewIdent("Load"),
+						},
+						Args: []ast.Expr{
+							ast.NewIdent("sx_m_sha"),
+							&ast.UnaryExpr{
+								Op: token.AND,
+								X:  ast.NewIdent("sx_m"),
+							},
+						},
+					},
+				},
 				&ast.ReturnStmt{
 					Results: []ast.Expr{
 						&ast.CallExpr{
 							Fun: e,
 							Args: []ast.Expr{
-								&ast.TypeAssertExpr{
-									X:    ast.NewIdent("sx_m"),
-									Type: ast.NewIdent(view_type_name(sig.Params[0].Type)),
-								},
+								ast.NewIdent("sx_m"),
 							},
 						},
 					},

@@ -23,6 +23,12 @@ const (
 	op_SUB worker_op_k = iota
 )
 
+func (w *worker_t) subscribe() <-chan Event {
+	ch := make(chan Event, 1)
+	w.operations <- worker_op_t{op_SUB, ch}
+	return ch
+}
+
 func (w *worker_t) run(worker_events chan<- Event) {
 	events := make(chan Event, 2)
 	w.operations = make(chan worker_op_t, 2)
@@ -59,6 +65,10 @@ func (w *worker_t) go_run(events <-chan Event, worker_events chan<- Event) {
 			}
 		}
 		worker_events <- &ev_DONE_worker{w}
+
+		for _, sub := range w.subscribers {
+			close(sub)
+		}
 	}()
 
 	for {
@@ -87,7 +97,7 @@ func (w *worker_t) go_run(events <-chan Event, worker_events chan<- Event) {
 		case op := <-w.operations:
 			switch op.kind {
 			case op_SUB:
-				if ch, ok := op.data.(chan<- Event); ok {
+				if ch, ok := op.data.(chan Event); ok {
 					for _, e := range log {
 						ch <- e
 					}

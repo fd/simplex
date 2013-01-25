@@ -127,7 +127,6 @@ type (
 
   sx_{{.TypeName}} struct {
     sx_{{.ViewTypeName}}
-    Id string
   }
 )
 func (t sx_{{.TypeName}}) TableId() string { return t.Id }
@@ -210,9 +209,10 @@ func (s sx_{{.TypeName}}) KeyZero() {{.KeyType}} { return {{.KeyZero}} }
 func (t sx_{{.TypeName}}) Resolve(txn *{{.Runtime}}.Transaction, events chan<- {{.Runtime}}.Event) {
   t.Deferred.Resolve(txn, events)
 }
-func wrap_{{.TypeName}}(def {{.Runtime}}.Deferred) {{.TypeName}} {
+func wrap_{{.TypeName}}(def {{.Runtime}}.Deferred, id string) {{.TypeName}} {
   t := sx_{{.TypeName}}{}
   t.Deferred = def
+  t.Id = id
   return t
 }
 `))
@@ -276,21 +276,26 @@ type (
   {{.TypeName}} interface {
     EltType() sx_reflect.Type
     EltZero() {{.EltType}}
+    DeferredId() string
     Resolve(txn *{{.Runtime}}.Transaction, events chan<- {{.Runtime}}.Event)
   }
 
   sx_{{.TypeName}} struct {
     Deferred {{.Runtime}}.Deferred
+    Id string
   }
 )
+
+func (s sx_{{.TypeName}}) DeferredId() string { return s.Id }
 func (s sx_{{.TypeName}}) EltType() {{.Reflect}}.Type { return {{.Reflect}}.TypeOf(s.EltZero()) }
 func (s sx_{{.TypeName}}) EltZero() {{.EltType}} { return {{.EltZero}} }
 func (t sx_{{.TypeName}}) Resolve(txn *{{.Runtime}}.Transaction, events chan<- {{.Runtime}}.Event) {
   t.Deferred.Resolve(txn, events)
 }
-func wrap_{{.TypeName}}(def {{.Runtime}}.Deferred) {{.TypeName}} {
+func wrap_{{.TypeName}}(def {{.Runtime}}.Deferred, id string) {{.TypeName}} {
   t := sx_{{.TypeName}}{}
   t.Deferred = def
+  t.Id = id
   return t
 }
 `))
