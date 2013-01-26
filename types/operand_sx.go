@@ -59,7 +59,7 @@ func (x *operand) isAssignable(T Type) bool {
 		}
 		if _, ok := Tu.(*Interface); ok && isNamed(T) {
 			n := T.(*NamedType).Obj.GetName()
-			if n == "Deferred" {
+			if n == "Deferred" || n == "IndexedView" {
 				return true
 			}
 		}
@@ -74,7 +74,7 @@ func (x *operand) isAssignable(T Type) bool {
 		}
 		if _, ok := Tu.(*Interface); ok && isNamed(T) {
 			n := T.(*NamedType).Obj.GetName()
-			if n == "Deferred" || n == "Table" {
+			if n == "Deferred" || n == "IndexedView" || n == "Table" {
 				return true
 			}
 		}
@@ -89,7 +89,7 @@ func (x *operand) isAssignable(T Type) bool {
 		}
 		if _, ok := Tu.(*Interface); ok && isNamed(T) {
 			n := T.(*NamedType).Obj.GetName()
-			if n == "Deferred" || n == "Table" {
+			if n == "Deferred" || n == "IndexedView" || n == "Table" {
 				return true
 			}
 		}

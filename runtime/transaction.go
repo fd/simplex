@@ -89,20 +89,16 @@ func (txn *Transaction) Commit() {
 	// commit the _tables table
 	txn.Tables.Commit()
 	txn_sha := txn.env.store.Set(&txn)
+	fmt.Printf("TXN: (sha: %+v, parent: %+v)\n", txn_sha, txn.Parent)
 	txn.env.SetCurrentTransaction(txn_sha, txn.Parent)
 }
 
 func (txn *Transaction) GetTable(name string) *InternalTable {
-	var table *InternalTable
+	table := &InternalTable{}
 
-	ok := txn.Tables.Get(name, &table)
+	ok := txn.Tables.Get(name, table)
 	if !ok {
-		table = &InternalTable{
-			txn:  txn,
-			Name: name,
-		}
-		table.setup()
-		return table
+		table.Name = name
 	}
 
 	table.txn = txn

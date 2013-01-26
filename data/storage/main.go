@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"compress/zlib"
 	"crypto/sha1"
+	"encoding/hex"
 	"github.com/fd/simplex/data/blob"
 	"github.com/fd/simplex/data/storage/driver"
 	"io"
@@ -21,6 +22,9 @@ var EntrySHA = SHA{
 
 func (s SHA) IsZero() bool {
 	return s == ZeroSHA || bytes.Compare([]byte(s[:]), []byte(ZeroSHA[:])) == 0
+}
+func (s SHA) String() string {
+	return "SHA(" + hex.EncodeToString([]byte(s[:])) + ")"
 }
 
 type S struct {

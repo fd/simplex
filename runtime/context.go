@@ -9,8 +9,7 @@ type Context struct {
 }
 
 func (ctx *Context) Load(sha SHA, val interface{}) {
-	found := ctx.txn.env.store.Get(storage.SHA(sha), val)
-	if !found {
+	if !ctx.txn.env.store.Get(storage.SHA(sha), val) {
 		panic("corrupted data store")
 	}
 }

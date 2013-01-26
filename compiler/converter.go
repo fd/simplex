@@ -251,11 +251,20 @@ func (conv *builtin_function_conv) convert_method(call *ast.CallExpr, name strin
 		recv  = call.Fun.(*ast.SelectorExpr).X
 		args  = call.Args
 		o_typ = conv.mapping[call]
+		pos   = conv.fset.Position(call.Pos()).String()
 	)
 
 	args = append([]ast.Expr{recv}, args...)
-
-	pos := conv.fset.Position(call.Pos()).String()
+	args = append(
+		args,
+		&ast.BasicLit{
+			Kind: token.STRING,
+			Value: strconv.QuoteToASCII(
+				strconv.Quote(conv.package_name) + "." + sx_type_string(o_typ) + "[" +
+					pos + "]",
+			),
+		},
+	)
 
 	call.Fun = ast.NewIdent("wrap_" + view_type_name(o_typ))
 	call.Args = []ast.Expr{
@@ -265,13 +274,6 @@ func (conv *builtin_function_conv) convert_method(call *ast.CallExpr, name strin
 				ast.NewIdent(name),
 			},
 			Args: args,
-		},
-		&ast.BasicLit{
-			Kind: token.STRING,
-			Value: strconv.QuoteToASCII(
-				strconv.Quote(conv.package_name) + "." + sx_type_string(o_typ) + "[" +
-					pos + "]",
-			),
 		},
 	}
 }

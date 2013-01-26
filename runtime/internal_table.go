@@ -76,7 +76,7 @@ func (t *InternalTable) Commit() (prev, curr s.SHA, changed bool) {
 	}
 
 	return t.txn.Tables.Set(&KeyValue{
-		[]byte(t.Name),
-		t.txn.env.store.Set(&t),
+		consistent_rep(t.Name),
+		t.txn.env.store.Set(t),
 	})
 }

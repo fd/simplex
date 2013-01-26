@@ -4,6 +4,7 @@ import (
 	"fmt"
 	_ "github.com/fd/simplex/data/storage/file_system"
 	_ "github.com/fd/simplex/data/storage/memory"
+	_ "github.com/fd/simplex/data/storage/redis"
 	"github.com/fd/simplex/runtime"
 	go_runtime "runtime"
 )
@@ -11,14 +12,14 @@ import (
 func main() {
 	go_runtime.GOMAXPROCS(go_runtime.NumCPU() * 2)
 
-	runtime.Env.ConnectToStorage("file://example/db")
+	runtime.Env.ConnectToStorage("redis://localhost:6379/")
 
 	for _, name := range runtime.Env.Tables() {
 		fmt.Println(name)
 	}
 
 	txn := runtime.Env.Transaction()
-	for i := 0; i < 1000; i++ {
+	for i := 0; i < 10; i++ {
 		txn.Set(posts, fmt.Sprintf("post-%d", i), Post{Title: fmt.Sprintf("Hello world (%d)", i)})
 	}
 	txn.Commit()

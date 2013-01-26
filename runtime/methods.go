@@ -12,15 +12,15 @@ func DeclareTable(name string) Deferred {
   type V view[]M
   V.select(func(M)bool) -> V
 */
-func Select(v IndexedView, f select_func) Deferred {
-	return &select_op{src: v, fun: f}
+func Select(v IndexedView, f select_func, name string) Deferred {
+	return &select_op{src: v, fun: f, name: name}
 }
 
 /*
   type V view[]M
   V.reject(func(M)bool) -> V
 */
-func Reject(v IndexedView, f reject_func) Deferred {
+func Reject(v IndexedView, f reject_func, name string) Deferred {
 	return &reject_op{src: v, fun: f}
 }
 
@@ -30,7 +30,7 @@ func Reject(v IndexedView, f reject_func) Deferred {
 
   TODO(fd) detect is only valid in a transactional function.
 */
-func Detect(v IndexedView, f func(interface{}) bool) interface{} {
+func Detect(v IndexedView, f func(interface{}) bool, name string) interface{} {
 	panic("not yet implemented")
 }
 
@@ -40,7 +40,7 @@ func Detect(v IndexedView, f func(interface{}) bool) interface{} {
   V.collect(func(M)N) -> W
   (Note: the key type remains unchanged)
 */
-func Collect(v IndexedView, f collect_func) Deferred {
+func Collect(v IndexedView, f collect_func, name string) Deferred {
 	return &collect_op{src: v, fun: f}
 }
 
@@ -50,7 +50,7 @@ func Collect(v IndexedView, f collect_func) Deferred {
 
   TODO(fd) inject is only valid in a transactional function.
 */
-func Inject(v IndexedView, f func(interface{}, []interface{}) interface{}) interface{} {
+func Inject(v IndexedView, f func(interface{}, []interface{}) interface{}, name string) interface{} {
 	panic("not yet implemented")
 }
 
@@ -60,7 +60,7 @@ func Inject(v IndexedView, f func(interface{}, []interface{}) interface{}) inter
   V.group(func(M)N) -> W
   (Note: the key type of the inner view remains unchanged)
 */
-func Group(v IndexedView, f group_func) Deferred {
+func Group(v IndexedView, f group_func, name string) Deferred {
 	return &group_op{src: v, fun: f}
 }
 
@@ -72,7 +72,7 @@ func Group(v IndexedView, f group_func) Deferred {
 
   v.index(f) is equivalent to v.group(f).collect(func(v view[]M)M{ return v.detect(func(_){return true}) })
 */
-func Index(v IndexedView, f index_func) Deferred {
+func Index(v IndexedView, f index_func, name string) Deferred {
 	return &index_op{src: v, fun: f}
 }
 
@@ -81,7 +81,7 @@ func Index(v IndexedView, f index_func) Deferred {
   V.sort(func(M)N) -> V
   (Note: the key type is lost)
 */
-func Sort(v IndexedView, f sort_func) Deferred {
+func Sort(v IndexedView, f sort_func, name string) Deferred {
 	return &sort_op{src: v, fun: f}
 }
 

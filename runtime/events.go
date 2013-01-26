@@ -50,9 +50,9 @@ type (
 	// a is ZeroSHA when adding the table
 	// b is ZeroSHA when remove the table
 	ev_CONSISTENT struct {
-		table   string
-		old_sha storage.SHA
-		new_sha storage.SHA
+		table string
+		a     storage.SHA
+		b     storage.SHA
 	}
 )
 
