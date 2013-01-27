@@ -62,4 +62,8 @@ func (*ev_ERROR) isEvent()       {}
 func (*ev_CHANGE) isEvent()      {}
 func (*ev_CONSISTENT) isEvent()  {}
 
-func (e *ev_ERROR) Error() string { return fmt.Sprintf("%s\n%s", e.err, e.caller) }
+func (e *ev_ERROR) Error() string { return fmt.Sprintf("%s: %s\n%s", e.w, e.err, e.caller) }
+
+func (e *ev_DONE_worker) String() string {
+	return "DONE(" + e.w.String() + ")"
+}

@@ -13,6 +13,7 @@ type (
 )
 
 func (f *Funnel) Add(ch <-chan Event) {
+	f.inbound = append(f.inbound, ch)
 }
 
 func (f *Funnel) Run() <-chan Event {
@@ -21,7 +22,7 @@ func (f *Funnel) Run() <-chan Event {
 	}
 
 	if len(f.inbound) == 0 {
-		f.collector = make(chan Event)
+		f.collector = make(chan Event, 1)
 		f.outbound = f.collector
 		close(f.collector)
 		return f.outbound
@@ -32,7 +33,7 @@ func (f *Funnel) Run() <-chan Event {
 		return f.outbound
 	}
 
-	f.collector = make(chan Event)
+	f.collector = make(chan Event, 1)
 	f.outbound = f.collector
 
 	go f.go_sink()

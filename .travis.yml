@@ -1,6 +1,6 @@
 ---
 language: go
 install:
-  - make all
+  - make
 script:
   - make test

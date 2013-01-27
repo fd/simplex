@@ -21,7 +21,12 @@ type worker_t struct {
 
 const (
 	op_SUB worker_op_k = iota
+	op_DONE
 )
+
+func (w *worker_t) String() string {
+	return "Worker(" + w.def.DeferredId() + ")"
+}
 
 func (w *worker_t) subscribe() <-chan Event {
 	ch := make(chan Event, 1)
@@ -54,7 +59,10 @@ func (w *worker_t) go_resolve(events chan<- Event) {
 }
 
 func (w *worker_t) go_run(events <-chan Event, worker_events chan<- Event) {
-	log := make([]Event, 0, 128)
+	var (
+		log            = make([]Event, 0, 128)
+		worker_is_done bool
+	)
 
 	defer func() {
 		if e := recover(); e != nil {
@@ -64,10 +72,11 @@ func (w *worker_t) go_run(events <-chan Event, worker_events chan<- Event) {
 				worker_events <- &ev_ERROR{w, e, fmt.Errorf("error: %+v", e), debug.Stack()}
 			}
 		}
-		worker_events <- &ev_DONE_worker{w}
-
-		for _, sub := range w.subscribers {
-			close(sub)
+		if !worker_is_done {
+			for _, sub := range w.subscribers {
+				close(sub)
+			}
+			worker_events <- &ev_DONE_worker{w}
 		}
 	}()
 
@@ -75,39 +84,87 @@ func (w *worker_t) go_run(events <-chan Event, worker_events chan<- Event) {
 		select {
 
 		case e := <-events:
+			log, worker_is_done = w.handle_event(e, log, worker_events)
 
-			log = append(log, e)
-
-			for _, sub := range w.subscribers {
-				sub <- e
-			}
-
-			if _, ok := e.(*ev_CONSISTENT); ok {
-				worker_events <- e
-			}
-
-			if _, ok := e.(*ev_ERROR); ok {
-				worker_events <- e
-			}
-
-			if _, ok := e.(*ev_DONE_worker); ok {
+		case op := <-w.operations:
+			exit := w.handle_operation(op, log, worker_is_done)
+			if exit {
 				return
 			}
 
-		case op := <-w.operations:
-			switch op.kind {
-			case op_SUB:
-				if ch, ok := op.data.(chan Event); ok {
-					for _, e := range log {
-						ch <- e
-					}
-					w.subscribers = append(w.subscribers, ch)
-				}
+		}
 
-			default:
-				panic("not reached")
-			}
-
+		if worker_is_done {
+			break
 		}
 	}
+
+	for op := range w.operations {
+		exit := w.handle_operation(op, log, worker_is_done)
+		if exit {
+			return
+		}
+	}
+}
+
+func (w *worker_t) handle_event(e Event, log []Event, worker_events chan<- Event) (log_o []Event, done bool) {
+	log_o = log
+
+	switch e.(type) {
+
+	case nil:
+		// ignore
+
+	case *ev_CONSISTENT:
+		log_o = append(log_o, e)
+		for _, sub := range w.subscribers {
+			sub <- e
+		}
+		worker_events <- e
+
+	case *ev_ERROR:
+		worker_events <- e
+
+	case *ev_DONE_worker:
+		done = true
+		for _, sub := range w.subscribers {
+			close(sub)
+		}
+		worker_events <- &ev_DONE_worker{w}
+
+	default:
+		log_o = append(log_o, e)
+		for _, sub := range w.subscribers {
+			sub <- e
+		}
+
+	}
+
+	return
+}
+
+func (w *worker_t) handle_operation(op worker_op_t, log []Event, done bool) (exit bool) {
+	switch op.kind {
+
+	case op_SUB:
+		if ch, ok := op.data.(chan Event); ok {
+			for _, e := range log {
+				ch <- e
+			}
+			if done {
+				close(ch)
+			} else {
+				w.subscribers = append(w.subscribers, ch)
+			}
+		}
+
+	case op_DONE:
+		exit = true
+
+	default:
+		panic("not reached")
+
+	}
+
+	return
 }

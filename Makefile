@@ -3,7 +3,7 @@ SX='./ast/...' './build/...' './cmd/...' './compiler/...' \
 	 './parser/...'  './printer/...' './scanner/...' './token/...' \
 	 './types/...'
 
-all: commands
+all: commands build_sx
 
 commands:
 	go get './cmd/...'
