@@ -1,6 +1,11 @@
 ---
 language: go
+
+services:
+  - redis-server
+
 install:
   - make
+
 script:
   - make test
