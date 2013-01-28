@@ -87,16 +87,19 @@ func write_consistent_rep(w *bytes.Buffer, value interface{}) {
 		w.WriteByte(5)
 		binary.Write(w, binary.BigEndian, complex128(v))
 
+	// TODO(fd) use "exp/locale/collate".(*Collator).KeyFromString(buf, v)
 	case string:
 		w.WriteByte(6)
 		w.WriteString(v)
 		w.WriteByte(0) // terminator
 
+	// TODO(fd) use "exp/locale/collate".(*Collator).Key(buf, v)
 	case []byte:
 		w.WriteByte(6)
 		w.Write(v)
 		w.WriteByte(0) // terminator
 
+	// TODO(fd) use "exp/locale/collate".(*Collator).Key(buf, v)
 	case []rune:
 		w.WriteByte(6)
 		for _, r := range v {
