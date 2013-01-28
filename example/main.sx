@@ -5,22 +5,33 @@ import (
 	_ "github.com/fd/simplex/data/storage/file_system"
 	_ "github.com/fd/simplex/data/storage/memory"
 	_ "github.com/fd/simplex/data/storage/redis"
+	"github.com/fd/simplex/net/http"
 	"github.com/fd/simplex/runtime"
 	go_runtime "runtime"
+	"time"
 )
 
 func main() {
 	go_runtime.GOMAXPROCS(go_runtime.NumCPU() * 2)
 
+	h := http.New(":3000")
+	h.Handle("/blog/", a)
+
 	runtime.Env.ConnectToStorage("redis://localhost:6379/")
+	runtime.Env.RegisterService(h)
 
 	for _, name := range runtime.Env.Tables() {
 		fmt.Println(name)
 	}
 
-	txn := runtime.Env.Transaction()
-	for i := 0; i < 1000; i++ {
-		txn.Set(posts, fmt.Sprintf("post-%d", i), Post{Title: fmt.Sprintf("Hello world (%d)", i)})
-	}
-	txn.Commit()
+	go func() {
+		time.Sleep(5 * time.Second)
+		txn := runtime.Env.Transaction()
+		for i := 0; i < 1000; i++ {
+			txn.Set(posts, fmt.Sprintf("post-%d", i), Post{Title: fmt.Sprintf("Hello world (%d)", i)})
+		}
+		txn.Commit()
+	}()
+
+	runtime.Env.Run()
 }

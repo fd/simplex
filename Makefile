@@ -1,5 +1,5 @@
 SX='./ast/...' './build/...' './cmd/...' './compiler/...' \
-	 './cron/...' './data/...' './doc/...' './format/...' \
+	 './data/...' './doc/...' './format/...' \
 	 './parser/...'  './printer/...' './scanner/...' './token/...' \
 	 './types/...'
 

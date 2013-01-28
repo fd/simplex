@@ -17,6 +17,7 @@ type (
 
 var (
 	posts = make(table[string]Post)
+	a     *api.API
 )
 
 func init() {
@@ -27,7 +28,7 @@ func init() {
 		return false
 	}))
 
-	a := api.New(runtime.Env, "blog")
+	a = api.New(runtime.Env, "blog")
 	a.RegisterTable(posts)
 	a.RegisterView(posts, "posts")
 }

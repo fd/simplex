@@ -1,6 +1,8 @@
 package api
 
 import (
+	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"github.com/fd/simplex/runtime"
 	"net/http"
@@ -82,12 +84,53 @@ func (api *API) Resolve(txn *runtime.Transaction, events chan<- runtime.Event) {
 }
 
 func (api *API) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+	switch req.Method {
+	case "GET":
+
+		if req.URL.Path == "/" {
+			api.handle_GET_info(w, req)
+			return
+		}
+
+		if view, p := api.views[req.URL.Path]; p {
+			api.handle_GET_view(w, req, view)
+			return
+		}
+
+	case "PATCH":
+
+		if req.URL.Path == "/" {
+			api.handle_PATCH_transaction(w, req)
+			return
+		}
+
+	}
+
+	http.NotFound(w, req)
 }
 
 /*
   Should return the current transactions SHA.
-  This SHA MUST be passed allong with all the other requests in order to guarantee the consistency of the data.
 */
-func (api *API) handle_GET_api(w http.ResponseWriter, req *http.Request) {
+func (api *API) handle_GET_info(w http.ResponseWriter, req *http.Request) {
+	txn_id, ok := api.env.GetCurrentTransaction()
+	if !ok {
+		panic("failed to get transaction id.")
+	}
+
+	resp := struct {
+		TransactionID string
+	}{
+		TransactionID: hex.EncodeToString([]byte(txn_id[:])),
+	}
+
+	json.NewEncoder(w).Encode(resp)
+}
+
+func (api *API) handle_GET_view(w http.ResponseWriter, req *http.Request, view runtime.IndexedView) {
+
+}
+
+func (api *API) handle_PATCH_transaction(w http.ResponseWriter, req *http.Request) {
 
 }
