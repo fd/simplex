@@ -28,7 +28,7 @@ func init() {
 		return false
 	}))
 
-	runtime.Dump(posts)
+	// runtime.Dump(posts)
 
 	a = api.New(runtime.Env, "blog")
 	a.RegisterTable(posts)

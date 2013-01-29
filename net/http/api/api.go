@@ -183,10 +183,11 @@ func (api *API) handle_GET_info(w http.ResponseWriter, req *http.Request) {
 func (api *API) handle_GET_view(w http.ResponseWriter, req *http.Request, sha storage.SHA) {
 	var (
 		table = runtime.Env.LoadTable(runtime.SHA(sha))
+		store = runtime.Env.Store()
 		iter  = table.Iter()
 	)
 
-	w.Header().Set("Content-Type", "text/json")
+	w.Header().Set("Content-Type", "text/json; charset=utf-8")
 
 	w.WriteHeader(200)
 	w.Write([]byte("[\n"))
@@ -198,13 +199,26 @@ func (api *API) handle_GET_view(w http.ResponseWriter, req *http.Request, sha st
 			break
 		}
 
-		format := ",\n\"%x\""
-		if first {
-			first = false
-			format = "\"%x\""
+		var (
+			kv  runtime.KeyValue
+			val []byte
+		)
+
+		if !store.Get(sha, &kv) {
+			panic("corrupt")
 		}
 
-		fmt.Fprintf(w, format, []byte(sha[:]))
+		if !store.Get(kv.ValueSha, &val) {
+			panic("corrupt")
+		}
+
+		format := ",\n%s"
+		if first {
+			first = false
+			format = "%s"
+		}
+
+		fmt.Fprintf(w, format, val)
 	}
 
 	w.Write([]byte("\n]\n"))

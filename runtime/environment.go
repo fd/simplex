@@ -72,8 +72,11 @@ func (env *Environment) Run() error {
 	}
 
 	c := make(chan os.Signal, 1)
-	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
-	_ = <-c
+	signal.Notify(c, os.Interrupt, syscall.SIGTERM, syscall.SIGUSR1)
+	sig := <-c
+	if sig == syscall.SIGUSR1 {
+		panic("dump")
+	}
 
 	err = env.Stop()
 	return err
@@ -98,6 +101,10 @@ func (env *Environment) Tables() []string {
 	}
 	sort.Strings(names)
 	return names
+}
+
+func (env *Environment) Store() *storage.S {
+	return env.store
 }
 
 func (env *Environment) LoadTable(sha SHA) *InternalTable {

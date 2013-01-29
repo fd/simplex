@@ -109,6 +109,7 @@ func (w *worker_t) go_run(events <-chan Event, worker_events chan<- Event) {
 
 func (w *worker_t) handle_event(e Event, log []Event, worker_events chan<- Event) (log_o []Event, done bool) {
 	log_o = log
+	done = false
 
 	switch e.(type) {
 
@@ -137,6 +138,7 @@ func (w *worker_t) handle_event(e Event, log []Event, worker_events chan<- Event
 		for _, sub := range w.subscribers {
 			sub <- e
 		}
+		//worker_events <- e
 
 	}
 

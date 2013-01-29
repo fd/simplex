@@ -17,5 +17,7 @@ func (t *void_terminal) DeferredId() string {
 }
 
 func (t *void_terminal) Resolve(txn *Transaction, events chan<- Event) {
-	txn.Resolve(t.def)
+	for _ = range txn.Resolve(t.def) {
+		// ignore
+	}
 }

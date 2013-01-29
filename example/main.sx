@@ -11,8 +11,11 @@ import (
 	"time"
 )
 
-func main() {
+func init() {
 	go_runtime.GOMAXPROCS(go_runtime.NumCPU() * 2)
+}
+
+func main() {
 
 	h := http.New(":3000")
 	h.Handle("/blog/", a)
@@ -27,7 +30,7 @@ func main() {
 	go func() {
 		time.Sleep(5 * time.Second)
 		txn := runtime.Env.Transaction()
-		for i := 0; i < 100; i++ {
+		for i := 0; i < 1000; i++ {
 			txn.Set(posts, fmt.Sprintf("post-%d", i), Post{Title: fmt.Sprintf("Hello world (%d)", i)})
 		}
 		txn.Commit()
