@@ -4,8 +4,11 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"github.com/fd/simplex/data/storage"
 	"github.com/fd/simplex/runtime"
 	"net/http"
+	"reflect"
+	"strings"
 )
 
 type (
@@ -13,8 +16,10 @@ type (
 		name   string
 		env    *runtime.Environment
 		tables map[string]runtime.Table
-		views  map[string]runtime.IndexedView
+		views  map[string]runtime.Deferred
 		routes map[string]string
+
+		ViewTables map[string]storage.SHA
 	}
 )
 
@@ -23,8 +28,9 @@ func New(env *runtime.Environment, name string) *API {
 		name,
 		env,
 		map[string]runtime.Table{},
-		map[string]runtime.IndexedView{},
+		map[string]runtime.Deferred{},
 		map[string]string{},
+		map[string]storage.SHA{},
 	}
 
 	env.RegisterTerminal(api)
@@ -49,6 +55,17 @@ func (api *API) RegisterTable(table runtime.Table) {
 }
 
 func (api *API) RegisterView(view runtime.IndexedView, route string) {
+	{ // normalize the route
+		l := len(route)
+		if route[l-1] == '/' {
+			route = route[:l-1]
+			l = len(route)
+		}
+		if l > 0 && route[0] != '/' {
+			route = "/" + route
+		}
+	}
+
 	if _, p := api.routes[route]; p {
 		panic(fmt.Sprintf("Already registered a view at `%s`", route))
 	}
@@ -57,8 +74,28 @@ func (api *API) RegisterView(view runtime.IndexedView, route string) {
 		panic(fmt.Sprintf("Already registered a view by the name of `%s`", view.DeferredId()))
 	}
 
+	json_view := runtime.Collect(
+		view,
+		func(ctx *runtime.Context, m_sha runtime.SHA) runtime.SHA {
+			var m reflect.Value
+			m = reflect.New(view.EltType())
+			ctx.LoadValue(m_sha, m)
+
+			data, err := json.Marshal(map[string]interface{}{
+				"Vsn": hex.EncodeToString([]byte(m_sha[:])),
+				"Obj": m.Interface(),
+			})
+			if err != nil {
+				panic(err)
+			}
+
+			return ctx.Save(&data)
+		},
+		"API/FORMAT_JSON/"+view.DeferredId(),
+	)
+
 	api.routes[route] = view.DeferredId()
-	api.views[view.DeferredId()] = view
+	api.views[view.DeferredId()] = json_view
 }
 
 func (api *API) DeferredId() string {
@@ -78,7 +115,21 @@ func (api *API) Resolve(txn *runtime.Transaction, events chan<- runtime.Event) {
 		funnel.Add(txn.Resolve(view))
 	}
 
-	for _ = range funnel.Run() {
+	for e := range funnel.Run() {
+		event, ok := e.(*runtime.EvConsistent)
+		if !ok {
+			continue
+		}
+
+		if strings.HasPrefix(event.Table, "API/FORMAT_JSON/") {
+			name := event.Table[len("API/FORMAT_JSON/"):]
+
+			if event.B.IsZero() {
+				delete(api.ViewTables, name)
+			} else {
+				api.ViewTables[name] = event.B
+			}
+		}
 	}
 
 }
@@ -92,9 +143,11 @@ func (api *API) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 			return
 		}
 
-		if view, p := api.views[req.URL.Path]; p {
-			api.handle_GET_view(w, req, view)
-			return
+		if view_id, p := api.routes[req.URL.Path]; p {
+			if sha, p := api.ViewTables[view_id]; p {
+				api.handle_GET_view(w, req, sha)
+				return
+			}
 		}
 
 	case "PATCH":
@@ -127,8 +180,34 @@ func (api *API) handle_GET_info(w http.ResponseWriter, req *http.Request) {
 	json.NewEncoder(w).Encode(resp)
 }
 
-func (api *API) handle_GET_view(w http.ResponseWriter, req *http.Request, view runtime.IndexedView) {
+func (api *API) handle_GET_view(w http.ResponseWriter, req *http.Request, sha storage.SHA) {
+	var (
+		table = runtime.Env.LoadTable(runtime.SHA(sha))
+		iter  = table.Iter()
+	)
 
+	w.Header().Set("Content-Type", "text/json")
+
+	w.WriteHeader(200)
+	w.Write([]byte("[\n"))
+
+	first := true
+	for {
+		sha, done := iter.Next()
+		if done {
+			break
+		}
+
+		format := ",\n\"%x\""
+		if first {
+			first = false
+			format = "\"%x\""
+		}
+
+		fmt.Fprintf(w, format, []byte(sha[:]))
+	}
+
+	w.Write([]byte("\n]\n"))
 }
 
 func (api *API) handle_PATCH_transaction(w http.ResponseWriter, req *http.Request) {

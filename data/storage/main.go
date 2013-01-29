@@ -8,6 +8,7 @@ import (
 	"github.com/fd/simplex/data/blob"
 	"github.com/fd/simplex/data/storage/driver"
 	"io"
+	"reflect"
 )
 
 type SHA [20]byte
@@ -37,6 +38,29 @@ func New(url string) (*S, error) {
 		return nil, err
 	}
 	return &S{d}, nil
+}
+
+func (s *S) GetValue(key SHA, val reflect.Value) (found bool) {
+	data, err := s.d.Get(key)
+	if err == driver.NotFound {
+		return false
+	}
+	if err != nil {
+		panic(err)
+	}
+
+	comp, err := zlib.NewReader(bytes.NewReader(data))
+	if err != nil {
+		panic(err)
+	}
+	defer comp.Close()
+
+	err = blob.NewDecoder(comp).DecodeValue(val)
+	if err != nil {
+		panic(err)
+	}
+
+	return true
 }
 
 func (s *S) Get(key SHA, val interface{}) (found bool) {

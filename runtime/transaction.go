@@ -3,6 +3,7 @@ package runtime
 import (
 	"fmt"
 	"github.com/fd/simplex/data/storage"
+	"time"
 )
 
 type (
@@ -71,6 +72,15 @@ func (txn *Transaction) Unset(table Table, key interface{}) {
 }
 
 func (txn *Transaction) Commit() {
+	var txn_sha storage.SHA
+	{
+		now := time.Now()
+		defer func() {
+			duration := time.Now().Sub(now)
+			fmt.Printf("[sha: %s, duration: %s]\n", txn_sha, duration)
+		}()
+	}
+
 	// wait for prev txn to resolve
 
 	pool := &worker_pool_t{}
@@ -88,8 +98,7 @@ func (txn *Transaction) Commit() {
 
 	// commit the _tables table
 	txn.Tables.Commit()
-	txn_sha := txn.env.store.Set(&txn)
-	fmt.Printf("TXN: (sha: %+v, parent: %+v)\n", txn_sha, txn.Parent)
+	txn_sha = txn.env.store.Set(&txn)
 	txn.env.SetCurrentTransaction(txn_sha, txn.Parent)
 }
 

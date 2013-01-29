@@ -15,6 +15,7 @@ type T interface {
 	Insert(key []byte, sha storage.SHA) (old_sha storage.SHA, inserted bool)
 	Remove(key []byte) (old_sha storage.SHA, removed bool)
 	Reduce(cache T, f ReduceFunc) storage.SHA
+	Iter() Iterator
 
 	Empty() bool
 }

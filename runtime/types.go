@@ -32,6 +32,3 @@ type IndexedView interface {
 	DeferredId() string
 	Resolve(txn *Transaction, events chan<- Event)
 }
-
-func Dump(v Deferred) {
-}

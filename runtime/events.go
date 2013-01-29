@@ -15,11 +15,6 @@ type (
 		Error() string
 	}
 
-	EvResolvedTable interface {
-		Event
-		Table() Table
-	}
-
 	ev_DONE_worker struct {
 		w *worker_t
 	}
@@ -49,10 +44,10 @@ type (
 	// representing a changing table
 	// a is ZeroSHA when adding the table
 	// b is ZeroSHA when remove the table
-	ev_CONSISTENT struct {
-		table string
-		a     storage.SHA
-		b     storage.SHA
+	EvConsistent struct {
+		Table string
+		A     storage.SHA
+		B     storage.SHA
 	}
 )
 
@@ -60,10 +55,44 @@ func (*ev_DONE_worker) isEvent() {}
 func (*ev_DONE_pool) isEvent()   {}
 func (*ev_ERROR) isEvent()       {}
 func (*ev_CHANGE) isEvent()      {}
-func (*ev_CONSISTENT) isEvent()  {}
+func (*EvConsistent) isEvent()   {}
 
 func (e *ev_ERROR) Error() string { return fmt.Sprintf("%s: %s\n%s", e.w, e.err, e.caller) }
 
 func (e *ev_DONE_worker) String() string {
 	return "DONE(" + e.w.String() + ")"
+}
+
+func (e *EvConsistent) GetTableA(txn *Transaction) *InternalTable {
+	var kv KeyValue
+	if !txn.env.store.Get(e.A, &kv) {
+		panic("corrupt")
+	}
+
+	table := &InternalTable{}
+	if !txn.env.store.Get(kv.ValueSha, &table) {
+		panic("corrupt")
+	}
+
+	table.txn = txn
+	table.setup()
+
+	return table
+}
+
+func (e *EvConsistent) GetTableB(txn *Transaction) *InternalTable {
+	var kv KeyValue
+	if !txn.env.store.Get(e.B, &kv) {
+		panic("corrupt")
+	}
+
+	table := &InternalTable{}
+	if !txn.env.store.Get(kv.ValueSha, &table) {
+		panic("corrupt")
+	}
+
+	table.txn = txn
+	table.setup()
+
+	return table
 }

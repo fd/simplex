@@ -100,6 +100,23 @@ func (env *Environment) Tables() []string {
 	return names
 }
 
+func (env *Environment) LoadTable(sha SHA) *InternalTable {
+	var kv KeyValue
+
+	if !env.store.Get(storage.SHA(sha), &kv) {
+		panic("corrupt")
+	}
+
+	table := &InternalTable{}
+	if !env.store.Get(kv.ValueSha, &table) {
+		panic("corrupt")
+	}
+
+	table.env = env
+	table.setup()
+	return table
+}
+
 func (env *Environment) GetCurrentTransaction() (storage.SHA, bool) {
 	return env.store.GetEntry()
 }

@@ -28,6 +28,8 @@ func init() {
 		return false
 	}))
 
+	runtime.Dump(posts)
+
 	a = api.New(runtime.Env, "blog")
 	a.RegisterTable(posts)
 	a.RegisterView(posts, "posts")

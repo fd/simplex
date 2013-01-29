@@ -21,7 +21,7 @@ func Select(v IndexedView, f select_func, name string) Deferred {
   V.reject(func(M)bool) -> V
 */
 func Reject(v IndexedView, f reject_func, name string) Deferred {
-	return &reject_op{src: v, fun: f}
+	return &reject_op{src: v, fun: f, name: name}
 }
 
 /*
@@ -41,7 +41,7 @@ func Detect(v IndexedView, f func(interface{}) bool, name string) interface{} {
   (Note: the key type remains unchanged)
 */
 func Collect(v IndexedView, f collect_func, name string) Deferred {
-	return &collect_op{src: v, fun: f}
+	return &collect_op{src: v, fun: f, name: name}
 }
 
 /*
@@ -61,7 +61,7 @@ func Inject(v IndexedView, f func(interface{}, []interface{}) interface{}, name 
   (Note: the key type of the inner view remains unchanged)
 */
 func Group(v IndexedView, f group_func, name string) Deferred {
-	return &group_op{src: v, fun: f}
+	return &group_op{src: v, fun: f, name: name}
 }
 
 /*
@@ -73,7 +73,7 @@ func Group(v IndexedView, f group_func, name string) Deferred {
   v.index(f) is equivalent to v.group(f).collect(func(v view[]M)M{ return v.detect(func(_){return true}) })
 */
 func Index(v IndexedView, f index_func, name string) Deferred {
-	return &index_op{src: v, fun: f}
+	return &index_op{src: v, fun: f, name: name}
 }
 
 /*
@@ -82,7 +82,7 @@ func Index(v IndexedView, f index_func, name string) Deferred {
   (Note: the key type is lost)
 */
 func Sort(v IndexedView, f sort_func, name string) Deferred {
-	return &sort_op{src: v, fun: f}
+	return &sort_op{src: v, fun: f, name: name}
 }
 
 func Union(v ...Deferred) Deferred {
@@ -108,28 +108,28 @@ type (
 		fun  reject_func
 	}
 
-	collect_func func(interface{}) interface{}
+	collect_func func(*Context, SHA) SHA
 	collect_op   struct {
 		name string
 		src  IndexedView
 		fun  collect_func
 	}
 
-	group_func func(interface{}) interface{}
+	group_func func(*Context, SHA) SHA
 	group_op   struct {
 		name string
 		src  IndexedView
 		fun  group_func
 	}
 
-	index_func func(interface{}) interface{}
+	index_func func(*Context, SHA) SHA
 	index_op   struct {
 		name string
 		src  IndexedView
 		fun  index_func
 	}
 
-	sort_func func(interface{}) interface{}
+	sort_func func(*Context, SHA) SHA
 	sort_op   struct {
 		name string
 		src  IndexedView
@@ -176,10 +176,8 @@ func (op *table_op) Resolve(txn *Transaction, events chan<- Event) {
 		}
 	}
 
-	old_tab_sha, new_tab_sha, changed := table.Commit()
-	if changed {
-		events <- &ev_CONSISTENT{op.name, old_tab_sha, new_tab_sha}
-	}
+	old_tab_sha, new_tab_sha, _ := table.Commit()
+	events <- &EvConsistent{op.name, old_tab_sha, new_tab_sha}
 }
 
 func (op *select_op) Resolve(txn *Transaction, events chan<- Event) {
@@ -251,14 +249,60 @@ func (op *select_op) Resolve(txn *Transaction, events chan<- Event) {
 		events <- o_change
 	}
 
-	old_tab_sha, new_tab_sha, changed := table.Commit()
-	if changed {
-		events <- &ev_CONSISTENT{op.name, old_tab_sha, new_tab_sha}
-	}
+	old_tab_sha, new_tab_sha, _ := table.Commit()
+	events <- &EvConsistent{op.name, old_tab_sha, new_tab_sha}
 }
 
-func (op *reject_op) Resolve(txn *Transaction, events chan<- Event)  {}
-func (op *collect_op) Resolve(txn *Transaction, events chan<- Event) {}
-func (op *group_op) Resolve(txn *Transaction, events chan<- Event)   {}
-func (op *index_op) Resolve(txn *Transaction, events chan<- Event)   {}
-func (op *sort_op) Resolve(txn *Transaction, events chan<- Event)    {}
+func (op *collect_op) Resolve(txn *Transaction, events chan<- Event) {
+	var (
+		src_event = txn.Resolve(op.src)
+		table     = txn.GetTable(op.name)
+	)
+
+	for event := range src_event {
+		i_change, ok := event.(*ev_CHANGE)
+		if !ok {
+			continue
+		}
+
+		// removed
+		if i_change.b.IsZero() {
+			var kv_a KeyValue
+			// lookup key/value
+			if !txn.env.store.Get(i_change.a, &kv_a) {
+				panic("corrupt data store")
+			}
+
+			if kv_sha, ok := table.GetKeyValueSHA(kv_a.KeyCompare); ok {
+				table.Del(&kv_a)
+				events <- &ev_CHANGE{op.name, kv_sha, storage.ZeroSHA}
+			}
+
+			continue
+		}
+
+		{ // added or updated
+			var kv_a, kv_b KeyValue
+			// lookup key/value
+			if !txn.env.store.Get(i_change.b, &kv_a) {
+				panic("corrupt data store")
+			}
+
+			kv_b.KeyCompare = kv_a.KeyCompare
+			kv_b.ValueSha = storage.SHA(op.fun(&Context{txn}, SHA(kv_a.ValueSha)))
+
+			prev_kv_sha, curr_kv_sha, changed := table.Set(&kv_b)
+			if changed {
+				events <- &ev_CHANGE{op.name, prev_kv_sha, curr_kv_sha}
+			}
+		}
+	}
+
+	old_tab_sha, new_tab_sha, _ := table.Commit()
+	events <- &EvConsistent{op.name, old_tab_sha, new_tab_sha}
+}
+
+func (op *reject_op) Resolve(txn *Transaction, events chan<- Event) {}
+func (op *group_op) Resolve(txn *Transaction, events chan<- Event)  {}
+func (op *index_op) Resolve(txn *Transaction, events chan<- Event)  {}
+func (op *sort_op) Resolve(txn *Transaction, events chan<- Event)   {}

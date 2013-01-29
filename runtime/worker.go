@@ -115,7 +115,7 @@ func (w *worker_t) handle_event(e Event, log []Event, worker_events chan<- Event
 	case nil:
 		// ignore
 
-	case *ev_CONSISTENT:
+	case *EvConsistent:
 		log_o = append(log_o, e)
 		for _, sub := range w.subscribers {
 			sub <- e
