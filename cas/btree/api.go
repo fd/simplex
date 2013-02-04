@@ -46,7 +46,20 @@ func (t *Tree) GetAt(idx uint64) (key, elt cas.Addr, err error) {
 }
 
 func (t *Tree) Del(collated_key []byte) (key, elt cas.Addr, err error) {
-	return
+	ref, err := t.root.remove_ref(collated_key, B)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	if ref == nil {
+		return nil, nil, nil
+	}
+
+	if len(t.root.Children) == 1 {
+		t.root = t.root.Children[0].cache.(*node_t)
+	}
+
+	return ref.Key, ref.Elt, nil
 }
 
 func (t *Tree) DelAt(idx uint64) (key, elt cas.Addr, err error) {
