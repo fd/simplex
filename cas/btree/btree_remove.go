@@ -1,6 +1,6 @@
 package btree
 
-func (n *node_t) remove_ref(collated_key []byte) (prev *ref_t, err error) {
+func (n *node_t) remove_ref(collated_key []byte, order int) (prev *ref_t, err error) {
 
 	key_idx, ref_idx, middle_ref := n.search_ref(collated_key)
 
@@ -62,7 +62,7 @@ func (n *node_t) remove_ref(collated_key []byte) (prev *ref_t, err error) {
 	}
 
 	// propagate delete
-	prev, err = middle_node.remove_ref(collated_key)
+	prev, err = middle_node.remove_ref(collated_key, order)
 	if err != nil {
 		return nil, err
 	}
@@ -71,14 +71,16 @@ func (n *node_t) remove_ref(collated_key []byte) (prev *ref_t, err error) {
 	}
 
 	// update ref key
-	if middle_node.Type&leaf_node_type > 0 {
+	if middle_node.Type&leaf_node_type > 0 && key_idx >= 0 {
 		n.CollatedKeys[key_idx] = middle_node.CollatedKeys[0]
 	}
 
 	// merge nodes
-	if middle_node.has_too_few_children() {
+	if middle_node.has_too_few_children(order) {
 		// find siblings
 		var (
+			left_key   []byte
+			right_key  []byte
 			left_ref   *ref_t
 			right_ref  *ref_t
 			left_node  *node_t
@@ -91,38 +93,68 @@ func (n *node_t) remove_ref(collated_key []byte) (prev *ref_t, err error) {
 			if err != nil {
 				return nil, err
 			}
-
-			// attempt to steal children
-			if key, ok := borrow(middle_node, left_node, true, n.CollatedKeys[key_idx]); ok {
-				n.CollatedKeys[key_idx] = key
-				n.changed = true
-				return prev, nil
-			}
 		}
 
-		if (ref_idx + 1) < len(n.Children) {
+		if key_idx >= 0 {
+			left_key = n.CollatedKeys[key_idx]
+		}
+
+		if (key_idx + 1) < len(n.CollatedKeys) {
+			right_key = n.CollatedKeys[key_idx+1]
+		}
+
+		// attempt to steal children
+		if key, ok := borrow(middle_node, left_node, true, left_key, order); ok {
+			n.CollatedKeys[key_idx] = key
+			n.changed = true
+			return prev, nil
+		}
+
+		if ref_idx+1 < len(n.Children) {
 			right_ref = n.Children[ref_idx+1]
 			right_node, err = right_ref.load_node(n.store, n)
 			if err != nil {
 				return nil, err
 			}
+		}
 
-			// attempt to steal children
-			if key, ok := borrow(middle_node, right_node, false, n.CollatedKeys[key_idx+1]); ok {
-				n.CollatedKeys[key_idx+1] = key
-				n.changed = true
-				return prev, nil
-			}
+		// attempt to steal children
+		if key, ok := borrow(middle_node, right_node, false, right_key, order); ok {
+			n.CollatedKeys[key_idx+1] = key
+			n.changed = true
+			return prev, nil
 		}
 
 		// attempt to merge siblings
 
-		if merge(left_node, middle_node, n.CollatedKeys[key_idx]) {
-			// remove ref at ref_idx
+		if merge(left_node, middle_node, left_key, order) {
+			if (key_idx + 1) < len(n.CollatedKeys) {
+				copy(n.CollatedKeys[key_idx:], n.CollatedKeys[key_idx+1:])
+			}
+			n.CollatedKeys = n.CollatedKeys[:len(n.CollatedKeys)-1]
+
+			if (ref_idx + 1) < len(n.Children) {
+				copy(n.Children[ref_idx:], n.Children[ref_idx+1:])
+			}
+			n.Children = n.Children[:len(n.Children)-1]
+
+			n.changed = true
+			return prev, nil
 		}
 
-		if merge(middle_node, right_node, n.CollatedKeys[key_idx+1]) {
-			// remove ref at ref_idx + 1
+		if merge(middle_node, right_node, right_key, order) {
+			if (key_idx + 2) < len(n.CollatedKeys) {
+				copy(n.CollatedKeys[key_idx+1:], n.CollatedKeys[key_idx+2:])
+			}
+			n.CollatedKeys = n.CollatedKeys[:len(n.CollatedKeys)-1]
+
+			if (ref_idx + 2) < len(n.Children) {
+				copy(n.Children[ref_idx+1:], n.Children[ref_idx+2:])
+			}
+			n.Children = n.Children[:len(n.Children)-1]
+
+			n.changed = true
+			return prev, nil
 		}
 	}
 

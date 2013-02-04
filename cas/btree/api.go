@@ -56,7 +56,7 @@ func (t *Tree) DelAt(idx uint64) (key, elt cas.Addr, err error) {
 func (t *Tree) Set(collated_key []byte, key, elt cas.Addr) (prev cas.Addr, err error) {
 	ref := build_ref(t.store, key, elt)
 
-	prev_ref, root_node, err := t.root.insert_ref(collated_key, ref)
+	prev_ref, root_node, err := t.root.insert_ref(collated_key, ref, B)
 	if err != nil {
 		return nil, err
 	}
@@ -65,7 +65,7 @@ func (t *Tree) Set(collated_key []byte, key, elt cas.Addr) (prev cas.Addr, err e
 		t.root = root_node
 	}
 
-	if prev_ref != nil && (prev_ref.Flags&elt_is_set > 0) {
+	if prev_ref != nil && prev_ref.Flags&elt_is_set > 0 {
 		prev = prev_ref.Elt
 	}
 

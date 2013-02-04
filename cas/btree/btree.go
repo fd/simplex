@@ -101,27 +101,27 @@ func (ref *ref_t) String() string {
 	return fmt.Sprintf("`%s` => `%s`", ref.Key, ref.Elt)
 }
 
-func (n *node_t) max_children() int {
+func (n *node_t) max_children(order int) int {
 	if n.Type&root_node_type > 0 && n.Type&leaf_node_type > 0 {
-		return B
+		return order
 	}
 
 	if n.Type&root_node_type > 0 {
-		return B
+		return order
 	}
 
 	if n.Type&inner_node_type > 0 {
-		return B
+		return order
 	}
 
 	if n.Type&leaf_node_type > 0 {
-		return B - 1
+		return order - 1
 	}
 
 	panic("not reached")
 }
 
-func (n *node_t) min_children() int {
+func (n *node_t) min_children(order int) int {
 	if n.Type&root_node_type > 0 && n.Type&leaf_node_type > 0 {
 		return 1
 	}
@@ -131,22 +131,22 @@ func (n *node_t) min_children() int {
 	}
 
 	if n.Type&inner_node_type > 0 {
-		return B / 2
+		return order / 2
 	}
 
 	if n.Type&leaf_node_type > 0 {
-		return B / 2
+		return order / 2
 	}
 
 	panic("not reached")
 }
 
-func (n *node_t) has_too_many_children() bool {
-	return len(n.Children) > n.max_children()
+func (n *node_t) has_too_many_children(order int) bool {
+	return len(n.Children) > n.max_children(order)
 }
 
-func (n *node_t) has_too_few_children() bool {
-	return len(n.Children) < n.min_children()
+func (n *node_t) has_too_few_children(order int) bool {
+	return len(n.Children) < n.min_children(order)
 }
 
 func (n *node_t) get(key []byte) (ref *ref_t, err error) {

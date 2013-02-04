@@ -343,7 +343,7 @@ func (deb *debugger) string() string {
 // if non-negative, identifies what the value should be.
 func (deb *debugger) delta(expect int) int {
 	delta := int(deb.uint64())
-	if delta < 0 || (expect >= 0 && delta != expect) {
+	if delta < 0 || expect >= 0 && delta != expect {
 		errorf("decode: corrupted type: delta %d expected %d", delta, expect)
 	}
 	return delta

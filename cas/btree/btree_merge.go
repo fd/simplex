@@ -1,15 +1,15 @@
 package btree
 
-func merge(dst, src *node_t, placeholder_key []byte) bool {
+func merge(dst, src *node_t, placeholder_key []byte, order int) bool {
 	if dst == nil || src == nil {
 		return false
 	}
 
-	if dst.min_children() < len(dst.Children) {
+	if dst.min_children(order) < len(dst.Children) {
 		return false
 	}
 
-	if src.min_children() < len(src.Children) {
+	if src.min_children(order) < len(src.Children) {
 		return false
 	}
 
@@ -25,9 +25,14 @@ func merge(dst, src *node_t, placeholder_key []byte) bool {
 		src_children_n = len(src_children)
 	)
 
-	dst_keys = dst_keys[:dst_keys_n+src_keys_n+1]
-	dst_keys[dst_keys_n] = placeholder_key
-	copy(dst_keys[dst_keys_n+1:], src_keys)
+	if dst.Type&leaf_node_type > 0 {
+		dst_keys = dst_keys[:dst_keys_n+src_keys_n]
+		copy(dst_keys[dst_keys_n:], src_keys)
+	} else {
+		dst_keys = dst_keys[:dst_keys_n+src_keys_n+1]
+		dst_keys[dst_keys_n] = placeholder_key
+		copy(dst_keys[dst_keys_n+1:], src_keys)
+	}
 
 	dst_children = dst_children[:dst_children_n+src_children_n]
 	copy(dst_children[dst_children_n:], src_children)

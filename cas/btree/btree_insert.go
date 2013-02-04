@@ -1,7 +1,7 @@
 package btree
 
-func (n *node_t) insert_ref(collated_key []byte, next_ref *ref_t) (prev *ref_t, new_root *node_t, err error) {
-	prev_ref, split_key, right_ref, err := n.insert_ref_inner(collated_key, next_ref)
+func (n *node_t) insert_ref(collated_key []byte, next_ref *ref_t, order int) (prev *ref_t, new_root *node_t, err error) {
+	prev_ref, split_key, right_ref, err := n.insert_ref_inner(collated_key, next_ref, order)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -19,8 +19,8 @@ func (n *node_t) insert_ref(collated_key []byte, next_ref *ref_t) (prev *ref_t, 
 
 		new_root = &node_t{
 			Type:         root_node_type,
-			CollatedKeys: make([][]byte, 1, B),
-			Children:     make([]*ref_t, 2, B+1),
+			CollatedKeys: make([][]byte, 1, order),
+			Children:     make([]*ref_t, 2, order+1),
 			store:        left_node.store,
 			parent:       nil,
 			changed:      true,
@@ -58,7 +58,7 @@ func (n *node_t) insert_ref(collated_key []byte, next_ref *ref_t) (prev *ref_t, 
 	return
 }
 
-func (n *node_t) insert_ref_inner(collated_key []byte, next_ref *ref_t) (prev *ref_t, split_key []byte, right_ref *ref_t, err error) {
+func (n *node_t) insert_ref_inner(collated_key []byte, next_ref *ref_t, order int) (prev *ref_t, split_key []byte, right_ref *ref_t, err error) {
 
 	key_idx, ref_idx, ref := n.search_ref(collated_key)
 
@@ -76,8 +76,8 @@ func (n *node_t) insert_ref_inner(collated_key []byte, next_ref *ref_t) (prev *r
 
 		// must insert
 		if ref == nil {
-			n.insert_collated_key(key_idx, collated_key)
-			n.insert_child_ref(ref_idx, next_ref)
+			n.insert_collated_key(key_idx, collated_key, order)
+			n.insert_child_ref(ref_idx, next_ref, order)
 		}
 
 	}
@@ -92,7 +92,7 @@ func (n *node_t) insert_ref_inner(collated_key []byte, next_ref *ref_t) (prev *r
 				return nil, nil, nil, err
 			}
 
-			ch_prev, ch_split_key, ch_right_ref, err := child_node.insert_ref_inner(collated_key, next_ref)
+			ch_prev, ch_split_key, ch_right_ref, err := child_node.insert_ref_inner(collated_key, next_ref, order)
 			if err != nil {
 				return nil, nil, nil, err
 			}
@@ -107,8 +107,8 @@ func (n *node_t) insert_ref_inner(collated_key []byte, next_ref *ref_t) (prev *r
 			if ch_split_key != nil && ch_right_ref != nil {
 				key_idx, ref_idx, _ := n.search_ref(ch_split_key)
 
-				n.insert_collated_key(key_idx+1, ch_split_key)
-				n.insert_child_ref(ref_idx+1, ch_right_ref)
+				n.insert_collated_key(key_idx+1, ch_split_key, order)
+				n.insert_child_ref(ref_idx+1, ch_right_ref, order)
 			}
 
 		}
@@ -121,15 +121,15 @@ func (n *node_t) insert_ref_inner(collated_key []byte, next_ref *ref_t) (prev *r
 	}
 
 	// do we need to split this node
-	if n.has_too_many_children() {
+	if n.has_too_many_children(order) {
 
 		// find the split idx :: floor(len(keys) / 2)
 		split_idx := len(n.CollatedKeys) / 2
 
 		right_node := &node_t{
 			Type:         n.Type,
-			CollatedKeys: make([][]byte, 0, B),
-			Children:     make([]*ref_t, 0, B+1),
+			CollatedKeys: make([][]byte, 0, order),
+			Children:     make([]*ref_t, 0, order+1),
 			store:        n.store,
 			parent:       n.parent,
 			changed:      true,
@@ -183,11 +183,11 @@ func (n *node_t) insert_ref_inner(collated_key []byte, next_ref *ref_t) (prev *r
 	return
 }
 
-func (n *node_t) insert_collated_key(key_idx int, collated_key []byte) {
+func (n *node_t) insert_collated_key(key_idx int, collated_key []byte, order int) {
 	collated_keys := n.CollatedKeys
 
 	// make sure we have enough space (B - 1) + 1 (1 extra for insert/split)
-	capacity := B
+	capacity := order
 	if cap(collated_keys) < capacity {
 		collated_keys = make([][]byte, len(n.CollatedKeys), capacity)
 		copy(collated_keys, n.CollatedKeys)
@@ -210,11 +210,11 @@ func (n *node_t) insert_collated_key(key_idx int, collated_key []byte) {
 	n.CollatedKeys = collated_keys
 }
 
-func (n *node_t) insert_child_ref(ref_idx int, ref *ref_t) {
+func (n *node_t) insert_child_ref(ref_idx int, ref *ref_t, order int) {
 	children := n.Children
 
 	// make sure we have enough space (B - 1) + 1 (1 extra for insert/split)
-	capacity := B + 1
+	capacity := order + 1
 	if n.Type&leaf_node_type > 0 {
 		capacity -= 1
 	}
