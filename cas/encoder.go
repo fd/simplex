@@ -4,29 +4,53 @@ import (
 	"bytes"
 	"compress/zlib"
 	"crypto/sha1"
+	"github.com/fd/simplex/data/blob"
 	"hash"
 	"io"
+	"reflect"
 )
 
 const OVERFLOW_TRIGGER = 40
 
 type Encoder struct {
-	Ref Ref
+	Addr Addr
 
 	err error
 
 	inbound_w io.Writer
 
-	outbound_c   io.Closer
+	outbound_c   Commiter
 	compressed_c io.Closer
 
 	uncompressed_b *bytes.Buffer
 	compressed_b   *bytes.Buffer
 
 	hash hash.Hash
+
+	blob_enc *blob.Encoder
 }
 
-func NewEncoder(outbound_w io.WriteCloser) *Encoder {
+func Encode(s GetterSetter, e interface{}) (Addr, error) {
+	enc := NewEncoder(s)
+
+	err := enc.Encode(e)
+	if err != nil {
+		return nil, err
+	}
+
+	err = enc.Close()
+	if err != nil {
+		return nil, err
+	}
+
+	return enc.Addr, nil
+}
+
+func NewEncoder(store GetterSetter) *Encoder {
+	outbound_w, err := store.Set()
+	if err != nil {
+		return &Encoder{err: err}
+	}
 
 	hash_w := sha1.New()
 
@@ -72,37 +96,56 @@ func (enc *Encoder) Close() error {
 
 	err := enc.compressed_c.Close()
 	if err != nil {
-		enc.outbound_c.Close()
-		return err
-	}
-
-	err = enc.outbound_c.Close()
-	if err != nil {
+		enc.outbound_c.Rollback()
 		return err
 	}
 
 	if enc.uncompressed_b.Len() <= OVERFLOW_TRIGGER {
 		b := make([]byte, 1+enc.uncompressed_b.Len())
-		b[0] = (1 << 0)
+		b[0] = byte(addr_kind__uncompressed_val)
 		copy(b[1:], enc.uncompressed_b.Bytes())
-		enc.Ref = Ref(b)
+		enc.Addr = Addr(b)
+		enc.outbound_c.Rollback()
 		return nil
 	}
 
 	if enc.compressed_b.Len() <= OVERFLOW_TRIGGER {
 		b := make([]byte, 1+enc.compressed_b.Len())
-		b[0] = (1 << 1)
+		b[0] = byte(addr_kind__compressed_val)
 		copy(b[1:], enc.compressed_b.Bytes())
-		enc.Ref = Ref(b)
+		enc.Addr = Addr(b)
+		enc.outbound_c.Rollback()
 		return nil
 	}
 
 	sum := enc.hash.Sum(nil)
 	b := make([]byte, 1+len(sum))
-	b[0] = (1 << 2)
+	b[0] = byte(addr_kind__sha)
 	copy(b[1:], sum)
-	enc.Ref = Ref(b)
+	enc.Addr = Addr(b)
+
+	err = enc.outbound_c.Commit(enc.Addr)
+	if err != nil {
+		return err
+	}
+
 	return nil
+}
+
+func (enc *Encoder) Encode(e interface{}) error {
+	if enc.blob_enc == nil {
+		enc.blob_enc = blob.NewEncoder(enc.inbound_w)
+	}
+
+	return enc.blob_enc.Encode(e)
+}
+
+func (enc *Encoder) EncodeValue(e reflect.Value) error {
+	if enc.blob_enc == nil {
+		enc.blob_enc = blob.NewEncoder(enc.inbound_w)
+	}
+
+	return enc.blob_enc.EncodeValue(e)
 }
 
 type overflow_writer struct {
