@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"compress/zlib"
 	"crypto/sha1"
-	"github.com/fd/simplex/data/blob"
+	"github.com/fd/simplex/cas/blob"
 	"hash"
 	"io"
 	"reflect"

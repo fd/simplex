@@ -3,7 +3,7 @@ package cas
 import (
 	"bytes"
 	"compress/zlib"
-	"github.com/fd/simplex/data/blob"
+	"github.com/fd/simplex/cas/blob"
 	"io"
 	"io/ioutil"
 	"reflect"

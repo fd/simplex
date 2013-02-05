@@ -20,7 +20,7 @@ func (n *node_t) remove_ref_from_inner(collated_key []byte, order int, store cas
 	}
 
 	// find the middle node
-	middle_node, err := middle_ref.load_node(store, n)
+	middle_node, err := middle_ref.load_node(store)
 	if err != nil {
 		return nil, err
 	}
@@ -53,7 +53,7 @@ func (n *node_t) remove_ref_from_inner(collated_key []byte, order int, store cas
 
 		if ref_idx > 0 {
 			left_ref = n.Children[ref_idx-1]
-			left_node, err = left_ref.load_node(store, n)
+			left_node, err = left_ref.load_node(store)
 			if err != nil {
 				return nil, err
 			}
@@ -76,7 +76,7 @@ func (n *node_t) remove_ref_from_inner(collated_key []byte, order int, store cas
 
 		if ref_idx+1 < len(n.Children) {
 			right_ref = n.Children[ref_idx+1]
-			right_node, err = right_ref.load_node(store, n)
+			right_node, err = right_ref.load_node(store)
 			if err != nil {
 				return nil, err
 			}

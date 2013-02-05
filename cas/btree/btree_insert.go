@@ -89,7 +89,7 @@ func (n *node_t) insert_ref_into_inner(collated_key []byte, next_ref *ref_t, ord
 		panic("ref should never be nil for inner nodes")
 	}
 
-	child_node, err := ref.load_node(store, n)
+	child_node, err := ref.load_node(store)
 	if err != nil {
 		return nil, err
 	}

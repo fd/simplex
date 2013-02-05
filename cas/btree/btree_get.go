@@ -18,7 +18,7 @@ func (n *node_t) get(key []byte, store cas.GetterSetter) (ref *ref_t, err error)
 		return nil, nil
 	}
 
-	n, err = ref.load_node(store, n)
+	n, err = ref.load_node(store)
 	if err != nil {
 		return nil, err
 	}
@@ -39,7 +39,7 @@ func (n *node_t) get_at(idx uint64, store cas.GetterSetter) (ref *ref_t, err err
 		l := ref.Len
 
 		if l > idx {
-			n, err = ref.load_node(store, n)
+			n, err = ref.load_node(store)
 			if err != nil {
 				return nil, err
 			}
