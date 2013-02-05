@@ -1,7 +1,7 @@
 package runtime
 
 import (
-	"github.com/fd/simplex/data/storage"
+	"github.com/fd/simplex/cas"
 )
 
 func DeclareTable(name string) Deferred {

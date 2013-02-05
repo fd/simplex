@@ -1,7 +1,7 @@
 package runtime
 
 import (
-	"github.com/fd/simplex/data/storage"
+	"github.com/fd/simplex/cas"
 	"os"
 	"os/signal"
 	"sort"
@@ -15,7 +15,7 @@ type (
 		tables    map[string]Table
 		terminals []Terminal
 		services  []Service
-		store     *storage.S
+		store     cas.Store
 	}
 
 	Terminal interface {
@@ -103,11 +103,11 @@ func (env *Environment) Tables() []string {
 	return names
 }
 
-func (env *Environment) Store() *storage.S {
+func (env *Environment) Store() cas.Store {
 	return env.store
 }
 
-func (env *Environment) LoadTable(sha SHA) *InternalTable {
+func (env *Environment) LoadTable(addr cas.Addr) *InternalTable {
 	var kv KeyValue
 
 	if !env.store.Get(storage.SHA(sha), &kv) {
@@ -124,11 +124,11 @@ func (env *Environment) LoadTable(sha SHA) *InternalTable {
 	return table
 }
 
-func (env *Environment) GetCurrentTransaction() (storage.SHA, bool) {
+func (env *Environment) GetCurrentTransaction() (cas.Addr, bool) {
 	return env.store.GetEntry()
 }
 
-func (env *Environment) SetCurrentTransaction(curr, prev storage.SHA) {
+func (env *Environment) SetCurrentTransaction(curr, prev cas.Addr) {
 	// conditional atomic ...
 	env.store.SetEntry(curr)
 }

@@ -2,7 +2,7 @@ package runtime
 
 import (
 	"fmt"
-	"github.com/fd/simplex/data/storage"
+	"github.com/fd/simplex/cas"
 	"time"
 )
 

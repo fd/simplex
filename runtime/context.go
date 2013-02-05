@@ -1,7 +1,7 @@
 package runtime
 
 import (
-	"github.com/fd/simplex/data/storage"
+	"github.com/fd/simplex/cas"
 	"reflect"
 )
 
@@ -9,17 +9,21 @@ type Context struct {
 	txn *Transaction
 }
 
-func (ctx *Context) Load(sha SHA, val interface{}) {
-	if !ctx.txn.env.store.Get(storage.SHA(sha), val) {
-		panic("corrupted data store")
+func (ctx *Context) Load(addr cas.Addr, val interface{}) {
+	if err := cas.Decode(ctx.txn.env.store, addr, val); err != nil {
+		panic("cas: " + err.Error())
 	}
 }
-func (ctx *Context) LoadValue(sha SHA, val reflect.Value) {
-	if !ctx.txn.env.store.GetValue(storage.SHA(sha), val) {
-		panic("corrupted data store")
+func (ctx *Context) LoadValue(addr cas.Addr, val reflect.Value) {
+	if err := cas.DecodeValue(ctx.txn.env.store, addr, val); err != nil {
+		panic("cas: " + err.Error())
 	}
 }
 
-func (ctx *Context) Save(val interface{}) SHA {
-	return SHA(ctx.txn.env.store.Set(val))
+func (ctx *Context) Save(val interface{}) cas.Addr {
+	addr, err := cas.Encode(ctx.txn.env.store, val)
+	if err != nil {
+		panic("cas: " + err.Error())
+	}
+	return addr
 }

@@ -2,17 +2,17 @@ package runtime
 
 import (
 	"bytes"
-	s "github.com/fd/simplex/data/storage"
-	t "github.com/fd/simplex/data/trie/storage"
+	"github.com/fd/simplex/cas"
+	"github.com/fd/simplex/cas/btree"
 )
 
 type InternalTable struct {
-	Sha  s.SHA
+	Addr cas.Addr
 	Name string
 
 	env  *Environment
 	txn  *Transaction
-	trie t.T
+	tree *btree.Tree
 }
 
 type Iterator interface {

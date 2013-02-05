@@ -1,7 +1,7 @@
 SX='./ast/...' './build/...' './cmd/...' './compiler/...' \
-	 './data/...' './doc/...' './format/...' \
-	 './parser/...'  './printer/...' './scanner/...' './token/...' \
-	 './types/...'
+	 './doc/...' './format/...' './parser/...'  './printer/...' \
+	 './scanner/...' './token/...' './types/...' \
+	 './cas/...' './runtime/...'
 
 all: commands
 

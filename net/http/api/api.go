@@ -4,7 +4,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"github.com/fd/simplex/data/storage"
+	"github.com/fd/simplex/cas"
 	"github.com/fd/simplex/runtime"
 	"net/http"
 	"reflect"

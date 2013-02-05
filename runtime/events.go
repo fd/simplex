@@ -2,7 +2,7 @@ package runtime
 
 import (
 	"fmt"
-	"github.com/fd/simplex/data/storage"
+	"github.com/fd/simplex/cas"
 )
 
 type (
@@ -36,8 +36,8 @@ type (
 	// b is ZeroSHA when remove the key
 	ev_CHANGE struct {
 		table string
-		a     storage.SHA
-		b     storage.SHA
+		a     cas.Addr
+		b     cas.Addr
 	}
 
 	// a unit of progres from a -> b
@@ -46,8 +46,8 @@ type (
 	// b is ZeroSHA when remove the table
 	EvConsistent struct {
 		Table string
-		A     storage.SHA
-		B     storage.SHA
+		A     cas.Addr
+		B     cas.Addr
 	}
 )
 

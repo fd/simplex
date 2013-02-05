@@ -1,11 +1,8 @@
 package runtime
 
 import (
-	"github.com/fd/simplex/data/storage"
 	"reflect"
 )
-
-type SHA storage.SHA
 
 type Deferred interface {
 	DeferredId() string
