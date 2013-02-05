@@ -2,6 +2,7 @@ package runtime
 
 import (
 	"github.com/fd/simplex/cas"
+	"github.com/fd/simplex/cas/btree"
 	"os"
 	"os/signal"
 	"sort"
@@ -12,10 +13,11 @@ var Env *Environment
 
 type (
 	Environment struct {
+		Store cas.Store
+
 		tables    map[string]Table
 		terminals []Terminal
 		services  []Service
-		store     cas.Store
 	}
 
 	Terminal interface {
@@ -33,16 +35,6 @@ func init() {
 	Env = &Environment{
 		tables: map[string]Table{},
 	}
-}
-
-func (env *Environment) ConnectToStorage(url string) error {
-	s, err := storage.New(url)
-	if err != nil {
-		return err
-	}
-
-	env.store = s
-	return nil
 }
 
 func (env *Environment) Start() error {
@@ -103,32 +95,19 @@ func (env *Environment) Tables() []string {
 	return names
 }
 
-func (env *Environment) Store() cas.Store {
-	return env.store
-}
-
-func (env *Environment) LoadTable(addr cas.Addr) *InternalTable {
-	var kv KeyValue
-
-	if !env.store.Get(storage.SHA(sha), &kv) {
-		panic("corrupt")
+func (env *Environment) LoadTable(addr cas.Addr) *btree.Tree {
+	tree, err := btree.Open(env.Store, addr)
+	if err != nil {
+		panic("runtime: " + err.Error())
 	}
-
-	table := &InternalTable{}
-	if !env.store.Get(kv.ValueSha, &table) {
-		panic("corrupt")
-	}
-
-	table.env = env
-	table.setup()
-	return table
+	return tree
 }
 
 func (env *Environment) GetCurrentTransaction() (cas.Addr, bool) {
-	return env.store.GetEntry()
+	return env.Store.GetEntry()
 }
 
 func (env *Environment) SetCurrentTransaction(curr, prev cas.Addr) {
 	// conditional atomic ...
-	env.store.SetEntry(curr)
+	env.Store.SetEntry(curr)
 }

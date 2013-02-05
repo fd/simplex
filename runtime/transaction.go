@@ -3,6 +3,7 @@ package runtime
 import (
 	"fmt"
 	"github.com/fd/simplex/cas"
+	"github.com/fd/simplex/cas/btree"
 	"time"
 )
 
@@ -14,8 +15,8 @@ type (
 		pool    *worker_pool_t
 
 		// parent transaction
-		Parent storage.SHA
-		Tables *InternalTable
+		Parent cas.Addr
+		Tables *btree.Tree
 	}
 
 	ChangeKind uint
@@ -24,7 +25,7 @@ type (
 		Kind  ChangeKind
 		Table string
 		Key   interface{}
-		Value interface{}
+		Elt   interface{}
 	}
 )
 
@@ -102,17 +103,45 @@ func (txn *Transaction) Commit() {
 	txn.env.SetCurrentTransaction(txn_sha, txn.Parent)
 }
 
-func (txn *Transaction) GetTable(name string) *InternalTable {
-	table := &InternalTable{}
-
-	ok := txn.Tables.Get(name, table)
-	if !ok {
-		table.Name = name
+func (txn *Transaction) GetTable(name string) *btree.Tree {
+	_, elt_addr, err := txn.Tables.Get(cas.Collate(name))
+	if cas.IsNotFound(err) {
+		return btree.New(txn.env.Store)
+	}
+	if err != nil {
+		panic("runtime: " + err.Error())
 	}
 
-	table.txn = txn
-	table.setup()
-	return table
+	return txn.env.GetTable(elt_addr)
+}
+
+func (txn *Transaction) CommitTable(name string, tree *btree.Tree) (prev, curr cas.Addr) {
+	var (
+		key_coll      []byte
+		key_addr      cas.Addr
+		elt_addr      cas.Addr
+		prev_elt_addr cas.Addr
+		err           error
+	)
+
+	key_coll = cas.Collate(name)
+
+	key_addr, err = cas.Encode(txn.env.Store, name)
+	if err != nil {
+		panic("runtime: " + err.Error())
+	}
+
+	elt_addr, err = tree.Commit()
+	if err != nil {
+		panic("runtime: " + err.Error())
+	}
+
+	_, prev_elt_addr, err = txn.Tables.Set(cas.Collate(name), elt_addr)
+	if err != nil {
+		panic("runtime: " + err.Error())
+	}
+
+	return prev_elt_addr, elt_addr
 }
 
 func (txn *Transaction) Resolve(def Deferred) <-chan Event {

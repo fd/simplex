@@ -3,6 +3,7 @@ package runtime
 import (
 	"fmt"
 	"github.com/fd/simplex/cas"
+	"github.com/fd/simplex/cas/btree"
 )
 
 type (
@@ -36,6 +37,7 @@ type (
 	// b is ZeroSHA when remove the key
 	ev_CHANGE struct {
 		table string
+		key   cas.Addr
 		a     cas.Addr
 		b     cas.Addr
 	}
@@ -63,36 +65,10 @@ func (e *ev_DONE_worker) String() string {
 	return "DONE(" + e.w.String() + ")"
 }
 
-func (e *EvConsistent) GetTableA(txn *Transaction) *InternalTable {
-	var kv KeyValue
-	if !txn.env.store.Get(e.A, &kv) {
-		panic("corrupt")
-	}
-
-	table := &InternalTable{}
-	if !txn.env.store.Get(kv.ValueSha, &table) {
-		panic("corrupt")
-	}
-
-	table.txn = txn
-	table.setup()
-
-	return table
+func (e *EvConsistent) GetTableA(txn *Transaction) *btree.Tree {
+	return txn.env.LoadTable(e.A)
 }
 
-func (e *EvConsistent) GetTableB(txn *Transaction) *InternalTable {
-	var kv KeyValue
-	if !txn.env.store.Get(e.B, &kv) {
-		panic("corrupt")
-	}
-
-	table := &InternalTable{}
-	if !txn.env.store.Get(kv.ValueSha, &table) {
-		panic("corrupt")
-	}
-
-	table.txn = txn
-	table.setup()
-
-	return table
+func (e *EvConsistent) GetTableB(txn *Transaction) *btree.Tree {
+	return txn.env.LoadTable(e.B)
 }

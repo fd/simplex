@@ -33,6 +33,22 @@ func Decode(s GetterSetter, addr Addr, e interface{}) error {
 	return nil
 }
 
+func DecodeValue(s GetterSetter, addr Addr, e reflect.Value) error {
+	dec := NewDecoder(s, addr)
+
+	err := dec.DecodeValue(e)
+	if err != nil {
+		return err
+	}
+
+	err = dec.Close()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func NewDecoder(s GetterSetter, addr Addr) *Decoder {
 	var (
 		err error

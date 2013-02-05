@@ -2,6 +2,7 @@ package runtime
 
 import (
 	"fmt"
+	"github.com/fd/simplex/cas"
 	"reflect"
 )
 
@@ -26,29 +27,51 @@ func (t *dump_terminal) Resolve(txn *Transaction, events chan<- Event) {
 			continue
 		}
 
-		table := event.GetTableB(txn)
-		iter := table.Iter()
+		var (
+			table   = event.GetTableB(txn)
+			iter    = table.Iter()
+			keyed   bool
+			key_typ reflect.Type
+		)
+
+		if kv, ok := t.view.(KeyedView); ok {
+			keyed = true
+			key_typ = kv.KeyType()
+		}
 
 		for {
-			sha, done := iter.Next()
-			if done {
+			key_addr, elt_addr, err := iter.Next()
+			if cas.IsNotFound(err) {
 				break
+			}
+			if err != nil {
+				panic("runtime: " + err.Error())
 			}
 
 			var (
-				kv    KeyValue
-				value reflect.Value
+				key reflect.Value
+				elt reflect.Value
 			)
-			if !txn.env.store.Get(sha, &kv) {
-				panic("corrupt")
+
+			if keyed {
+				key = reflect.New(key_typ)
+				err = cas.DecodeValue(txn.env.Store, key_addr, key)
+				if err != nil {
+					panic("runtime: " + err.Error())
+				}
 			}
 
-			value = reflect.New(t.view.EltType())
-			if !txn.env.store.GetValue(kv.ValueSha, value) {
-				panic("corrupt")
+			elt = reflect.New(t.view.EltType())
+			err = cas.DecodeValue(txn.env.Store, elt_addr, elt)
+			if err != nil {
+				panic("runtime: " + err.Error())
 			}
 
-			fmt.Printf("V: `%s` %+v\n", kv.KeyCompare, value.Interface())
+			if keyed {
+				fmt.Printf("V: %+v %+v\n", key.Interface(), elt.Interface())
+			} else {
+				fmt.Printf("V: %+v\n", elt.Interface())
+			}
 		}
 	}
 }

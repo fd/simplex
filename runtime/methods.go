@@ -94,7 +94,7 @@ type (
 		name string
 	}
 
-	select_func func(*Context, SHA) bool
+	select_func func(*Context, cas.Addr) bool
 	select_op   struct {
 		name string
 		src  IndexedView
@@ -108,28 +108,28 @@ type (
 		fun  reject_func
 	}
 
-	collect_func func(*Context, SHA) SHA
+	collect_func func(*Context, cas.Addr) cas.Addr
 	collect_op   struct {
 		name string
 		src  IndexedView
 		fun  collect_func
 	}
 
-	group_func func(*Context, SHA) SHA
+	group_func func(*Context, cas.Addr) cas.Addr
 	group_op   struct {
 		name string
 		src  IndexedView
 		fun  group_func
 	}
 
-	index_func func(*Context, SHA) SHA
+	index_func func(*Context, cas.Addr) cas.Addr
 	index_op   struct {
 		name string
 		src  IndexedView
 		fun  index_func
 	}
 
-	sort_func func(*Context, SHA) SHA
+	sort_func func(*Context, cas.Addr) cas.Addr
 	sort_op   struct {
 		name string
 		src  IndexedView
@@ -155,29 +155,59 @@ func (op *table_op) Resolve(txn *Transaction, events chan<- Event) {
 
 		switch change.Kind {
 		case SET:
-			kv := KeyValue{
-				KeyCompare: consistent_rep(change.Key),
-				ValueSha:   txn.env.store.Set(change.Value),
+			var (
+				key_coll      []byte
+				key_addr      cas.Addr
+				elt_addr      cas.Addr
+				prev_elt_addr cas.Addr
+				err           error
+			)
+
+			key_coll = cas.Collate(change.Key)
+
+			key_addr, err = cas.Encode(txn.env.Store, change.Key)
+			if err != nil {
+				panic("runtime: " + err.Error())
 			}
-			old_kv_sha, new_kv_sha, changed := table.Set(&kv)
-			if changed {
-				events <- &ev_CHANGE{op.name, old_kv_sha, new_kv_sha}
+
+			elt_addr, err = cas.Encode(txn.env.Store, change.Elt)
+			if err != nil {
+				panic("runtime: " + err.Error())
+			}
+
+			prev_elt_addr, err = table.Set(key_coll, key_addr, elt_addr)
+			if err != nil {
+				panic("runtime: " + err.Error())
+			}
+
+			if cas.CompareAddr(prev_elt_addr, elt_addr) != 0 {
+				events <- &ev_CHANGE{op.name, key_addr, prev_elt_addr, elt_addr}
 			}
 
 		case UNSET:
-			kv := KeyValue{
-				KeyCompare: consistent_rep(change.Key),
+			var (
+				key_coll []byte
+				key_addr cas.Addr
+				elt_addr cas.Addr
+				err      error
+			)
+
+			key_coll = cas.Collate(change.Key)
+
+			key_addr, elt_addr, err = table.Del(key_coll)
+			if err != nil {
+				panic("runtime: " + err.Error())
 			}
-			old_kv_sha, deleted := table.Del(&kv)
-			if deleted {
-				events <- &ev_CHANGE{op.name, old_kv_sha, storage.ZeroSHA}
+
+			if key_addr != nil || elt_addr != nil {
+				events <- &ev_CHANGE{op.name, key_addr, elt_addr, nil}
 			}
 
 		}
 	}
 
-	old_tab_sha, new_tab_sha, _ := table.Commit()
-	events <- &EvConsistent{op.name, old_tab_sha, new_tab_sha}
+	tab_addr_a, tab_addr_b := txn.CommitTable(op.name, table)
+	events <- &EvConsistent{op.name, tab_addr_a, tab_addr_b}
 }
 
 func (op *select_op) Resolve(txn *Transaction, events chan<- Event) {
