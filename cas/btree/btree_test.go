@@ -69,7 +69,7 @@ func TestBTree(t *testing.T) {
 	}
 }
 
-func hTestBTreeLarge(t *testing.T) {
+func TestBTreeLarge(t *testing.T) {
 	s := memory.New()
 
 	foo, err := cas.Encode(s, "foo")
@@ -113,8 +113,8 @@ func hTestBTreeLarge(t *testing.T) {
 		}
 	}
 
-	if tree.Len() != uint64(C) {
-		t.Fatalf("expected tree.Len() to be %d but was %d", C, tree.Len())
+	if tree.Len != uint64(C) {
+		t.Fatalf("expected tree.Len() to be %d but was %d", C, tree.Len)
 	}
 }
 

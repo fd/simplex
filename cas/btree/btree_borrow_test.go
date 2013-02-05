@@ -159,7 +159,12 @@ func ExampleBtree_borrow_inner_reverse() {
 }
 
 func inner_node(nodes ...*node_t) *node_t {
-	keys := make([][]byte, len(nodes)-1, B)
+	l := 0
+	if len(nodes) >= 1 {
+		l = len(nodes) - 1
+	}
+
+	keys := make([][]byte, l, B)
 	refs := make([]*ref_t, len(nodes), B+1)
 
 	for i, node := range nodes {

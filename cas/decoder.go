@@ -17,6 +17,22 @@ type Decoder struct {
 	blob_dec *blob.Decoder
 }
 
+func Decode(s GetterSetter, addr Addr, e interface{}) error {
+	dec := NewDecoder(s, addr)
+
+	err := dec.Decode(e)
+	if err != nil {
+		return err
+	}
+
+	err = dec.Close()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func NewDecoder(s GetterSetter, addr Addr) *Decoder {
 	var (
 		err error

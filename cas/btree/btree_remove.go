@@ -1,54 +1,18 @@
 package btree
 
-func (n *node_t) remove_ref(collated_key []byte, order int) (prev *ref_t, err error) {
+import (
+	"github.com/fd/simplex/cas"
+)
 
-	key_idx, ref_idx, middle_ref := n.search_ref(collated_key)
-
+func (n *node_t) remove_ref(collated_key []byte, order int, store cas.GetterSetter) (prev *ref_t, err error) {
 	if n.Type&leaf_node_type > 0 {
-
-		// nothing is found
-		if middle_ref == nil {
-			return nil, nil
-		}
-
-		prev = middle_ref
-
-		{ // delete key
-			var (
-				length        = len(n.CollatedKeys)
-				collated_keys = n.CollatedKeys
-				right         = collated_keys[key_idx+1:]
-			)
-			if len(right) > 0 {
-				copy(collated_keys[key_idx:], right)
-			}
-			collated_keys = collated_keys[:length-1]
-			n.CollatedKeys = collated_keys
-		}
-
-		{ // delete ref
-			var (
-				length   = len(n.Children)
-				children = n.Children
-				right    = children[ref_idx+1:]
-			)
-			if len(right) > 0 {
-				copy(children[ref_idx:], right)
-			}
-			children = children[:length-1]
-			n.Children = children
-		}
-
-		// update Len
-		if n.ref != nil {
-			n.ref.Len = n.Len()
-		}
-
-		// mark as changed
-		n.changed = true
-
-		return
+		return n.remove_ref_from_leaf(collated_key, order)
 	}
+	return n.remove_ref_from_inner(collated_key, order, store)
+}
+
+func (n *node_t) remove_ref_from_inner(collated_key []byte, order int, store cas.GetterSetter) (prev *ref_t, err error) {
+	key_idx, ref_idx, middle_ref := n.search_ref(collated_key)
 
 	// fatal: no bucket found
 	if middle_ref == nil {
@@ -56,13 +20,13 @@ func (n *node_t) remove_ref(collated_key []byte, order int) (prev *ref_t, err er
 	}
 
 	// find the middle node
-	middle_node, err := middle_ref.load_node(n.store, n)
+	middle_node, err := middle_ref.load_node(store, n)
 	if err != nil {
 		return nil, err
 	}
 
 	// propagate delete
-	prev, err = middle_node.remove_ref(collated_key, order)
+	prev, err = middle_node.remove_ref(collated_key, order, store)
 	if err != nil {
 		return nil, err
 	}
@@ -89,7 +53,7 @@ func (n *node_t) remove_ref(collated_key []byte, order int) (prev *ref_t, err er
 
 		if ref_idx > 0 {
 			left_ref = n.Children[ref_idx-1]
-			left_node, err = left_ref.load_node(n.store, n)
+			left_node, err = left_ref.load_node(store, n)
 			if err != nil {
 				return nil, err
 			}
@@ -99,7 +63,7 @@ func (n *node_t) remove_ref(collated_key []byte, order int) (prev *ref_t, err er
 			left_key = n.CollatedKeys[key_idx]
 		}
 
-		if (key_idx + 1) < len(n.CollatedKeys) {
+		if key_idx+1 < len(n.CollatedKeys) {
 			right_key = n.CollatedKeys[key_idx+1]
 		}
 
@@ -112,7 +76,7 @@ func (n *node_t) remove_ref(collated_key []byte, order int) (prev *ref_t, err er
 
 		if ref_idx+1 < len(n.Children) {
 			right_ref = n.Children[ref_idx+1]
-			right_node, err = right_ref.load_node(n.store, n)
+			right_node, err = right_ref.load_node(store, n)
 			if err != nil {
 				return nil, err
 			}
@@ -128,12 +92,12 @@ func (n *node_t) remove_ref(collated_key []byte, order int) (prev *ref_t, err er
 		// attempt to merge siblings
 
 		if merge(left_node, middle_node, left_key, order) {
-			if (key_idx + 1) < len(n.CollatedKeys) {
+			if key_idx+1 < len(n.CollatedKeys) {
 				copy(n.CollatedKeys[key_idx:], n.CollatedKeys[key_idx+1:])
 			}
 			n.CollatedKeys = n.CollatedKeys[:len(n.CollatedKeys)-1]
 
-			if (ref_idx + 1) < len(n.Children) {
+			if ref_idx+1 < len(n.Children) {
 				copy(n.Children[ref_idx:], n.Children[ref_idx+1:])
 			}
 			n.Children = n.Children[:len(n.Children)-1]
@@ -143,12 +107,12 @@ func (n *node_t) remove_ref(collated_key []byte, order int) (prev *ref_t, err er
 		}
 
 		if merge(middle_node, right_node, right_key, order) {
-			if (key_idx + 2) < len(n.CollatedKeys) {
+			if key_idx+2 < len(n.CollatedKeys) {
 				copy(n.CollatedKeys[key_idx+1:], n.CollatedKeys[key_idx+2:])
 			}
 			n.CollatedKeys = n.CollatedKeys[:len(n.CollatedKeys)-1]
 
-			if (ref_idx + 2) < len(n.Children) {
+			if ref_idx+2 < len(n.Children) {
 				copy(n.Children[ref_idx+1:], n.Children[ref_idx+2:])
 			}
 			n.Children = n.Children[:len(n.Children)-1]
@@ -159,4 +123,51 @@ func (n *node_t) remove_ref(collated_key []byte, order int) (prev *ref_t, err er
 	}
 
 	return prev, nil
+}
+
+func (n *node_t) remove_ref_from_leaf(collated_key []byte, order int) (prev *ref_t, err error) {
+	key_idx, ref_idx, middle_ref := n.search_ref(collated_key)
+
+	// nothing is found
+	if middle_ref == nil {
+		return nil, nil
+	}
+
+	prev = middle_ref
+
+	{ // delete key
+		var (
+			length        = len(n.CollatedKeys)
+			collated_keys = n.CollatedKeys
+			right         = collated_keys[key_idx+1:]
+		)
+		if len(right) > 0 {
+			copy(collated_keys[key_idx:], right)
+		}
+		collated_keys = collated_keys[:length-1]
+		n.CollatedKeys = collated_keys
+	}
+
+	{ // delete ref
+		var (
+			length   = len(n.Children)
+			children = n.Children
+			right    = children[ref_idx+1:]
+		)
+		if len(right) > 0 {
+			copy(children[ref_idx:], right)
+		}
+		children = children[:length-1]
+		n.Children = children
+	}
+
+	// update Len
+	if n.ref != nil {
+		n.ref.Len = n.Len()
+	}
+
+	// mark as changed
+	n.changed = true
+
+	return
 }

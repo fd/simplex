@@ -7,7 +7,7 @@ import (
 func ExampleBtree_remove_leaf_first() {
 	n := leaf_node("A", "B", "C", "D")
 
-	n.remove_ref([]byte("A"), 5)
+	n.remove_ref([]byte("A"), 5, nil)
 
 	fmt.Printf("%+v\n", n)
 
@@ -24,7 +24,7 @@ func ExampleBtree_remove_leaf_first() {
 func ExampleBtree_remove_leaf_last() {
 	n := leaf_node("A", "B", "C", "D")
 
-	n.remove_ref([]byte("D"), 5)
+	n.remove_ref([]byte("D"), 5, nil)
 
 	fmt.Printf("%+v\n", n)
 
@@ -41,7 +41,7 @@ func ExampleBtree_remove_leaf_last() {
 func ExampleBtree_remove_leaf_middle() {
 	n := leaf_node("A", "B", "C", "D")
 
-	n.remove_ref([]byte("B"), 5)
+	n.remove_ref([]byte("B"), 5, nil)
 
 	fmt.Printf("%+v\n", n)
 
@@ -62,7 +62,7 @@ func ExampleBtree_remove_inner_borrow_left() {
 		leaf_node("F", "G", "H"),
 	)
 
-	n.remove_ref([]byte("D"), 5)
+	n.remove_ref([]byte("D"), 5, nil)
 
 	fmt.Printf("%+v\n", n)
 
@@ -96,7 +96,7 @@ func ExampleBtree_remove_inner_borrow_right() {
 		leaf_node("F", "G", "H"),
 	)
 
-	n.remove_ref([]byte("D"), 5)
+	n.remove_ref([]byte("D"), 5, nil)
 
 	fmt.Printf("%+v\n", n)
 
@@ -122,7 +122,7 @@ func ExampleBtree_remove_inner_merge_left() {
 		leaf_node("F", "G"),
 	)
 
-	n.remove_ref([]byte("F"), 5)
+	n.remove_ref([]byte("F"), 5, nil)
 
 	fmt.Printf("%+v\n", n)
 
@@ -144,7 +144,7 @@ func ExampleBtree_remove_inner_merge_right() {
 		leaf_node("F", "G"),
 	)
 
-	n.remove_ref([]byte("D"), 5)
+	n.remove_ref([]byte("D"), 5, nil)
 
 	fmt.Printf("%+v\n", n)
 

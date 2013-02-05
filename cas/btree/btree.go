@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"github.com/fd/simplex/cas"
-	"sort"
 	"strings"
 )
 
@@ -33,9 +32,7 @@ type (
 		CollatedKeys [][]byte
 		Children     []*ref_t
 
-		parent  *node_t
 		ref     *ref_t
-		store   cas.GetterSetter
 		changed bool
 	}
 
@@ -103,7 +100,7 @@ func (ref *ref_t) String() string {
 
 func (n *node_t) max_children(order int) int {
 	if n.Type&root_node_type > 0 && n.Type&leaf_node_type > 0 {
-		return order
+		return order - 1
 	}
 
 	if n.Type&root_node_type > 0 {
@@ -149,64 +146,7 @@ func (n *node_t) has_too_few_children(order int) bool {
 	return len(n.Children) < n.min_children(order)
 }
 
-func (n *node_t) get(key []byte) (ref *ref_t, err error) {
-	_, _, ref = n.search_ref(key)
-
-	if n.Type&leaf_node_type > 0 {
-		return ref, nil
-	}
-
-	if ref == nil {
-		return nil, nil
-	}
-
-	n, err = ref.load_node(n.store, n)
-	if err != nil {
-		return nil, err
-	}
-
-	return n.get(key)
-}
-
-func (n *node_t) search_ref(key []byte) (key_idx, ref_idx int, ref *ref_t) {
-
-	if len(n.CollatedKeys) == 0 {
-		return 0, 0, nil
-	}
-
-	// find ref idx
-	ref_idx = sort.Search(len(n.CollatedKeys), func(i int) bool {
-		return bytes.Compare(n.CollatedKeys[i], key) > 0
-	})
-
-	key_idx = ref_idx - 1
-
-	if n.Type&leaf_node_type > 0 {
-		ref_idx -= 1
-
-		if key_idx < 0 {
-			key_idx += 1
-			ref_idx += 1
-			ref = nil
-			return
-		}
-
-		if bytes.Compare(n.CollatedKeys[key_idx], key) < 0 {
-			key_idx += 1
-			ref_idx += 1
-			ref = nil
-			return
-		}
-	}
-
-	if ref_idx >= 0 && ref_idx < len(n.Children) {
-		ref = n.Children[ref_idx]
-	}
-
-	return
-}
-
-func (ref *ref_t) load_node(store cas.GetterSetter, parent *node_t) (*node_t, error) {
+func (ref *ref_t) load_node(store cas.GetterSetter) (*node_t, error) {
 	if ref.Flags&elt_is_set == 0 {
 		panic("corrupt btree ref")
 	}
@@ -228,9 +168,7 @@ func (ref *ref_t) load_node(store cas.GetterSetter, parent *node_t) (*node_t, er
 		return nil, err
 	}
 
-	node.parent = parent
 	node.ref = ref
-	node.store = store
 	ref.cache = node
 	return node, nil
 }
