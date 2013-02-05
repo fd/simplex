@@ -181,7 +181,7 @@ func (op *table_op) Resolve(txn *Transaction, events chan<- Event) {
 			}
 
 			if cas.CompareAddr(prev_elt_addr, elt_addr) != 0 {
-				events <- &ev_CHANGE{op.name, key_addr, prev_elt_addr, elt_addr}
+				events <- &ev_CHANGE{op.name, key_coll, key_addr, prev_elt_addr, elt_addr}
 			}
 
 		case UNSET:
@@ -200,7 +200,7 @@ func (op *table_op) Resolve(txn *Transaction, events chan<- Event) {
 			}
 
 			if key_addr != nil || elt_addr != nil {
-				events <- &ev_CHANGE{op.name, key_addr, elt_addr, nil}
+				events <- &ev_CHANGE{op.name, key_coll, key_addr, elt_addr, nil}
 			}
 
 		}
@@ -223,64 +223,58 @@ func (op *select_op) Resolve(txn *Transaction, events chan<- Event) {
 		}
 
 		var (
-			o_change = &ev_CHANGE{op.name, i_change.a, i_change.b}
-			kv_a     KeyValue
-			kv_b     KeyValue
+			o_change = &ev_CHANGE{op.name, i_change.collated_key, i_change.key, i_change.a, i_change.b}
 		)
 
-		if !o_change.a.IsZero() {
-			// lookup key/value
-			if !txn.env.store.Get(o_change.a, &kv_a) {
-				panic("corrupt data store")
-			}
-
-			if !op.fun(&Context{txn}, SHA(kv_a.ValueSha)) {
-				o_change.a = storage.ZeroSHA
+		if o_change.a != nil {
+			if !op.fun(&Context{txn}, o_change.a) {
+				o_change.a = nil
 			}
 		}
 
-		if !o_change.b.IsZero() {
-			// lookup key/value
-			if !txn.env.store.Get(o_change.b, &kv_b) {
-				panic("corrupt data store")
-			}
-
-			if !op.fun(&Context{txn}, SHA(kv_b.ValueSha)) {
-				o_change.b = storage.ZeroSHA
+		if o_change.b != nil {
+			if !op.fun(&Context{txn}, o_change.b) {
+				o_change.b = nil
 			}
 		}
 
 		// ignore unchanged data
-		if o_change.a.IsZero() && o_change.b.IsZero() {
+		if o_change.a == nil && o_change.b == nil {
 			continue
 		}
 
-		if !o_change.a.IsZero() {
+		if o_change.a != nil {
 			// remove kv from table
-			_, deleted := table.Del(&kv_a)
-			if !deleted {
-				o_change.a = storage.ZeroSHA
+			_, prev, err := table.Del(o_change.collated_key)
+			if err != nil {
+				panic("runtime: " + err.Error())
+			}
+			if prev != nil {
+				o_change.a = nil
 			}
 		}
 
-		if !o_change.b.IsZero() {
+		if o_change.b != nil {
 			// insert kv into table
-			_, _, changed := table.Set(&kv_b)
-			if !changed {
-				o_change.b = storage.ZeroSHA
+			prev, err := table.Set(o_change.collated_key, o_change.key, o_change.b)
+			if err != nil {
+				panic("runtime: " + err.Error())
+			}
+			if cas.CompareAddr(prev, o_change.b) == 0 {
+				o_change.b = nil
 			}
 		}
 
 		// ignore unchanged data
-		if o_change.a.IsZero() && o_change.b.IsZero() {
+		if o_change.a == nil && o_change.b == nil {
 			continue
 		}
 
 		events <- o_change
 	}
 
-	old_tab_sha, new_tab_sha, _ := table.Commit()
-	events <- &EvConsistent{op.name, old_tab_sha, new_tab_sha}
+	tab_addr_a, tab_addr_b := txn.CommitTable(op.name, table)
+	events <- &EvConsistent{op.name, tab_addr_a, tab_addr_b}
 }
 
 func (op *collect_op) Resolve(txn *Transaction, events chan<- Event) {
@@ -296,40 +290,34 @@ func (op *collect_op) Resolve(txn *Transaction, events chan<- Event) {
 		}
 
 		// removed
-		if i_change.b.IsZero() {
-			var kv_a KeyValue
-			// lookup key/value
-			if !txn.env.store.Get(i_change.a, &kv_a) {
-				panic("corrupt data store")
+		if i_change.b == nil {
+			prev_key_addr, prev_elt_addr, err := table.Del(i_change.collated_key)
+			if err != nil {
+				panic("runtime: " + err.Error())
 			}
 
-			if kv_sha, ok := table.GetKeyValueSHA(kv_a.KeyCompare); ok {
-				table.Del(&kv_a)
-				events <- &ev_CHANGE{op.name, kv_sha, storage.ZeroSHA}
+			if prev_key_addr != nil && prev_elt_addr != nil {
+				events <- &ev_CHANGE{op.name, i_change.collated_key, prev_key_addr, prev_elt_addr, nil}
 			}
 
 			continue
 		}
 
 		{ // added or updated
-			var kv_a, kv_b KeyValue
-			// lookup key/value
-			if !txn.env.store.Get(i_change.b, &kv_a) {
-				panic("corrupt data store")
+			curr_elt_addr := op.fun(&Context{txn}, i_change.b)
+
+			prev_elt_addr, err := table.Set(i_change.collated_key, i_change.key, curr_elt_addr)
+			if err != nil {
+				panic("runtime: " + err.Error())
 			}
-
-			kv_b.KeyCompare = kv_a.KeyCompare
-			kv_b.ValueSha = storage.SHA(op.fun(&Context{txn}, SHA(kv_a.ValueSha)))
-
-			prev_kv_sha, curr_kv_sha, changed := table.Set(&kv_b)
-			if changed {
-				events <- &ev_CHANGE{op.name, prev_kv_sha, curr_kv_sha}
+			if cas.CompareAddr(prev_elt_addr, curr_elt_addr) != 0 {
+				events <- &ev_CHANGE{op.name, i_change.collated_key, i_change.key, prev_elt_addr, curr_elt_addr}
 			}
 		}
 	}
 
-	old_tab_sha, new_tab_sha, _ := table.Commit()
-	events <- &EvConsistent{op.name, old_tab_sha, new_tab_sha}
+	tab_addr_a, tab_addr_b := txn.CommitTable(op.name, table)
+	events <- &EvConsistent{op.name, tab_addr_a, tab_addr_b}
 }
 
 func (op *reject_op) Resolve(txn *Transaction, events chan<- Event) {}

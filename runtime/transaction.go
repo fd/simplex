@@ -11,12 +11,13 @@ type (
 	Transaction struct {
 		env     *Environment
 		changes []*Change
+		tables  *btree.Tree
 		errors  []interface{}
 		pool    *worker_pool_t
 
 		// parent transaction
 		Parent cas.Addr
-		Tables *btree.Tree
+		Tables cas.Addr
 	}
 
 	ChangeKind uint
@@ -37,27 +38,35 @@ const (
 func (env *Environment) Transaction() *Transaction {
 	txn := &Transaction{env: env}
 
-	if tip_sha, ok := env.GetCurrentTransaction(); ok {
+	txn_addr, err := env.GetCurrentTransaction()
+	if cas.IsNotFound(err) {
+		err = nil
+	}
+	if err != nil {
+		panic("runtime: " + err.Error())
+	}
+	if txn_addr != nil {
 		var parent *Transaction
 
-		ok := env.store.Get(tip_sha, &parent)
-		if !ok {
-			panic("corrupted data store")
+		err := cas.Decode(env.Store, txn_addr, &parent)
+		if err != nil {
+			panic("runtime: " + err.Error())
 		}
 
 		// copy the *InternalTable structure
 		txn.Tables = parent.Tables
-		txn.Parent = tip_sha
+		txn.Parent = txn_addr
 	}
 
 	if txn.Tables == nil {
-		txn.Tables = &InternalTable{
-			Name: "_tables",
+		txn.tables = btree.New(txn.env.Store)
+	} else {
+		tables, err := btree.Open(env.Store, txn.Tables)
+		if err != nil {
+			panic("runtime: " + err.Error())
 		}
+		txn.tables = tables
 	}
-
-	txn.Tables.txn = txn
-	txn.Tables.setup()
 
 	return txn
 }
@@ -73,12 +82,12 @@ func (txn *Transaction) Unset(table Table, key interface{}) {
 }
 
 func (txn *Transaction) Commit() {
-	var txn_sha storage.SHA
+	var txn_addr cas.Addr
 	{
 		now := time.Now()
 		defer func() {
 			duration := time.Now().Sub(now)
-			fmt.Printf("[sha: %s, duration: %s]\n", txn_sha, duration)
+			fmt.Printf("[sha: %s, duration: %s]\n", txn_addr, duration)
 		}()
 	}
 
@@ -98,13 +107,25 @@ func (txn *Transaction) Commit() {
 	}
 
 	// commit the _tables table
-	txn.Tables.Commit()
-	txn_sha = txn.env.store.Set(&txn)
-	txn.env.SetCurrentTransaction(txn_sha, txn.Parent)
+	tables_addr, err := txn.tables.Commit()
+	if err != nil {
+		panic("runtime: " + err.Error())
+	}
+	txn.Tables = tables_addr
+
+	txn_addr, err = cas.Encode(txn.env.Store, &txn)
+	if err != nil {
+		panic("runtime: " + err.Error())
+	}
+
+	err = txn.env.SetCurrentTransaction(txn_addr, txn.Parent)
+	if err != nil {
+		panic("runtime: " + err.Error())
+	}
 }
 
 func (txn *Transaction) GetTable(name string) *btree.Tree {
-	_, elt_addr, err := txn.Tables.Get(cas.Collate(name))
+	_, elt_addr, err := txn.tables.Get(cas.Collate(name))
 	if cas.IsNotFound(err) {
 		return btree.New(txn.env.Store)
 	}
@@ -112,7 +133,12 @@ func (txn *Transaction) GetTable(name string) *btree.Tree {
 		panic("runtime: " + err.Error())
 	}
 
-	return txn.env.GetTable(elt_addr)
+	tree, err := btree.Open(txn.env.Store, elt_addr)
+	if err != nil {
+		panic("runtime: " + err.Error())
+	}
+
+	return tree
 }
 
 func (txn *Transaction) CommitTable(name string, tree *btree.Tree) (prev, curr cas.Addr) {
@@ -136,7 +162,7 @@ func (txn *Transaction) CommitTable(name string, tree *btree.Tree) (prev, curr c
 		panic("runtime: " + err.Error())
 	}
 
-	_, prev_elt_addr, err = txn.Tables.Set(cas.Collate(name), elt_addr)
+	prev_elt_addr, err = txn.tables.Set(key_coll, key_addr, elt_addr)
 	if err != nil {
 		panic("runtime: " + err.Error())
 	}

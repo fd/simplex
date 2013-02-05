@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/fd/simplex/cas"
+	"github.com/fd/simplex/cas/btree"
 	"github.com/fd/simplex/runtime"
 	"net/http"
 	"reflect"
@@ -19,7 +20,7 @@ type (
 		views  map[string]runtime.Deferred
 		routes map[string]string
 
-		ViewTables map[string]storage.SHA
+		ViewTables map[string]cas.Addr
 	}
 )
 
@@ -30,7 +31,7 @@ func New(env *runtime.Environment, name string) *API {
 		map[string]runtime.Table{},
 		map[string]runtime.Deferred{},
 		map[string]string{},
-		map[string]storage.SHA{},
+		map[string]cas.Addr{},
 	}
 
 	env.RegisterTerminal(api)
@@ -76,13 +77,13 @@ func (api *API) RegisterView(view runtime.IndexedView, route string) {
 
 	json_view := runtime.Collect(
 		view,
-		func(ctx *runtime.Context, m_sha runtime.SHA) runtime.SHA {
+		func(ctx *runtime.Context, m_addr cas.Addr) cas.Addr {
 			var m reflect.Value
 			m = reflect.New(view.EltType())
-			ctx.LoadValue(m_sha, m)
+			ctx.LoadValue(m_addr, m)
 
 			data, err := json.Marshal(map[string]interface{}{
-				"Vsn": hex.EncodeToString([]byte(m_sha[:])),
+				"Vsn": hex.EncodeToString([]byte(m_addr[:])),
 				"Obj": m.Interface(),
 			})
 			if err != nil {
@@ -124,7 +125,7 @@ func (api *API) Resolve(txn *runtime.Transaction, events chan<- runtime.Event) {
 		if strings.HasPrefix(event.Table, "API/FORMAT_JSON/") {
 			name := event.Table[len("API/FORMAT_JSON/"):]
 
-			if event.B.IsZero() {
+			if event.B == nil {
 				delete(api.ViewTables, name)
 			} else {
 				api.ViewTables[name] = event.B
@@ -166,24 +167,24 @@ func (api *API) ServeHTTP(w http.ResponseWriter, req *http.Request) {
   Should return the current transactions SHA.
 */
 func (api *API) handle_GET_info(w http.ResponseWriter, req *http.Request) {
-	txn_id, ok := api.env.GetCurrentTransaction()
-	if !ok {
-		panic("failed to get transaction id.")
+	txn_addr, err := api.env.GetCurrentTransaction()
+	if err != nil {
+		panic("net/http/api: " + err.Error())
 	}
 
 	resp := struct {
-		TransactionID string
+		Transaction string
 	}{
-		TransactionID: hex.EncodeToString([]byte(txn_id[:])),
+		Transaction: txn_addr.String(),
 	}
 
 	json.NewEncoder(w).Encode(resp)
 }
 
-func (api *API) handle_GET_view(w http.ResponseWriter, req *http.Request, sha storage.SHA) {
+func (api *API) handle_GET_view(w http.ResponseWriter, req *http.Request, addr cas.Addr) {
 	var (
-		table = runtime.Env.LoadTable(runtime.SHA(sha))
-		store = runtime.Env.Store()
+		table = runtime.Env.LoadTable(addr)
+		store = runtime.Env.Store
 		iter  = table.Iter()
 	)
 
@@ -194,22 +195,19 @@ func (api *API) handle_GET_view(w http.ResponseWriter, req *http.Request, sha st
 
 	first := true
 	for {
-		sha, done := iter.Next()
-		if done {
+		_, elt_addr, err := iter.Next()
+		if err == btree.EOI {
 			break
 		}
-
-		var (
-			kv  runtime.KeyValue
-			val []byte
-		)
-
-		if !store.Get(sha, &kv) {
-			panic("corrupt")
+		if err != nil {
+			panic("net/http/api: " + err.Error())
 		}
 
-		if !store.Get(kv.ValueSha, &val) {
-			panic("corrupt")
+		var elt []byte
+
+		err = cas.Decode(store, elt_addr, &elt)
+		if err != nil {
+			panic("net/http/api: " + err.Error())
 		}
 
 		format := ",\n%s"
@@ -218,7 +216,7 @@ func (api *API) handle_GET_view(w http.ResponseWriter, req *http.Request, sha st
 			format = "%s"
 		}
 
-		fmt.Fprintf(w, format, val)
+		fmt.Fprintf(w, format, elt)
 	}
 
 	w.Write([]byte("\n]\n"))

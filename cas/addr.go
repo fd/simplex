@@ -10,15 +10,10 @@ type Addr []byte
 type addr_kind byte
 
 const (
-	addr_kind__uncompressed_val addr_kind = 1 << iota
+	addr_kind__uncompressed_val addr_kind = iota
 	addr_kind__compressed_val
 	addr_kind__sha
-
-	reserved_3
-	reserved_4
-	reserved_5
-	reserved_6
-	reserved_7
+	addr_kind__ref
 )
 
 func (a Addr) String() string {

@@ -101,8 +101,8 @@ func (w *write_commiter) Rollback() error {
 
 func (s *store) path_for_addr(addr cas.Addr) string {
 	hex := addr.String()
-	a := hex[0:4]
-	b := hex[4:8]
-	c := hex[8:]
+	a := hex[0:2]
+	b := hex[2:4]
+	c := hex[4:]
 	return path.Join(s.root, "objects", a, b, c)
 }

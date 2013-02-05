@@ -36,10 +36,11 @@ type (
 	// a is ZeroSHA when adding the key
 	// b is ZeroSHA when remove the key
 	ev_CHANGE struct {
-		table string
-		key   cas.Addr
-		a     cas.Addr
-		b     cas.Addr
+		table        string
+		collated_key []byte
+		key          cas.Addr
+		a            cas.Addr
+		b            cas.Addr
 	}
 
 	// a unit of progres from a -> b

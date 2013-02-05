@@ -103,11 +103,10 @@ func (env *Environment) LoadTable(addr cas.Addr) *btree.Tree {
 	return tree
 }
 
-func (env *Environment) GetCurrentTransaction() (cas.Addr, bool) {
-	return env.Store.GetEntry()
+func (env *Environment) GetCurrentTransaction() (cas.Addr, error) {
+	return cas.GetRef(env.Store, "_main")
 }
 
-func (env *Environment) SetCurrentTransaction(curr, prev cas.Addr) {
-	// conditional atomic ...
-	env.Store.SetEntry(curr)
+func (env *Environment) SetCurrentTransaction(curr, prev cas.Addr) error {
+	return cas.SetRef(env.Store, "_main", curr)
 }
