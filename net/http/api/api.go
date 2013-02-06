@@ -20,7 +20,12 @@ type (
 		views  map[string]runtime.Deferred
 		routes map[string]string
 
-		ViewTables map[string]cas.Addr
+		ViewTables map[string]*table_handle
+	}
+
+	table_handle struct {
+		addr  cas.Addr
+		table *btree.Tree
 	}
 )
 
@@ -31,7 +36,7 @@ func New(env *runtime.Environment, name string) *API {
 		map[string]runtime.Table{},
 		map[string]runtime.Deferred{},
 		map[string]string{},
-		map[string]cas.Addr{},
+		map[string]*table_handle{},
 	}
 
 	env.RegisterTerminal(api)
@@ -128,7 +133,7 @@ func (api *API) Resolve(txn *runtime.Transaction, events chan<- runtime.Event) {
 			if event.B == nil {
 				delete(api.ViewTables, name)
 			} else {
-				api.ViewTables[name] = event.B
+				api.ViewTables[name] = &table_handle{addr: event.B}
 			}
 		}
 	}
@@ -145,8 +150,8 @@ func (api *API) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		}
 
 		if view_id, p := api.routes[req.URL.Path]; p {
-			if sha, p := api.ViewTables[view_id]; p {
-				api.handle_GET_view(w, req, sha)
+			if handle, p := api.ViewTables[view_id]; p {
+				api.handle_GET_view(w, req, handle)
 				return
 			}
 		}
@@ -181,12 +186,18 @@ func (api *API) handle_GET_info(w http.ResponseWriter, req *http.Request) {
 	json.NewEncoder(w).Encode(resp)
 }
 
-func (api *API) handle_GET_view(w http.ResponseWriter, req *http.Request, addr cas.Addr) {
+func (api *API) handle_GET_view(w http.ResponseWriter, req *http.Request, handle *table_handle) {
 	var (
-		table = runtime.Env.LoadTable(addr)
+		table = handle.table
 		store = runtime.Env.Store
-		iter  = table.Iter()
 	)
+
+	if table == nil {
+		table = runtime.Env.LoadTable(handle.addr)
+		handle.table = table
+	}
+
+	iter := table.Iter()
 
 	w.Header().Set("Content-Type", "text/json; charset=utf-8")
 
@@ -207,7 +218,7 @@ func (api *API) handle_GET_view(w http.ResponseWriter, req *http.Request, addr c
 
 		err = cas.Decode(store, elt_addr, &elt)
 		if err != nil {
-			panic("net/http/api: " + err.Error())
+			panic(fmt.Sprintf("net/http/api: (%+v) %s", elt_addr, err.Error()))
 		}
 
 		format := ",\n%s"

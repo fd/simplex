@@ -13,6 +13,7 @@ import (
 type Decoder struct {
 	err error
 
+	inbound_r  io.Closer
 	outbound_r io.ReadCloser
 
 	blob_dec *blob.Decoder
@@ -75,6 +76,7 @@ func NewDecoder(s GetterSetter, addr Addr) *Decoder {
 			dec.err = err
 			return dec
 		}
+		dec.inbound_r = r
 
 		r, err = zlib.NewReader(r)
 		if err != nil {
@@ -101,6 +103,10 @@ func (dec *Decoder) Read(p []byte) (n int, err error) {
 }
 
 func (dec *Decoder) Close() error {
+	if dec.inbound_r != nil {
+		dec.inbound_r.Close()
+	}
+
 	if dec.err != nil {
 		return dec.err
 	}
