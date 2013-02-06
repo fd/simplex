@@ -3,6 +3,7 @@ package cas
 import (
 	"bytes"
 	"compress/zlib"
+	"fmt"
 	"github.com/fd/simplex/cas/blob"
 	"io"
 	"io/ioutil"
@@ -54,6 +55,11 @@ func NewDecoder(s GetterSetter, addr Addr) *Decoder {
 		err error
 		dec = &Decoder{}
 	)
+
+	if len(addr) < 1 {
+		dec.err = fmt.Errorf("Cannot decode empty address.")
+		return dec
+	}
 
 	switch addr_kind(addr[0]) {
 

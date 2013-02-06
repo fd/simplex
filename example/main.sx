@@ -2,9 +2,7 @@ package main
 
 import (
 	"fmt"
-	_ "github.com/fd/simplex/data/storage/file_system"
-	_ "github.com/fd/simplex/data/storage/memory"
-	_ "github.com/fd/simplex/data/storage/redis"
+	"github.com/fd/simplex/cas/redis"
 	"github.com/fd/simplex/net/http"
 	"github.com/fd/simplex/runtime"
 	go_runtime "runtime"
@@ -20,7 +18,7 @@ func main() {
 	h := http.New(":3000")
 	h.Handle("/blog/", a)
 
-	runtime.Env.ConnectToStorage("redis://localhost:6379/")
+	runtime.Env.Store = redis.New("", 0, "")
 	runtime.Env.RegisterService(h)
 
 	for _, name := range runtime.Env.Tables() {
@@ -30,8 +28,8 @@ func main() {
 	go func() {
 		time.Sleep(5 * time.Second)
 		txn := runtime.Env.Transaction()
-		for i := 0; i < 1000; i++ {
-			txn.Set(posts, fmt.Sprintf("post-%d", i), Post{Title: fmt.Sprintf("Hello world (%d)", i)})
+		for i := 0; i < 10000; i++ {
+			txn.Set(posts, i, Post{Title: fmt.Sprintf("Hello world! (%d)", i)})
 		}
 		txn.Commit()
 	}()

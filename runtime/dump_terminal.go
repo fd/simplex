@@ -3,6 +3,7 @@ package runtime
 import (
 	"fmt"
 	"github.com/fd/simplex/cas"
+	"github.com/fd/simplex/cas/btree"
 	"reflect"
 )
 
@@ -41,7 +42,8 @@ func (t *dump_terminal) Resolve(txn *Transaction, events chan<- Event) {
 
 		for {
 			key_addr, elt_addr, err := iter.Next()
-			if cas.IsNotFound(err) {
+			if err == btree.EOI {
+				err = nil
 				break
 			}
 			if err != nil {

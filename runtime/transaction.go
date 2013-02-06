@@ -39,9 +39,6 @@ func (env *Environment) Transaction() *Transaction {
 	txn := &Transaction{env: env}
 
 	txn_addr, err := env.GetCurrentTransaction()
-	if cas.IsNotFound(err) {
-		err = nil
-	}
 	if err != nil {
 		panic("runtime: " + err.Error())
 	}
@@ -113,7 +110,8 @@ func (txn *Transaction) Commit() {
 	}
 	txn.Tables = tables_addr
 
-	txn_addr, err = cas.Encode(txn.env.Store, &txn)
+	// overflow trigger is 0; we always write a transaction
+	txn_addr, err = cas.Encode(txn.env.Store, &txn, 0)
 	if err != nil {
 		panic("runtime: " + err.Error())
 	}
@@ -126,11 +124,12 @@ func (txn *Transaction) Commit() {
 
 func (txn *Transaction) GetTable(name string) *btree.Tree {
 	_, elt_addr, err := txn.tables.Get(cas.Collate(name))
-	if cas.IsNotFound(err) {
-		return btree.New(txn.env.Store)
-	}
 	if err != nil {
 		panic("runtime: " + err.Error())
+	}
+
+	if elt_addr == nil {
+		return btree.New(txn.env.Store)
 	}
 
 	tree, err := btree.Open(txn.env.Store, elt_addr)
@@ -152,7 +151,7 @@ func (txn *Transaction) CommitTable(name string, tree *btree.Tree) (prev, curr c
 
 	key_coll = cas.Collate(name)
 
-	key_addr, err = cas.Encode(txn.env.Store, name)
+	key_addr, err = cas.Encode(txn.env.Store, name, -1)
 	if err != nil {
 		panic("runtime: " + err.Error())
 	}

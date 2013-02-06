@@ -104,7 +104,11 @@ func (env *Environment) LoadTable(addr cas.Addr) *btree.Tree {
 }
 
 func (env *Environment) GetCurrentTransaction() (cas.Addr, error) {
-	return cas.GetRef(env.Store, "_main")
+	addr, err := cas.GetRef(env.Store, "_main")
+	if cas.IsNotFound(err) {
+		return nil, nil
+	}
+	return addr, err
 }
 
 func (env *Environment) SetCurrentTransaction(curr, prev cas.Addr) error {

@@ -165,12 +165,12 @@ func (op *table_op) Resolve(txn *Transaction, events chan<- Event) {
 
 			key_coll = cas.Collate(change.Key)
 
-			key_addr, err = cas.Encode(txn.env.Store, change.Key)
+			key_addr, err = cas.Encode(txn.env.Store, change.Key, -1)
 			if err != nil {
 				panic("runtime: " + err.Error())
 			}
 
-			elt_addr, err = cas.Encode(txn.env.Store, change.Elt)
+			elt_addr, err = cas.Encode(txn.env.Store, change.Elt, -1)
 			if err != nil {
 				panic("runtime: " + err.Error())
 			}

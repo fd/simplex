@@ -21,7 +21,7 @@ func (ctx *Context) LoadValue(addr cas.Addr, val reflect.Value) {
 }
 
 func (ctx *Context) Save(val interface{}) cas.Addr {
-	addr, err := cas.Encode(ctx.txn.env.Store, val)
+	addr, err := cas.Encode(ctx.txn.env.Store, val, -1)
 	if err != nil {
 		panic("cas: " + err.Error())
 	}

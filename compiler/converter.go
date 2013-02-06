@@ -10,9 +10,13 @@ import (
 func (c *Context) convert_sx_to_go() error {
 
 	for _, name := range c.SxFiles {
-		file := c.AstFiles[name]
+		var (
+			file         = c.AstFiles[name]
+			runtime_name = ""
+			cas_name     = ""
+			cas_missing  bool
+		)
 
-		runtime_name := ""
 		for _, imp := range file.Imports {
 			if imp.Path.Value == `"github.com/fd/simplex/runtime"` {
 				if imp.Name == nil {
@@ -21,41 +25,65 @@ func (c *Context) convert_sx_to_go() error {
 					runtime_name = imp.Name.Name
 				}
 			}
+			if imp.Path.Value == `"github.com/fd/simplex/cas"` {
+				if imp.Name == nil {
+					cas_name = "cas"
+				} else {
+					cas_name = imp.Name.Name
+				}
+			}
 		}
 		if runtime_name == "" {
 			runtime_name = "sx_runtime"
-			imp := &ast.ImportSpec{
-				Name: ast.NewIdent("sx_runtime"),
-				Path: &ast.BasicLit{
-					Kind:  token.STRING,
-					Value: `"github.com/fd/simplex/runtime"`,
-				},
-			}
-			decl := &ast.GenDecl{
-				Tok:   token.IMPORT,
-				Specs: []ast.Spec{imp},
-			}
-			file.Decls = append([]ast.Decl{decl}, file.Decls...)
-			file.Imports = append(file.Imports, imp)
+			add_import(file, runtime_name, "github.com/fd/simplex/runtime")
+		}
+		if cas_name == "" {
+			cas_name = "sx_cas"
+			cas_missing = true
 		}
 
-		ast.Replace(&builtin_function_conv{
+		v := &builtin_function_conv{
 			c.NodeTypes,
 			c.FileSet,
 			runtime_name,
+			cas_name,
 			c.ImportPath,
-		}, file)
+			false,
+		}
+		ast.Replace(v, file)
+
+		if cas_missing && v.used_cas_import {
+			add_import(file, cas_name, "github.com/fd/simplex/cas")
+		}
 	}
 
 	return nil
 }
 
+func add_import(file *ast.File, name, path string) {
+	imp := &ast.ImportSpec{
+		Name: ast.NewIdent(name),
+		Path: &ast.BasicLit{
+			Kind:  token.STRING,
+			Value: strconv.Quote(path),
+		},
+	}
+	decl := &ast.GenDecl{
+		Tok:   token.IMPORT,
+		Specs: []ast.Spec{imp},
+	}
+	file.Decls = append([]ast.Decl{decl}, file.Decls...)
+	file.Imports = append(file.Imports, imp)
+}
+
 type (
 	builtin_function_conv struct {
-		mapping      map[ast.Node]types.Type
-		fset         *token.FileSet
-		runtime_name string
-		package_name string
+		mapping         map[ast.Node]types.Type
+		fset            *token.FileSet
+		runtime_name    string
+		cas_name        string
+		package_name    string
+		used_cas_import bool
 	}
 )
 
@@ -301,6 +329,8 @@ func (conv *builtin_function_conv) wrap_predicate_function(e ast.Expr) ast.Expr 
 		return nil
 	}
 
+	conv.used_cas_import = true
+
 	wrapper := &ast.FuncLit{
 		Type: &ast.FuncType{
 			Params: &ast.FieldList{
@@ -318,11 +348,11 @@ func (conv *builtin_function_conv) wrap_predicate_function(e ast.Expr) ast.Expr 
 					},
 					{
 						Names: []*ast.Ident{
-							ast.NewIdent("sx_m_sha"),
+							ast.NewIdent("sx_m_addr"),
 						},
 						Type: &ast.SelectorExpr{
-							X:   ast.NewIdent(conv.runtime_name),
-							Sel: ast.NewIdent("SHA"),
+							X:   ast.NewIdent(conv.cas_name),
+							Sel: ast.NewIdent("Addr"),
 						},
 					},
 				},
@@ -355,7 +385,7 @@ func (conv *builtin_function_conv) wrap_predicate_function(e ast.Expr) ast.Expr 
 							Sel: ast.NewIdent("Load"),
 						},
 						Args: []ast.Expr{
-							ast.NewIdent("sx_m_sha"),
+							ast.NewIdent("sx_m_addr"),
 							&ast.UnaryExpr{
 								Op: token.AND,
 								X:  ast.NewIdent("sx_m"),
@@ -403,6 +433,8 @@ func (conv *builtin_function_conv) wrap_map_function(e ast.Expr) ast.Expr {
 		return nil
 	}
 
+	conv.used_cas_import = true
+
 	wrapper := &ast.FuncLit{
 		Type: &ast.FuncType{
 			Params: &ast.FieldList{
@@ -420,11 +452,11 @@ func (conv *builtin_function_conv) wrap_map_function(e ast.Expr) ast.Expr {
 					},
 					{
 						Names: []*ast.Ident{
-							ast.NewIdent("sx_m_sha"),
+							ast.NewIdent("sx_m_addr"),
 						},
 						Type: &ast.SelectorExpr{
-							X:   ast.NewIdent(conv.runtime_name),
-							Sel: ast.NewIdent("SHA"),
+							X:   ast.NewIdent(conv.cas_name),
+							Sel: ast.NewIdent("Addr"),
 						},
 					},
 				},
@@ -433,8 +465,8 @@ func (conv *builtin_function_conv) wrap_map_function(e ast.Expr) ast.Expr {
 				List: []*ast.Field{
 					{
 						Type: &ast.SelectorExpr{
-							X:   ast.NewIdent(conv.runtime_name),
-							Sel: ast.NewIdent("SHA"),
+							X:   ast.NewIdent(conv.cas_name),
+							Sel: ast.NewIdent("Addr"),
 						},
 					},
 				},
@@ -460,7 +492,7 @@ func (conv *builtin_function_conv) wrap_map_function(e ast.Expr) ast.Expr {
 							Sel: ast.NewIdent("Load"),
 						},
 						Args: []ast.Expr{
-							ast.NewIdent("sx_m_sha"),
+							ast.NewIdent("sx_m_addr"),
 							&ast.UnaryExpr{
 								Op: token.AND,
 								X:  ast.NewIdent("sx_m"),

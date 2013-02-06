@@ -155,5 +155,5 @@ func (t *Tree) Commit() (cas.Addr, error) {
 		t.RootAddr = addr
 	}
 
-	return cas.Encode(t.store, &t)
+	return cas.Encode(t.store, &t, -1)
 }

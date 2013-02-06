@@ -25,5 +25,6 @@ func commit(n *node_t, store cas.GetterSetter) (cas.Addr, error) {
 		}
 	}
 
-	return cas.Encode(store, n)
+	// overflow is 0 we always write the node
+	return cas.Encode(store, n, 0)
 }

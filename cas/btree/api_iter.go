@@ -76,7 +76,7 @@ func (n *node_t) get_iter_at(idx uint64, store cas.GetterSetter) *Iter {
 
 func (i *Iter) Next() (key, elt cas.Addr, err error) {
 	if i.err != nil {
-		return nil, nil, err
+		return nil, nil, i.err
 	}
 
 	if i.child != nil {
