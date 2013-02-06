@@ -142,14 +142,7 @@ func (n *node_t) insert_ref_into_leaf(collated_key []byte, next_ref *ref_t, orde
 }
 
 func (n *node_t) insert_collated_key(key_idx int, collated_key []byte, order int) {
-	collated_keys := n.CollatedKeys
-
-	// make sure we have enough space (B - 1) + 1 (1 extra for insert/split)
-	capacity := order
-	if cap(collated_keys) < capacity {
-		collated_keys = make([][]byte, len(n.CollatedKeys), capacity)
-		copy(collated_keys, n.CollatedKeys)
-	}
+	collated_keys := resize_collated_keys(n, n.CollatedKeys, order)
 
 	if l := len(collated_keys); key_idx >= l {
 		collated_keys = collated_keys[:l+1]
@@ -170,17 +163,7 @@ func (n *node_t) insert_collated_key(key_idx int, collated_key []byte, order int
 }
 
 func (n *node_t) insert_child_ref(ref_idx int, ref *ref_t, order int) {
-	children := n.Children
-
-	// make sure we have enough space (B - 1) + 1 (1 extra for insert/split)
-	capacity := order + 1
-	if n.Type&leaf_node_type > 0 {
-		capacity -= 1
-	}
-	if cap(children) < capacity {
-		children = make([]*ref_t, len(n.Children), capacity)
-		copy(children, n.Children)
-	}
+	children := resize_children(n, n.Children, order)
 
 	if l := len(children); ref_idx >= l {
 		children = children[:l+1]
@@ -198,4 +181,32 @@ func (n *node_t) insert_child_ref(ref_idx int, ref *ref_t, order int) {
 	}
 
 	n.Children = children
+}
+
+func resize_collated_keys(n *node_t, c [][]byte, order int) [][]byte {
+	capacity := order
+
+	if cap(c) < capacity {
+		d := make([][]byte, len(c), capacity)
+		copy(d, c)
+		return d
+	}
+
+	return c
+}
+
+func resize_children(n *node_t, c []*ref_t, order int) []*ref_t {
+	capacity := order + 1
+
+	if n.Type&leaf_node_type > 0 {
+		capacity -= 1
+	}
+
+	if cap(c) < capacity {
+		d := make([]*ref_t, len(c), capacity)
+		copy(d, c)
+		return d
+	}
+
+	return c
 }

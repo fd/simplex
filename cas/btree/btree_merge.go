@@ -14,8 +14,8 @@ func merge(dst, src *node_t, placeholder_key []byte, order int) bool {
 	}
 
 	var (
-		dst_keys       = dst.CollatedKeys
-		dst_children   = dst.Children
+		dst_keys       = resize_collated_keys(dst, dst.CollatedKeys, order)
+		dst_children   = resize_children(dst, dst.Children, order)
 		dst_keys_n     = len(dst_keys)
 		dst_children_n = len(dst_children)
 

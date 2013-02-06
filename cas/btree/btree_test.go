@@ -2,7 +2,7 @@ package btree
 
 import (
 	"bytes"
-	"fmt"
+	//"fmt"
 	"github.com/fd/simplex/cas"
 	"github.com/fd/simplex/cas/memory"
 	"testing"
@@ -11,17 +11,17 @@ import (
 func TestBTree(t *testing.T) {
 	s := memory.New()
 
-	hello, err := cas.Encode(s, "Hello")
+	hello, err := cas.Encode(s, "Hello", 0)
 	if err != nil {
 		t.Fatal("expected err to be nil")
 	}
 
-	world, err := cas.Encode(s, "world")
+	world, err := cas.Encode(s, "world", 0)
 	if err != nil {
 		t.Fatal("expected err to be nil")
 	}
 
-	moon, err := cas.Encode(s, "moon")
+	moon, err := cas.Encode(s, "moon", 0)
 	if err != nil {
 		t.Fatal("expected err to be nil")
 	}
@@ -67,12 +67,35 @@ func TestBTree(t *testing.T) {
 	if err != nil {
 		t.Fatal("expected err to be nil")
 	}
+
+	// test Del
+	prev_key, prev_elt, err := tree.Del(cas.Collate("Hello"))
+	if bytes.Compare(prev_key, hello) != 0 {
+		t.Fatalf("expected prev to be the addr of hello (`%v`) but was (`%+v`)", hello, prev_key)
+	}
+	if bytes.Compare(prev_elt, moon) != 0 {
+		t.Fatalf("expected prev to be the addr of moon (`%v`) but was (`%+v`)", moon, prev_elt)
+	}
+	if err != nil {
+		t.Fatal("expected err to be nil")
+	}
+
+	key, elt, err = tree.Get(cas.Collate("Hello"))
+	if bytes.Compare(key, nil) != 0 {
+		t.Fatalf("expected key to be the addr of hello (`%v`) but was (`%+v`)", hello, key)
+	}
+	if bytes.Compare(elt, nil) != 0 {
+		t.Fatalf("expected elt to be the addr of moon (`%v`) but was (`%+v`)", moon, elt)
+	}
+	if err != nil {
+		t.Fatal("expected err to be nil")
+	}
 }
 
 func TestBTreeLarge(t *testing.T) {
 	s := memory.New()
 
-	foo, err := cas.Encode(s, "foo")
+	foo, err := cas.Encode(s, "foo", 0)
 	if err != nil {
 		t.Fatal("expected err to be nil")
 	}
@@ -81,10 +104,10 @@ func TestBTreeLarge(t *testing.T) {
 
 	C := 6000
 
-	defer func() { fmt.Printf("T: %+v\n", tree) }()
+	//defer func() { fmt.Printf("T: %+v\n", tree) }()
 
 	for i := 0; i < C; i++ {
-		bar_x, err := cas.Encode(s, i)
+		bar_x, err := cas.Encode(s, i, 0)
 		if err != nil {
 			t.Fatal("expected err to be nil")
 		}
@@ -96,7 +119,7 @@ func TestBTreeLarge(t *testing.T) {
 	}
 
 	for i := 0; i < C; i++ {
-		bar_x, err := cas.Encode(s, i)
+		bar_x, err := cas.Encode(s, i, 0)
 		if err != nil {
 			t.Fatal("expected err to be nil")
 		}

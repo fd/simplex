@@ -101,7 +101,7 @@ func (t *Tree) Del(collated_key []byte) (key, elt cas.Addr, err error) {
 		return nil, nil, nil
 	}
 
-	if len(t.root.Children) == 1 {
+	if len(t.root.Children) == 1 && t.root.Type&leaf_node_type == 0 {
 		t.root = t.root.Children[0].cache.(*node_t)
 	}
 
