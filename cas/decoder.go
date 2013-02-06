@@ -20,13 +20,9 @@ type Decoder struct {
 
 func Decode(s GetterSetter, addr Addr, e interface{}) error {
 	dec := NewDecoder(s, addr)
+	defer dec.Close()
 
 	err := dec.Decode(e)
-	if err != nil {
-		return err
-	}
-
-	err = dec.Close()
 	if err != nil {
 		return err
 	}
@@ -36,13 +32,9 @@ func Decode(s GetterSetter, addr Addr, e interface{}) error {
 
 func DecodeValue(s GetterSetter, addr Addr, e reflect.Value) error {
 	dec := NewDecoder(s, addr)
+	defer dec.Close()
 
 	err := dec.DecodeValue(e)
-	if err != nil {
-		return err
-	}
-
-	err = dec.Close()
 	if err != nil {
 		return err
 	}

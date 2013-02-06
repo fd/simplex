@@ -33,3 +33,10 @@ m, idx := range V             <=> m, idx := range V.wait()
 m := range V                  <=> m := range V.wait()
 ```
 
+## Roadmap
+
+- Implement .index()
+- Implement .sort()
+- Implement .group()
+- Implement .inject()
+- Implement .detect()

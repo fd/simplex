@@ -537,6 +537,119 @@ func (conv *builtin_function_conv) wrap_map_function(e ast.Expr) ast.Expr {
 	return wrapper
 }
 
+func (conv *builtin_function_conv) wrap_sort_function(e ast.Expr) ast.Expr {
+	typ := conv.mapping[e]
+	if typ == nil {
+		return nil
+	}
+
+	sig, ok := typ.(*types.Signature)
+	if !ok {
+		return nil
+	}
+
+	if sig.Recv != nil {
+		return nil
+	}
+
+	if len(sig.Params) != 1 {
+		return nil
+	}
+
+	if len(sig.Results) != 1 {
+		return nil
+	}
+
+	conv.used_cas_import = true
+
+	wrapper := &ast.FuncLit{
+		Type: &ast.FuncType{
+			Params: &ast.FieldList{
+				List: []*ast.Field{
+					{
+						Names: []*ast.Ident{
+							ast.NewIdent("sx_ctx"),
+						},
+						Type: &ast.StarExpr{
+							X: &ast.SelectorExpr{
+								X:   ast.NewIdent(conv.runtime_name),
+								Sel: ast.NewIdent("Context"),
+							},
+						},
+					},
+					{
+						Names: []*ast.Ident{
+							ast.NewIdent("sx_m_addr"),
+						},
+						Type: &ast.SelectorExpr{
+							X:   ast.NewIdent(conv.cas_name),
+							Sel: ast.NewIdent("Addr"),
+						},
+					},
+				},
+			},
+			Results: &ast.FieldList{
+				List: []*ast.Field{
+					{
+						Type: &ast.InterfaceType{Methods: &ast.FieldList{}},
+					},
+				},
+			},
+		},
+		Body: &ast.BlockStmt{
+			List: []ast.Stmt{
+				&ast.DeclStmt{
+					Decl: &ast.GenDecl{
+						Tok: token.VAR,
+						Specs: []ast.Spec{
+							&ast.ValueSpec{
+								Names: []*ast.Ident{ast.NewIdent("sx_m")},
+								Type:  ast.NewIdent(view_type_name(sig.Params[0].Type)),
+							},
+						},
+					},
+				},
+				&ast.ExprStmt{
+					X: &ast.CallExpr{
+						Fun: &ast.SelectorExpr{
+							X:   ast.NewIdent("sx_ctx"),
+							Sel: ast.NewIdent("Load"),
+						},
+						Args: []ast.Expr{
+							ast.NewIdent("sx_m_addr"),
+							&ast.UnaryExpr{
+								Op: token.AND,
+								X:  ast.NewIdent("sx_m"),
+							},
+						},
+					},
+				},
+				&ast.AssignStmt{
+					Lhs: []ast.Expr{
+						ast.NewIdent("sx_n"),
+					},
+					Tok: token.DEFINE,
+					Rhs: []ast.Expr{
+						&ast.CallExpr{
+							Fun: e,
+							Args: []ast.Expr{
+								ast.NewIdent("sx_m"),
+							},
+						},
+					},
+				},
+				&ast.ReturnStmt{
+					Results: []ast.Expr{
+						ast.NewIdent("sx_n"),
+					},
+				},
+			},
+		},
+	}
+
+	return wrapper
+}
+
 func (conv *builtin_function_conv) convert_select(call *ast.CallExpr) {
 	var (
 		recv  = call.Fun.(*ast.SelectorExpr).X
@@ -709,7 +822,7 @@ func (conv *builtin_function_conv) convert_sort(call *ast.CallExpr) {
 		return
 	}
 
-	arg0 := conv.wrap_map_function(call.Args[0])
+	arg0 := conv.wrap_sort_function(call.Args[0])
 	if arg0 == nil {
 		return
 	}

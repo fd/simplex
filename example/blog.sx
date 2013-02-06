@@ -32,5 +32,12 @@ func init() {
 
 	a = api.New(runtime.Env, "blog")
 	a.RegisterTable(posts)
-	a.RegisterView(posts, "posts")
+	a.RegisterView(posts.sort(publish_date), "posts")
+}
+
+func publish_date(m Post) int64 {
+	if m.PublishedAt.IsZero() {
+		return 9223372036854775807 - 0
+	}
+	return 9223372036854775807 - m.PublishedAt.Unix()
 }

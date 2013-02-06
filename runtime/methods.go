@@ -1,6 +1,7 @@
 package runtime
 
 import (
+	"bytes"
 	"github.com/fd/simplex/cas"
 )
 
@@ -101,7 +102,7 @@ type (
 		fun  select_func
 	}
 
-	reject_func func(interface{}) bool
+	reject_func func(*Context, cas.Addr) bool
 	reject_op   struct {
 		name string
 		src  IndexedView
@@ -129,7 +130,7 @@ type (
 		fun  index_func
 	}
 
-	sort_func func(*Context, cas.Addr) cas.Addr
+	sort_func func(*Context, cas.Addr) interface{}
 	sort_op   struct {
 		name string
 		src  IndexedView
@@ -212,28 +213,46 @@ func (op *table_op) Resolve(txn *Transaction, events chan<- Event) {
 
 func (op *select_op) Resolve(txn *Transaction, events chan<- Event) {
 	var (
-		src_event = txn.Resolve(op.src)
-		table     = txn.GetTable(op.name)
+		src_events = txn.Resolve(op.src)
 	)
 
-	for event := range src_event {
+	apply_select_reject_filter(op.name, op.fun, true, src_events, events, txn)
+}
+
+func (op *reject_op) Resolve(txn *Transaction, events chan<- Event) {
+	var (
+		src_events = txn.Resolve(op.src)
+	)
+
+	apply_select_reject_filter(op.name, select_func(op.fun), false, src_events, events, txn)
+}
+
+func apply_select_reject_filter(op_name string, op_fun select_func,
+	expexted bool, src_events <-chan Event, dst_events chan<- Event,
+	txn *Transaction) {
+
+	var (
+		table = txn.GetTable(op_name)
+	)
+
+	for event := range src_events {
 		i_change, ok := event.(*ev_CHANGE)
 		if !ok {
 			continue
 		}
 
 		var (
-			o_change = &ev_CHANGE{op.name, i_change.collated_key, i_change.key, i_change.a, i_change.b}
+			o_change = &ev_CHANGE{op_name, i_change.collated_key, i_change.key, i_change.a, i_change.b}
 		)
 
 		if o_change.a != nil {
-			if !op.fun(&Context{txn}, o_change.a) {
+			if op_fun(&Context{txn}, o_change.a) != expexted {
 				o_change.a = nil
 			}
 		}
 
 		if o_change.b != nil {
-			if !op.fun(&Context{txn}, o_change.b) {
+			if op_fun(&Context{txn}, o_change.b) != expexted {
 				o_change.b = nil
 			}
 		}
@@ -270,11 +289,11 @@ func (op *select_op) Resolve(txn *Transaction, events chan<- Event) {
 			continue
 		}
 
-		events <- o_change
+		dst_events <- o_change
 	}
 
-	tab_addr_a, tab_addr_b := txn.CommitTable(op.name, table)
-	events <- &EvConsistent{op.name, tab_addr_a, tab_addr_b}
+	tab_addr_a, tab_addr_b := txn.CommitTable(op_name, table)
+	dst_events <- &EvConsistent{op_name, tab_addr_a, tab_addr_b}
 }
 
 func (op *collect_op) Resolve(txn *Transaction, events chan<- Event) {
@@ -320,7 +339,68 @@ func (op *collect_op) Resolve(txn *Transaction, events chan<- Event) {
 	events <- &EvConsistent{op.name, tab_addr_a, tab_addr_b}
 }
 
-func (op *reject_op) Resolve(txn *Transaction, events chan<- Event) {}
-func (op *group_op) Resolve(txn *Transaction, events chan<- Event)  {}
-func (op *index_op) Resolve(txn *Transaction, events chan<- Event)  {}
-func (op *sort_op) Resolve(txn *Transaction, events chan<- Event)   {}
+func (op *sort_op) Resolve(txn *Transaction, events chan<- Event) {
+	var (
+		src_events = txn.Resolve(op.src)
+		table      = txn.GetTable(op.name)
+	)
+
+	for event := range src_events {
+		i_change, ok := event.(*ev_CHANGE)
+		if !ok {
+			continue
+		}
+
+		var (
+			coll_key_a []byte
+			coll_key_b []byte
+			key_b      []interface{}
+		)
+
+		// calculate collated sort key for a and b
+		if i_change.a != nil {
+			sort_key := op.fun(&Context{txn}, i_change.a)
+			coll_key_a = cas.Collate([]interface{}{sort_key, i_change.collated_key})
+		}
+		if i_change.b != nil {
+			sort_key := op.fun(&Context{txn}, i_change.b)
+			key_b = []interface{}{sort_key, i_change.collated_key}
+			coll_key_b = cas.Collate(key_b)
+		}
+
+		// skip when they are equal
+		if bytes.Compare(coll_key_a, coll_key_b) == 0 {
+			continue
+		}
+
+		// remove old entry
+		if i_change.a != nil {
+			key_addr, elt_addr, err := table.Del(coll_key_a)
+			if err != nil {
+				panic("runtime: " + err.Error())
+			}
+			events <- &ev_CHANGE{op.name, coll_key_a, key_addr, elt_addr, nil}
+		}
+
+		// add new entry
+		if i_change.b != nil {
+			key_addr, err := cas.Encode(txn.env.Store, key_b, -1)
+			if err != nil {
+				panic("runtime: " + err.Error())
+			}
+
+			prev_elt_addr, err := table.Set(coll_key_a, key_addr, i_change.b)
+			if err != nil {
+				panic("runtime: " + err.Error())
+			}
+
+			events <- &ev_CHANGE{op.name, coll_key_b, key_addr, prev_elt_addr, i_change.b}
+		}
+	}
+
+	tab_addr_a, tab_addr_b := txn.CommitTable(op.name, table)
+	events <- &EvConsistent{op.name, tab_addr_a, tab_addr_b}
+}
+
+func (op *group_op) Resolve(txn *Transaction, events chan<- Event) {}
+func (op *index_op) Resolve(txn *Transaction, events chan<- Event) {}
