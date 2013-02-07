@@ -8,8 +8,9 @@ type Tree struct {
 	RootAddr cas.Addr
 	Len      uint64
 
-	root  *node_t
-	store cas.GetterSetter
+	root          *node_t
+	store         cas.GetterSetter
+	write_counter int
 }
 
 /*

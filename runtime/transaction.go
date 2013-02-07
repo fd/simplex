@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/fd/simplex/cas"
 	"github.com/fd/simplex/cas/btree"
+	"runtime"
 	"time"
 )
 
@@ -79,6 +80,8 @@ func (txn *Transaction) Unset(table Table, key interface{}) {
 }
 
 func (txn *Transaction) Commit() {
+	defer runtime.GC()
+
 	var txn_addr cas.Addr
 	{
 		now := time.Now()

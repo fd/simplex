@@ -12,26 +12,39 @@ import (
 
 const DEFAULT_OVERFLOW_TRIGGER = 256
 
-type Encoder struct {
-	Addr Addr
+const (
+	st_internal encoder_state = iota
+	st_internal_compressed
+	st_external
+)
 
-	err              error
-	overflow_trigger int
+type (
+	encoder_state int
 
-	inbound_w io.Writer
+	Encoder struct {
+		// Addr is non nil after the encoder is closed and no errors
+		// occured.
+		Addr Addr
 
-	outbound_c   Commiter
-	compressed_c io.Closer
+		overflow_trigger int
+		store            Setter
 
-	uncompressed_b *bytes.Buffer
-	compressed_b   *bytes.Buffer
+		err        error
+		state      encoder_state
+		log_buffer *bytes.Buffer
+		writer     io.Writer
 
-	hash hash.Hash
+		uncompressed_b *bytes.Buffer
+		compressed_w   *zlib.Writer
+		compressed_b   *bytes.Buffer
+		hash           hash.Hash
+		outbound_w     WriteCommiter
 
-	blob_enc *blob.Encoder
-}
+		blob_enc *blob.Encoder
+	}
+)
 
-func Encode(s GetterSetter, e interface{}, overflow_trigger int) (Addr, error) {
+func Encode(s Setter, e interface{}, overflow_trigger int) (Addr, error) {
 	enc := NewEncoder(s, overflow_trigger)
 
 	err := enc.Encode(e)
@@ -47,46 +60,21 @@ func Encode(s GetterSetter, e interface{}, overflow_trigger int) (Addr, error) {
 	return enc.Addr, nil
 }
 
-func NewEncoder(store GetterSetter, overflow_trigger int) *Encoder {
+func NewEncoder(store Setter, overflow_trigger int) *Encoder {
 	if overflow_trigger < 0 {
 		overflow_trigger = DEFAULT_OVERFLOW_TRIGGER
 	}
 
-	outbound_w, err := store.Set()
-	if err != nil {
-		return &Encoder{err: err}
-	}
-
-	hash_w := sha1.New()
-
-	pre_hash_writer := io.MultiWriter(hash_w, outbound_w)
-
-	compressed_b := bytes.NewBuffer(make([]byte, 0, overflow_trigger))
-	compressed_w, err := zlib.NewWriterLevel(&overflow_writer{
-		trigger:     overflow_trigger,
-		overflow_w:  pre_hash_writer,
-		underflow_w: compressed_b,
-	}, zlib.DefaultCompression)
-
-	if err != nil {
-		return &Encoder{err: err}
-	}
-
-	uncompressed_b := bytes.NewBuffer(make([]byte, 0, overflow_trigger))
-	uncompressed_w := &overflow_writer{
-		trigger:     overflow_trigger,
-		overflow_w:  compressed_w,
-		underflow_w: uncompressed_b,
-	}
+	log_buffer := bytes.NewBuffer(nil)
+	uncompressed_b := bytes.NewBuffer(nil)
+	writer := io.MultiWriter(log_buffer, uncompressed_b)
 
 	return &Encoder{
+		store:            store,
 		overflow_trigger: overflow_trigger,
-		inbound_w:        uncompressed_w,
-		outbound_c:       outbound_w,
-		compressed_c:     compressed_w,
 		uncompressed_b:   uncompressed_b,
-		compressed_b:     compressed_b,
-		hash:             hash_w,
+		writer:           writer,
+		log_buffer:       log_buffer,
 	}
 }
 
@@ -94,7 +82,46 @@ func (enc *Encoder) Write(p []byte) (n int, err error) {
 	if enc.err != nil {
 		return 0, enc.err
 	}
-	return enc.inbound_w.Write(p)
+
+	switch enc.state {
+
+	case st_internal:
+		n, err := enc.writer.Write(p)
+		if err != nil {
+			enc.err = err
+		}
+		if enc.uncompressed_b.Len() > enc.overflow_trigger {
+			enc.switch_to(st_internal_compressed)
+		}
+		return n, enc.err
+
+	case st_internal_compressed:
+		n, err := enc.writer.Write(p)
+		if err != nil {
+			enc.err = err
+		}
+		if enc.compressed_b.Len() > enc.overflow_trigger {
+			enc.switch_to(st_external)
+		}
+		return n, enc.err
+
+	case st_external:
+		n, err := enc.writer.Write(p)
+		if err != nil {
+			enc.err = err
+		}
+		return n, enc.err
+
+	}
+
+	panic("not reached")
+}
+
+func make_addr(kind addr_kind, data []byte) Addr {
+	b := make([]byte, 1+len(data))
+	b[0] = byte(kind)
+	copy(b[1:], data)
+	return Addr(b)
 }
 
 func (enc *Encoder) Close() error {
@@ -102,47 +129,58 @@ func (enc *Encoder) Close() error {
 		return enc.err
 	}
 
-	err := enc.compressed_c.Close()
-	if err != nil {
-		enc.outbound_c.Rollback()
-		return err
-	}
+	switch enc.state {
 
-	if enc.overflow_trigger > 0 && enc.uncompressed_b.Len() < enc.overflow_trigger {
-		b := make([]byte, 1+enc.uncompressed_b.Len())
-		b[0] = byte(addr_kind__uncompressed_val)
-		copy(b[1:], enc.uncompressed_b.Bytes())
-		enc.Addr = Addr(b)
-		enc.outbound_c.Rollback()
+	case st_internal:
+		enc.Addr = make_addr(
+			addr_kind__uncompressed_val,
+			enc.uncompressed_b.Bytes(),
+		)
 		return nil
-	}
 
-	if enc.overflow_trigger > 0 && enc.compressed_b.Len() < enc.overflow_trigger {
-		b := make([]byte, 1+enc.compressed_b.Len())
-		b[0] = byte(addr_kind__compressed_val)
-		copy(b[1:], enc.compressed_b.Bytes())
-		enc.Addr = Addr(b)
-		enc.outbound_c.Rollback()
+	case st_internal_compressed:
+		err := enc.compressed_w.Close()
+		if err != nil {
+			enc.err = err
+			return enc.err
+		}
+		enc.Addr = make_addr(
+			addr_kind__compressed_val,
+			enc.compressed_b.Bytes(),
+		)
 		return nil
+
+	case st_external:
+		err := enc.compressed_w.Close()
+		if err != nil {
+			enc.outbound_w.Rollback()
+			enc.err = err
+			return enc.err
+		}
+
+		addr := make_addr(
+			addr_kind__sha,
+			enc.hash.Sum(nil),
+		)
+
+		err = enc.outbound_w.Commit(addr)
+		if err != nil {
+			enc.err = err
+			return enc.err
+		}
+
+		enc.Addr = addr
+
+		return nil
+
 	}
 
-	sum := enc.hash.Sum(nil)
-	b := make([]byte, 1+len(sum))
-	b[0] = byte(addr_kind__sha)
-	copy(b[1:], sum)
-	enc.Addr = Addr(b)
-
-	err = enc.outbound_c.Commit(enc.Addr)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	panic("not reached")
 }
 
 func (enc *Encoder) Encode(e interface{}) error {
 	if enc.blob_enc == nil {
-		enc.blob_enc = blob.NewEncoder(enc.inbound_w)
+		enc.blob_enc = blob.NewEncoder(enc)
 	}
 
 	return enc.blob_enc.Encode(e)
@@ -150,33 +188,93 @@ func (enc *Encoder) Encode(e interface{}) error {
 
 func (enc *Encoder) EncodeValue(e reflect.Value) error {
 	if enc.blob_enc == nil {
-		enc.blob_enc = blob.NewEncoder(enc.inbound_w)
+		enc.blob_enc = blob.NewEncoder(enc)
 	}
 
 	return enc.blob_enc.EncodeValue(e)
 }
 
-type overflow_writer struct {
-	trigger     int
-	n           int
-	overflow_w  io.Writer
-	underflow_w *bytes.Buffer
-}
+func (enc *Encoder) switch_to(state encoder_state) {
+	switch state {
 
-func (w *overflow_writer) Write(p []byte) (n int, err error) {
-	if w.n >= w.trigger {
-		return w.overflow_w.Write(p)
-	}
+	case st_internal_compressed:
+		// setup
+		compressed_b := bytes.NewBuffer(nil)
+		compressed_w, err := zlib.NewWriterLevel(compressed_b, zlib.DefaultCompression)
+		if err != nil {
+			enc.err = err
+			return
+		}
 
-	n, err = w.underflow_w.Write(p)
-	w.n += n
-	if err != nil {
+		// write log buffer
+		_, err = compressed_w.Write(enc.log_buffer.Bytes())
+		if err != nil {
+			enc.err = err
+			return
+		}
+
+		writer := io.MultiWriter(enc.log_buffer, compressed_w)
+		enc.writer = writer
+		enc.uncompressed_b = nil
+		enc.compressed_b = compressed_b
+		enc.compressed_w = compressed_w
+
+		err = enc.compressed_w.Flush()
+		if err != nil {
+			enc.err = err
+			return
+		}
+
+		enc.state = st_internal_compressed
+		if enc.compressed_b.Len() > enc.overflow_trigger {
+			enc.switch_to(st_external)
+		}
+
 		return
+
+	case st_external:
+		// setup
+		hash := sha1.New()
+		outbound_w, err := enc.store.Set()
+		if err != nil {
+			enc.err = err
+			return
+		}
+
+		compressed_w, err := zlib.NewWriterLevel(
+			io.MultiWriter(hash, outbound_w),
+			zlib.DefaultCompression,
+		)
+		if err != nil {
+			enc.err = err
+			return
+		}
+
+		// write log buffer
+		_, err = compressed_w.Write(enc.log_buffer.Bytes())
+		if err != nil {
+			enc.err = err
+			return
+		}
+
+		writer := io.MultiWriter(enc.log_buffer, compressed_w)
+		enc.writer = writer
+		enc.uncompressed_b = nil
+		enc.compressed_b = nil
+		enc.compressed_w = compressed_w
+		enc.outbound_w = outbound_w
+		enc.hash = hash
+
+		err = enc.compressed_w.Flush()
+		if err != nil {
+			enc.err = err
+			return
+		}
+
+		enc.state = st_external
+		return
+
 	}
 
-	if w.n >= w.trigger {
-		return w.overflow_w.Write(w.underflow_w.Bytes())
-	}
-
-	return
+	panic("not reached")
 }
