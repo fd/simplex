@@ -62,7 +62,6 @@ func NewEncoder(store GetterSetter, overflow_trigger int) *Encoder {
 	pre_hash_writer := io.MultiWriter(hash_w, outbound_w)
 
 	compressed_b := bytes.NewBuffer(make([]byte, 0, overflow_trigger))
-
 	compressed_w, err := zlib.NewWriterLevel(&overflow_writer{
 		trigger:     overflow_trigger,
 		overflow_w:  pre_hash_writer,
@@ -74,8 +73,11 @@ func NewEncoder(store GetterSetter, overflow_trigger int) *Encoder {
 	}
 
 	uncompressed_b := bytes.NewBuffer(make([]byte, 0, overflow_trigger))
-
-	uncompressed_w := io.MultiWriter(uncompressed_b, compressed_w)
+	uncompressed_w := &overflow_writer{
+		trigger:     overflow_trigger,
+		overflow_w:  compressed_w,
+		underflow_w: uncompressed_b,
+	}
 
 	return &Encoder{
 		overflow_trigger: overflow_trigger,
@@ -106,7 +108,7 @@ func (enc *Encoder) Close() error {
 		return err
 	}
 
-	if enc.overflow_trigger > 0 && enc.uncompressed_b.Len() <= enc.overflow_trigger {
+	if enc.overflow_trigger > 0 && enc.uncompressed_b.Len() < enc.overflow_trigger {
 		b := make([]byte, 1+enc.uncompressed_b.Len())
 		b[0] = byte(addr_kind__uncompressed_val)
 		copy(b[1:], enc.uncompressed_b.Bytes())
@@ -115,7 +117,7 @@ func (enc *Encoder) Close() error {
 		return nil
 	}
 
-	if enc.overflow_trigger > 0 && enc.compressed_b.Len() <= enc.overflow_trigger {
+	if enc.overflow_trigger > 0 && enc.compressed_b.Len() < enc.overflow_trigger {
 		b := make([]byte, 1+enc.compressed_b.Len())
 		b[0] = byte(addr_kind__compressed_val)
 		copy(b[1:], enc.compressed_b.Bytes())
