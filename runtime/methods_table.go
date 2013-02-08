@@ -2,9 +2,10 @@ package runtime
 
 import (
 	"github.com/fd/simplex/cas"
+	"github.com/fd/simplex/runtime/event"
 )
 
-func (op *table_op) Resolve(txn *Transaction, events chan<- Event) {
+func (op *table_op) Resolve(txn *Transaction, events chan<- event.Event) {
 	table := txn.GetTable(op.name)
 
 	for _, change := range txn.changes {
@@ -40,7 +41,7 @@ func (op *table_op) Resolve(txn *Transaction, events chan<- Event) {
 			}
 
 			if cas.CompareAddr(prev_elt_addr, elt_addr) != 0 {
-				events <- &ev_CHANGE{op.name, key_coll, key_addr, prev_elt_addr, elt_addr}
+				events <- &ChangedMember{op.name, key_coll, key_addr, prev_elt_addr, elt_addr}
 			}
 
 		case UNSET:
@@ -59,12 +60,12 @@ func (op *table_op) Resolve(txn *Transaction, events chan<- Event) {
 			}
 
 			if key_addr != nil || elt_addr != nil {
-				events <- &ev_CHANGE{op.name, key_coll, key_addr, elt_addr, nil}
+				events <- &ChangedMember{op.name, key_coll, key_addr, elt_addr, nil}
 			}
 
 		}
 	}
 
 	tab_addr_a, tab_addr_b := txn.CommitTable(op.name, table)
-	events <- &EvConsistent{op.name, tab_addr_a, tab_addr_b}
+	events <- &ConsistentTable{op.name, tab_addr_a, tab_addr_b}
 }

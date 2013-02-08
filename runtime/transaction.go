@@ -4,17 +4,19 @@ import (
 	"fmt"
 	"github.com/fd/simplex/cas"
 	"github.com/fd/simplex/cas/btree"
+	"github.com/fd/simplex/runtime/event"
 	"runtime"
 	"time"
 )
 
 type (
 	Transaction struct {
-		env     *Environment
-		changes []*Change
-		tables  *btree.Tree
-		errors  []interface{}
-		pool    *worker_pool_t
+		env        *Environment
+		changes    []*Change
+		tables     *btree.Tree
+		errors     []interface{}
+		pool       *worker_pool_t
+		dispatcher *event.Dispatcher
 
 		// parent transaction
 		Parent cas.Addr
@@ -94,17 +96,23 @@ func (txn *Transaction) Commit() {
 	// wait for prev txn to resolve
 
 	pool := &worker_pool_t{}
+	disp := &event.Dispatcher{}
 	txn.pool = pool
-	events := pool.run()
+	txn.dispatcher = disp
+
+	done := pool.run()
 
 	for _, t := range txn.env.terminals {
 		pool.schedule(txn, t)
 	}
 
-	for event := range events {
-		// handle events
-		fmt.Printf("Ev (%T): %+v\n", event, event)
-	}
+	//for event := range events {
+	//// handle events
+	//fmt.Printf("Ev (%T): %+v\n", event, event)
+	//}
+
+	// wait for the workers to finish
+	<-done
 
 	// commit the _tables table
 	tables_addr, err := txn.tables.Commit()
@@ -172,11 +180,11 @@ func (txn *Transaction) CommitTable(name string, tree *btree.Tree) (prev, curr c
 	return prev_elt_addr, elt_addr
 }
 
-func (txn *Transaction) Resolve(def Deferred) <-chan Event {
+func (txn *Transaction) Resolve(def Deferred) event.Subscription {
 	if txn.pool == nil {
-		panic("transcation has no running worker pool")
+		panic("transaction has no running worker pool")
 	}
 
-	worker := txn.pool.schedule(txn, def)
-	return worker.subscribe()
+	txn.pool.schedule(txn, def)
+	return txn.dispatcher.Subscribe(def.DeferredId())
 }

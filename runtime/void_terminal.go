@@ -1,5 +1,9 @@
 package runtime
 
+import (
+	"github.com/fd/simplex/runtime/event"
+)
+
 /*
   Void() registers a side-effect free terminal. It is mainly useful for debugging
   as it ensurs that the Deferred def is resolved.
@@ -16,8 +20,8 @@ func (t *void_terminal) DeferredId() string {
 	return "void(" + t.def.DeferredId() + ")"
 }
 
-func (t *void_terminal) Resolve(txn *Transaction, events chan<- Event) {
-	for _ = range txn.Resolve(t.def) {
+func (t *void_terminal) Resolve(txn *Transaction, events chan<- event.Event) {
+	for _ = range txn.Resolve(t.def).C {
 		// ignore
 	}
 }

@@ -103,6 +103,7 @@ package {{.PkgName}}
 import (
   sx_reflect "reflect"
   sx_runtime "github.com/fd/simplex/runtime"
+  sx_event "github.com/fd/simplex/runtime/event"
 )
 
 `))
@@ -130,7 +131,7 @@ type (
   }
 )
 func (t sx_{{.TypeName}}) TableId() string { return t.DeferredId() }
-func (t sx_{{.TypeName}}) Resolve(txn *{{.Runtime}}.Transaction, events chan<- {{.Runtime}}.Event) {
+func (t sx_{{.TypeName}}) Resolve(txn *{{.Runtime}}.Transaction, events chan<- sx_event.Event) {
   t.Deferred.Resolve(txn, events)
 }
 func new_{{.TypeName}}(env *{{.Runtime}}.Environment, id string) {{.TypeName}} {
@@ -205,7 +206,7 @@ type (
 )
 func (s sx_{{.TypeName}}) KeyType() {{.Reflect}}.Type { return {{.Reflect}}.TypeOf(s.KeyZero()) }
 func (s sx_{{.TypeName}}) KeyZero() {{.KeyType}} { return {{.KeyZero}} }
-func (t sx_{{.TypeName}}) Resolve(txn *{{.Runtime}}.Transaction, events chan<- {{.Runtime}}.Event) {
+func (t sx_{{.TypeName}}) Resolve(txn *{{.Runtime}}.Transaction, events chan<- sx_event.Event) {
   t.Deferred.Resolve(txn, events)
 }
 func wrap_{{.TypeName}}(def {{.Runtime}}.Deferred) {{.TypeName}} {
@@ -275,7 +276,7 @@ type (
     EltType() sx_reflect.Type
     EltZero() {{.EltType}}
     DeferredId() string
-    Resolve(txn *{{.Runtime}}.Transaction, events chan<- {{.Runtime}}.Event)
+    Resolve(txn *{{.Runtime}}.Transaction, events chan<- sx_event.Event)
   }
 
   sx_{{.TypeName}} struct {
@@ -286,7 +287,7 @@ type (
 func (s sx_{{.TypeName}}) DeferredId() string { return s.Deferred.DeferredId() }
 func (s sx_{{.TypeName}}) EltType() {{.Reflect}}.Type { return {{.Reflect}}.TypeOf(s.EltZero()) }
 func (s sx_{{.TypeName}}) EltZero() {{.EltType}} { return {{.EltZero}} }
-func (t sx_{{.TypeName}}) Resolve(txn *{{.Runtime}}.Transaction, events chan<- {{.Runtime}}.Event) {
+func (t sx_{{.TypeName}}) Resolve(txn *{{.Runtime}}.Transaction, events chan<- sx_event.Event) {
   t.Deferred.Resolve(txn, events)
 }
 func wrap_{{.TypeName}}(def {{.Runtime}}.Deferred) {{.TypeName}} {

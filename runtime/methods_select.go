@@ -2,9 +2,10 @@ package runtime
 
 import (
 	"github.com/fd/simplex/cas"
+	"github.com/fd/simplex/runtime/event"
 )
 
-func (op *select_op) Resolve(txn *Transaction, events chan<- Event) {
+func (op *select_op) Resolve(txn *Transaction, events chan<- event.Event) {
 	var (
 		src_events = txn.Resolve(op.src)
 	)
@@ -12,7 +13,7 @@ func (op *select_op) Resolve(txn *Transaction, events chan<- Event) {
 	apply_select_reject_filter(op.name, op.fun, true, src_events, events, txn)
 }
 
-func (op *reject_op) Resolve(txn *Transaction, events chan<- Event) {
+func (op *reject_op) Resolve(txn *Transaction, events chan<- event.Event) {
 	var (
 		src_events = txn.Resolve(op.src)
 	)
@@ -21,21 +22,21 @@ func (op *reject_op) Resolve(txn *Transaction, events chan<- Event) {
 }
 
 func apply_select_reject_filter(op_name string, op_fun select_func,
-	expexted bool, src_events <-chan Event, dst_events chan<- Event,
+	expexted bool, src_events event.Subscription, dst_events chan<- event.Event,
 	txn *Transaction) {
 
 	var (
 		table = txn.GetTable(op_name)
 	)
 
-	for event := range src_events {
-		i_change, ok := event.(*ev_CHANGE)
+	for event := range src_events.C {
+		i_change, ok := event.(*ChangedMember)
 		if !ok {
 			continue
 		}
 
 		var (
-			o_change = &ev_CHANGE{op_name, i_change.collated_key, i_change.key, i_change.a, i_change.b}
+			o_change = &ChangedMember{op_name, i_change.collated_key, i_change.key, i_change.a, i_change.b}
 		)
 
 		if o_change.a != nil {
@@ -86,5 +87,5 @@ func apply_select_reject_filter(op_name string, op_fun select_func,
 	}
 
 	tab_addr_a, tab_addr_b := txn.CommitTable(op_name, table)
-	dst_events <- &EvConsistent{op_name, tab_addr_a, tab_addr_b}
+	dst_events <- &ConsistentTable{op_name, tab_addr_a, tab_addr_b}
 }

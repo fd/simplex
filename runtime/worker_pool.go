@@ -2,80 +2,66 @@ package runtime
 
 import (
 	"fmt"
+	"sync"
 )
 
 type worker_pool_t struct {
-	scheduled_workers chan *schedule_worker_op
+	operations chan *schedule_worker_op
 }
 
 type schedule_worker_op struct {
-	def   Deferred
-	txn   *Transaction
-	reply chan *worker_t
+	def Deferred
+	txn *Transaction
 }
 
-func (p *worker_pool_t) run() <-chan Event {
-	done := make(chan Event, 1)
-	p.scheduled_workers = make(chan *schedule_worker_op, 1)
+func (p *worker_pool_t) run() <-chan bool {
+	done := make(chan bool, 1)
+	p.operations = make(chan *schedule_worker_op, 1)
 
 	go p.go_run(done)
 
 	return done
 }
 
-func (p *worker_pool_t) go_run(events chan<- Event) {
+func (p *worker_pool_t) go_run(done chan<- bool) {
 	var (
-		worker_events = make(chan Event, 1)
-		workers       = map[*worker_t]bool{}
-		deferreds     = map[string]*worker_t{}
+		workers = map[string]*worker_t{}
+		wg      sync.WaitGroup
 	)
 
 	defer func() {
-		for _, w := range deferreds {
-			w.operations <- worker_op_t{op_DONE, nil}
-		}
-		events <- &ev_DONE_pool{p}
-		close(events)
+		done <- true
+		close(done)
 	}()
 
-	for {
-		select {
+	go func() {
+		wg.Wait()
+		close(p.operations)
+	}()
 
-		case e := <-worker_events:
-			events <- e
+	for op := range p.operations {
 
-			if done, ok := e.(*ev_DONE_worker); ok {
-				delete(workers, done.w)
-				if len(workers) == 0 {
-					return
-				}
-			}
+		w := workers[op.def.DeferredId()]
+		if w == nil {
+			w = &worker_t{def: op.def, txn: op.txn}
+			workers[op.def.DeferredId()] = w
 
-		case op := <-p.scheduled_workers:
-			w, ok := deferreds[op.def.DeferredId()]
-			if !ok {
-				w = &worker_t{def: op.def, txn: op.txn}
-				workers[w] = true
-				deferreds[op.def.DeferredId()] = w
-				w.run(worker_events)
-				fmt.Println("ADD:", w)
-			} else {
-				fmt.Println("SUB:", w)
-			}
-			op.reply <- w
-			close(op.reply)
+			wg.Add(1)
+			w.run(&wg)
 
+			fmt.Println("ADD:", w)
+		} else {
+			fmt.Println("SUB:", w)
 		}
+
 	}
 }
 
-func (p *worker_pool_t) schedule(txn *Transaction, def Deferred) *worker_t {
+func (p *worker_pool_t) schedule(txn *Transaction, def Deferred) {
 	op := &schedule_worker_op{
-		txn:   txn,
-		def:   def,
-		reply: make(chan *worker_t, 1),
+		txn: txn,
+		def: def,
 	}
 
-	p.scheduled_workers <- op
-	return <-op.reply
+	p.operations <- op
 }

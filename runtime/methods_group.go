@@ -6,7 +6,7 @@ import (
 	"github.com/fd/simplex/runtime/event"
 )
 
-func (op *sort_op) Resolve(txn *Transaction, events chan<- event.Event) {
+func (op *group_op) Resolve(txn *Transaction, events chan<- event.Event) {
 	var (
 		src_events = txn.Resolve(op.src)
 		table      = txn.GetTable(op.name)
@@ -21,28 +21,21 @@ func (op *sort_op) Resolve(txn *Transaction, events chan<- event.Event) {
 		var (
 			coll_key_a []byte
 			coll_key_b []byte
-			key_b      []interface{}
+			key_b      interface{}
 		)
 
-		// calculate collated sort key for a and b
+		// calculate collated group key for a and b
 		if i_change.a != nil {
-			sort_key := op.fun(&Context{txn}, i_change.a)
-			coll_key_a = cas.Collate([]interface{}{sort_key, i_change.collated_key})
+			group_key := op.fun(&Context{txn}, i_change.a)
+			coll_key_a = cas.Collate(group_key)
 		}
 		if i_change.b != nil {
-			sort_key := op.fun(&Context{txn}, i_change.b)
-			key_b = []interface{}{sort_key, i_change.collated_key}
+			key_b = op.fun(&Context{txn}, i_change.b)
 			coll_key_b = cas.Collate(key_b)
 		}
 
-		// forward when the keys are equal
+		// skip when they are equal
 		if bytes.Compare(coll_key_a, coll_key_b) == 0 {
-			key_addr, err := cas.Encode(txn.env.Store, key_b, -1)
-			if err != nil {
-				panic("runtime: " + err.Error())
-			}
-
-			events <- &ChangedMember{op.name, coll_key_b, key_addr, i_change.a, i_change.b}
 			continue
 		}
 

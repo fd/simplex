@@ -3,6 +3,7 @@ package runtime
 import (
 	"github.com/fd/simplex/cas"
 	"github.com/fd/simplex/cas/btree"
+	"github.com/fd/simplex/runtime/event"
 	"os"
 	"os/signal"
 	"sort"
@@ -22,7 +23,7 @@ type (
 
 	Terminal interface {
 		DeferredId() string
-		Resolve(txn *Transaction, events chan<- Event)
+		Resolve(txn *Transaction, events chan<- event.Event)
 	}
 
 	Service interface {

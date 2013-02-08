@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/fd/simplex/cas"
 	"github.com/fd/simplex/cas/btree"
+	"github.com/fd/simplex/runtime/event"
 	"reflect"
 )
 
@@ -19,11 +20,11 @@ func (t *dump_terminal) DeferredId() string {
 	return "dump(" + t.view.DeferredId() + ")"
 }
 
-func (t *dump_terminal) Resolve(txn *Transaction, events chan<- Event) {
+func (t *dump_terminal) Resolve(txn *Transaction, events chan<- event.Event) {
 	i_events := txn.Resolve(t.view)
 
-	for e := range i_events {
-		event, ok := e.(*EvConsistent)
+	for e := range i_events.C {
+		event, ok := e.(*ConsistentTable)
 		if !ok {
 			continue
 		}

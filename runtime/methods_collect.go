@@ -2,16 +2,17 @@ package runtime
 
 import (
 	"github.com/fd/simplex/cas"
+	"github.com/fd/simplex/runtime/event"
 )
 
-func (op *collect_op) Resolve(txn *Transaction, events chan<- Event) {
+func (op *collect_op) Resolve(txn *Transaction, events chan<- event.Event) {
 	var (
 		src_event = txn.Resolve(op.src)
 		table     = txn.GetTable(op.name)
 	)
 
-	for event := range src_event {
-		i_change, ok := event.(*ev_CHANGE)
+	for event := range src_event.C {
+		i_change, ok := event.(*ChangedMember)
 		if !ok {
 			continue
 		}
@@ -24,7 +25,7 @@ func (op *collect_op) Resolve(txn *Transaction, events chan<- Event) {
 			}
 
 			if prev_key_addr != nil && prev_elt_addr != nil {
-				events <- &ev_CHANGE{op.name, i_change.collated_key, prev_key_addr, prev_elt_addr, nil}
+				events <- &ChangedMember{op.name, i_change.collated_key, prev_key_addr, prev_elt_addr, nil}
 			}
 
 			continue
@@ -38,11 +39,11 @@ func (op *collect_op) Resolve(txn *Transaction, events chan<- Event) {
 				panic("runtime: " + err.Error())
 			}
 			if cas.CompareAddr(prev_elt_addr, curr_elt_addr) != 0 {
-				events <- &ev_CHANGE{op.name, i_change.collated_key, i_change.key, prev_elt_addr, curr_elt_addr}
+				events <- &ChangedMember{op.name, i_change.collated_key, i_change.key, prev_elt_addr, curr_elt_addr}
 			}
 		}
 	}
 
 	tab_addr_a, tab_addr_b := txn.CommitTable(op.name, table)
-	events <- &EvConsistent{op.name, tab_addr_a, tab_addr_b}
+	events <- &ConsistentTable{op.name, tab_addr_a, tab_addr_b}
 }

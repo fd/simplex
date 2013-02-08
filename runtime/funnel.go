@@ -1,28 +1,29 @@
 package runtime
 
 import (
+	"github.com/fd/simplex/runtime/event"
 	"sync"
 )
 
 type (
 	Funnel struct {
-		inbound   []<-chan Event
-		outbound  <-chan Event
-		collector chan Event
+		inbound   []<-chan event.Event
+		outbound  <-chan event.Event
+		collector chan event.Event
 	}
 )
 
-func (f *Funnel) Add(ch <-chan Event) {
+func (f *Funnel) Add(ch <-chan event.Event) {
 	f.inbound = append(f.inbound, ch)
 }
 
-func (f *Funnel) Run() <-chan Event {
+func (f *Funnel) Run() <-chan event.Event {
 	if f.outbound != nil {
 		return f.outbound
 	}
 
 	if len(f.inbound) == 0 {
-		f.collector = make(chan Event, 1)
+		f.collector = make(chan event.Event, 1)
 		f.outbound = f.collector
 		close(f.collector)
 		return f.outbound
@@ -33,7 +34,7 @@ func (f *Funnel) Run() <-chan Event {
 		return f.outbound
 	}
 
-	f.collector = make(chan Event, 1)
+	f.collector = make(chan event.Event, 1)
 	f.outbound = f.collector
 
 	go f.go_sink()
@@ -54,7 +55,7 @@ func (f *Funnel) go_sink() {
 	wg.Wait()
 }
 
-func (f *Funnel) go_collect(wg *sync.WaitGroup, ch <-chan Event) {
+func (f *Funnel) go_collect(wg *sync.WaitGroup, ch <-chan event.Event) {
 	defer wg.Done()
 
 	for e := range ch {

@@ -2,6 +2,7 @@ package runtime
 
 import (
 	"github.com/fd/simplex/cas"
+	"github.com/fd/simplex/runtime/event"
 )
 
 func DeclareTable(name string) Deferred {
@@ -115,7 +116,7 @@ type (
 		fun  collect_func
 	}
 
-	group_func func(*Context, cas.Addr) cas.Addr
+	group_func func(*Context, cas.Addr) interface{}
 	group_op   struct {
 		name string
 		src  IndexedView
@@ -145,5 +146,4 @@ func (op *group_op) DeferredId() string   { return op.name }
 func (op *index_op) DeferredId() string   { return op.name }
 func (op *sort_op) DeferredId() string    { return op.name }
 
-func (op *group_op) Resolve(txn *Transaction, events chan<- Event) {}
-func (op *index_op) Resolve(txn *Transaction, events chan<- Event) {}
+func (op *index_op) Resolve(txn *Transaction, events chan<- event.Event) {}

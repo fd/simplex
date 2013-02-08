@@ -7,6 +7,7 @@ import (
 	"github.com/fd/simplex/cas"
 	"github.com/fd/simplex/cas/btree"
 	"github.com/fd/simplex/runtime"
+	"github.com/fd/simplex/runtime/event"
 	"net/http"
 	"reflect"
 	"strings"
@@ -108,21 +109,21 @@ func (api *API) DeferredId() string {
 	return "API/" + api.name
 }
 
-func (api *API) Resolve(txn *runtime.Transaction, events chan<- runtime.Event) {
+func (api *API) Resolve(txn *runtime.Transaction, events chan<- event.Event) {
 	var (
 		funnel runtime.Funnel
 	)
 
 	for _, table := range api.tables {
-		funnel.Add(txn.Resolve(table))
+		funnel.Add(txn.Resolve(table).C)
 	}
 
 	for _, view := range api.views {
-		funnel.Add(txn.Resolve(view))
+		funnel.Add(txn.Resolve(view).C)
 	}
 
 	for e := range funnel.Run() {
-		event, ok := e.(*runtime.EvConsistent)
+		event, ok := e.(*runtime.ConsistentTable)
 		if !ok {
 			continue
 		}
