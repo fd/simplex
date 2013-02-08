@@ -6,6 +6,7 @@ import (
 	"github.com/fd/simplex/runtime/event"
 	"os"
 	"os/signal"
+	go_runtime "runtime"
 	"sort"
 	"syscall"
 )
@@ -59,6 +60,8 @@ func (env *Environment) Stop() error {
 }
 
 func (env *Environment) Run() error {
+	go_runtime.GOMAXPROCS(go_runtime.NumCPU())
+
 	err := env.Start()
 	if err != nil {
 		return err

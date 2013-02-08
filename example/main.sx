@@ -5,32 +5,28 @@ import (
 	"github.com/fd/simplex/cas/redis"
 	"github.com/fd/simplex/net/http"
 	"github.com/fd/simplex/runtime"
-	go_runtime "runtime"
 	"time"
 )
 
 func init() {
-	go_runtime.GOMAXPROCS(go_runtime.NumCPU() * 2)
 }
 
 func main() {
 
+	// add redis store
+	runtime.Env.Store = redis.New("", 0, "")
+
+	// register blog api
 	h := http.New(":3000")
 	h.Handle("/blog/", a)
-
-	runtime.Env.Store = redis.New("", 0, "")
 	runtime.Env.RegisterService(h)
-
-	for _, name := range runtime.Env.Tables() {
-		fmt.Println(name)
-	}
 
 	go func() {
 		time.Sleep(5 * time.Second)
 		for {
 			txn := runtime.Env.Transaction()
 			now := time.Now()
-			for i := 0; i < 1000; i++ {
+			for i := 0; i < 10000; i++ {
 				txn.Set(posts, i, Post{
 					Title:       fmt.Sprintf("Hello world (%d)", i),
 					PublishedAt: now,
