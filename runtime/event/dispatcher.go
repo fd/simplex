@@ -20,7 +20,7 @@ type (
 
 	disp_op__register struct {
 		name  string
-		reply chan (chan<- Event)
+		reply chan chan<- Event
 	}
 
 	disp_op__subscribe struct {
@@ -50,6 +50,7 @@ type (
 func (disp *Dispatcher) Start() {
 	if disp.operations == nil {
 		disp.operations = make(chan interface{}, 1)
+		disp.exchanges = make(map[string]*exchange)
 		go disp.go_run()
 	}
 }
@@ -66,7 +67,7 @@ func (disp *Dispatcher) Subscribe(name string) Subscription {
 
 // Returns a named channel.
 func (disp *Dispatcher) Register(name string) chan<- Event {
-	reply := make(chan (chan<- Event), 1)
+	reply := make(chan chan<- Event, 1)
 	disp.operations <- &disp_op__register{name, reply}
 	return <-reply
 }
@@ -117,12 +118,17 @@ func (disp *Dispatcher) go_run() {
 		case *disp_op__stop:
 			close(disp.operations)
 			for _, e := range disp.exchanges {
-				close(e.c)
+				ensure_closed(e.c)
 			}
 			return
 
 		}
 	}
+}
+
+func ensure_closed(c chan Event) {
+	defer func() { recover() }()
+	close(c)
 }
 
 func (exch *exchange) send_op(op Event) {

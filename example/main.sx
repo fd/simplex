@@ -26,11 +26,11 @@ func main() {
 	}
 
 	go func() {
+		time.Sleep(5 * time.Second)
 		for {
-			time.Sleep(5 * time.Second)
 			txn := runtime.Env.Transaction()
 			now := time.Now()
-			for i := 0; i < 100; i++ {
+			for i := 0; i < 1000; i++ {
 				txn.Set(posts, i, Post{
 					Title:       fmt.Sprintf("Hello world (%d)", i),
 					PublishedAt: now,
@@ -38,7 +38,7 @@ func main() {
 				now = now.AddDate(0, 0, -1)
 			}
 			txn.Commit()
-			time.Sleep(3 * time.Second)
+			time.Sleep(100 * time.Millisecond)
 		}
 	}()
 

@@ -100,7 +100,10 @@ func (txn *Transaction) Commit() {
 	txn.pool = pool
 	txn.dispatcher = disp
 
-	done := pool.run()
+	pool.Start()
+
+	disp.Start()
+	defer disp.Stop()
 
 	for _, t := range txn.env.terminals {
 		pool.schedule(txn, t)
@@ -112,7 +115,7 @@ func (txn *Transaction) Commit() {
 	//}
 
 	// wait for the workers to finish
-	<-done
+	pool.Stop()
 
 	// commit the _tables table
 	tables_addr, err := txn.tables.Commit()

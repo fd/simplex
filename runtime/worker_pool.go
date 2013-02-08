@@ -1,43 +1,35 @@
 package runtime
 
 import (
-	"fmt"
 	"sync"
 )
 
 type worker_pool_t struct {
 	operations chan *schedule_worker_op
+	wg         sync.WaitGroup
 }
 
 type schedule_worker_op struct {
-	def Deferred
-	txn *Transaction
+	def   Deferred
+	txn   *Transaction
+	reply chan bool
 }
 
-func (p *worker_pool_t) run() <-chan bool {
-	done := make(chan bool, 1)
+func (p *worker_pool_t) Start() {
 	p.operations = make(chan *schedule_worker_op, 1)
 
-	go p.go_run(done)
-
-	return done
+	go p.go_run()
 }
 
-func (p *worker_pool_t) go_run(done chan<- bool) {
+func (p *worker_pool_t) Stop() {
+	p.wg.Wait()
+	close(p.operations)
+}
+
+func (p *worker_pool_t) go_run() {
 	var (
 		workers = map[string]*worker_t{}
-		wg      sync.WaitGroup
 	)
-
-	defer func() {
-		done <- true
-		close(done)
-	}()
-
-	go func() {
-		wg.Wait()
-		close(p.operations)
-	}()
 
 	for op := range p.operations {
 
@@ -46,22 +38,21 @@ func (p *worker_pool_t) go_run(done chan<- bool) {
 			w = &worker_t{def: op.def, txn: op.txn}
 			workers[op.def.DeferredId()] = w
 
-			wg.Add(1)
-			w.run(&wg)
-
-			fmt.Println("ADD:", w)
-		} else {
-			fmt.Println("SUB:", w)
+			p.wg.Add(1)
+			w.run(&p.wg)
 		}
+		op.reply <- true
+		close(op.reply)
 
 	}
 }
 
 func (p *worker_pool_t) schedule(txn *Transaction, def Deferred) {
-	op := &schedule_worker_op{
-		txn: txn,
-		def: def,
+	reply := make(chan bool, 1)
+	p.operations <- &schedule_worker_op{
+		txn:   txn,
+		def:   def,
+		reply: reply,
 	}
-
-	p.operations <- op
+	<-reply
 }
