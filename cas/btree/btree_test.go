@@ -102,7 +102,7 @@ func TestBTreeLarge(t *testing.T) {
 
 	tree := New(s)
 
-	C := 6000
+	C := 3000
 
 	//defer func() { fmt.Printf("T: %+v\n", tree) }()
 
