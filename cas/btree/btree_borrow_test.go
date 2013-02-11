@@ -3,7 +3,7 @@ package btree
 import (
 	"encoding/hex"
 	"fmt"
-	"github.com/fd/simplex/cas"
+	"simplex.sh/cas"
 )
 
 func ExampleBtree_borrow_leaf() {

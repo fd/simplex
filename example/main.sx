@@ -2,9 +2,9 @@ package main
 
 import (
 	"fmt"
-	"github.com/fd/simplex/cas/redis"
-	"github.com/fd/simplex/net/http"
-	"github.com/fd/simplex/runtime"
+	"simplex.sh/cas/redis"
+	"simplex.sh/net/http"
+	"simplex.sh/runtime"
 	"time"
 )
 
@@ -26,7 +26,7 @@ func main() {
 		for {
 			txn := runtime.Env.Transaction()
 			now := time.Now()
-			for i := 0; i < 100; i++ {
+			for i := 0; i < 5000; i++ {
 				txn.Set(posts, i, Post{
 					Title:       fmt.Sprintf("Hello world (%d)", i),
 					PublishedAt: now,

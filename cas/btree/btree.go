@@ -3,7 +3,7 @@ package btree
 import (
 	"bytes"
 	"fmt"
-	"github.com/fd/simplex/cas"
+	"simplex.sh/cas"
 	"strings"
 )
 

@@ -1,12 +1,10 @@
-SX='./ast/...' './build/...' './cmd/...' './compiler/...' \
-	 './doc/...' './format/...' './parser/...'  './printer/...' \
-	 './scanner/...' './token/...' './types/...' \
+SX='./lang/...' \
 	 './cas/...' './runtime/...' './net/...'
 
 all: commands
 
 commands:
-	go get './cmd/...'
+	go get './lang/cmd/...'
 
 build_sx:
 	go get ${SX}

@@ -1,7 +1,7 @@
 package orakel
 
 import (
-	_ "github.com/fd/simplex/w/example/apps/orakel/helpers"
-	_ "github.com/fd/simplex/w/example/apps/orakel/models"
-	_ "github.com/fd/simplex/w/example/apps/orakel/views"
+	_ "simplex.sh/w/example/apps/orakel/helpers"
+	_ "simplex.sh/w/example/apps/orakel/models"
+	_ "simplex.sh/w/example/apps/orakel/views"
 )

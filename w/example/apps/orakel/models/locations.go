@@ -1,7 +1,7 @@
 package models
 
 import (
-	"github.com/fd/simplex/w/data"
+	"simplex.sh/w/data"
 )
 
 type Location struct {

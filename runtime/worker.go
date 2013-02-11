@@ -2,8 +2,8 @@ package runtime
 
 import (
 	"fmt"
-	"github.com/fd/simplex/runtime/event"
 	"runtime/debug"
+	"simplex.sh/runtime/event"
 	"sync"
 )
 

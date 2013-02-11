@@ -1,12 +1,12 @@
 package runtime
 
 import (
-	"github.com/fd/simplex/cas"
-	"github.com/fd/simplex/cas/btree"
-	"github.com/fd/simplex/runtime/event"
 	"os"
 	"os/signal"
 	go_runtime "runtime"
+	"simplex.sh/cas"
+	"simplex.sh/cas/btree"
+	"simplex.sh/runtime/event"
 	"sort"
 	"syscall"
 )

@@ -3,8 +3,8 @@ package btree
 import (
 	"bytes"
 	//"fmt"
-	"github.com/fd/simplex/cas"
-	"github.com/fd/simplex/cas/memory"
+	"simplex.sh/cas"
+	"simplex.sh/cas/memory"
 	"testing"
 )
 

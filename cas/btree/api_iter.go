@@ -2,7 +2,7 @@ package btree
 
 import (
 	"errors"
-	"github.com/fd/simplex/cas"
+	"simplex.sh/cas"
 )
 
 var EOI = errors.New("end of iterator")

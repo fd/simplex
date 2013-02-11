@@ -1,7 +1,7 @@
 package btree
 
 import (
-	"github.com/fd/simplex/cas"
+	"simplex.sh/cas"
 )
 
 func (n *node_t) insert_ref(collated_key []byte, next_ref *ref_t, order int, store cas.GetterSetter) (prev *ref_t, new_root *node_t, err error) {

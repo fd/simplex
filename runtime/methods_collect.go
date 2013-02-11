@@ -1,17 +1,17 @@
 package runtime
 
 import (
-	"github.com/fd/simplex/cas"
-	"github.com/fd/simplex/runtime/event"
+	"simplex.sh/cas"
+	"simplex.sh/runtime/event"
 )
 
 func (op *collect_op) Resolve(txn *Transaction, events chan<- event.Event) {
 	var (
-		src_event = txn.Resolve(op.src)
-		table     = txn.GetTable(op.name)
+		src_events = txn.Resolve(op.src)
+		table      = txn.GetTable(op.name)
 	)
 
-	for e := range src_event.C {
+	for e := range src_events.C {
 		// propagate error events
 		if err, ok := e.(event.Error); ok {
 			events <- err

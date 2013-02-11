@@ -2,10 +2,10 @@ package runtime
 
 import (
 	"fmt"
-	"github.com/fd/simplex/cas"
-	"github.com/fd/simplex/cas/btree"
-	"github.com/fd/simplex/runtime/event"
 	"reflect"
+	"simplex.sh/cas"
+	"simplex.sh/cas/btree"
+	"simplex.sh/runtime/event"
 )
 
 func Dump(view IndexedView) {
@@ -21,9 +21,9 @@ func (t *dump_terminal) DeferredId() string {
 }
 
 func (t *dump_terminal) Resolve(txn *Transaction, events chan<- event.Event) {
-	i_events := txn.Resolve(t.view)
+	src_events := txn.Resolve(t.view)
 
-	for e := range i_events.C {
+	for e := range src_events.C {
 		// propagate error events
 		if err, ok := e.(event.Error); ok {
 			events <- err

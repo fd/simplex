@@ -1,16 +1,14 @@
 package runtime
 
 import (
-	"github.com/fd/simplex/cas"
-	"github.com/fd/simplex/runtime/event"
+	"simplex.sh/cas"
+	"simplex.sh/runtime/event"
 )
 
 func (op *select_op) Resolve(txn *Transaction, events chan<- event.Event) {
 	var (
 		src_events = txn.Resolve(op.src)
 	)
-
-	defer src_events.Cancel()
 
 	apply_select_reject_filter(op.name, op.fun, true, src_events, events, txn)
 }
@@ -20,13 +18,11 @@ func (op *reject_op) Resolve(txn *Transaction, events chan<- event.Event) {
 		src_events = txn.Resolve(op.src)
 	)
 
-	defer src_events.Cancel()
-
 	apply_select_reject_filter(op.name, select_func(op.fun), false, src_events, events, txn)
 }
 
 func apply_select_reject_filter(op_name string, op_fun select_func,
-	expected bool, src_events event.Subscription, dst_events chan<- event.Event,
+	expected bool, src_events *event.Subscription, dst_events chan<- event.Event,
 	txn *Transaction) {
 
 	var (

@@ -1,7 +1,7 @@
 package btree
 
 import (
-	"github.com/fd/simplex/cas"
+	"simplex.sh/cas"
 )
 
 func commit(n *node_t, store cas.GetterSetter) (cas.Addr, error) {

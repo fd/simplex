@@ -2,9 +2,9 @@ package memory
 
 import (
 	"bytes"
-	"github.com/fd/simplex/cas"
 	"io"
 	"io/ioutil"
+	"simplex.sh/cas"
 )
 
 type store struct {

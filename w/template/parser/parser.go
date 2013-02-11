@@ -2,9 +2,9 @@ package parser
 
 import (
 	"fmt"
-	"github.com/fd/simplex/w/template/ast"
-	"github.com/fd/simplex/w/template/lexer"
 	"io/ioutil"
+	"simplex.sh/w/template/ast"
+	"simplex.sh/w/template/lexer"
 )
 
 func ParseFile(path string) (*ast.Template, error) {

@@ -1,8 +1,8 @@
 package main
 
 import (
-	"github.com/fd/simplex/net/http/api"
-	"github.com/fd/simplex/runtime"
+	"simplex.sh/net/http/api"
+	"simplex.sh/runtime"
 	"time"
 )
 
@@ -25,7 +25,7 @@ func init() {
 		if len(p.Title) > len("Hello World (10)") {
 			return true
 		}
-		panic("hello")
+		/*panic("hello")*/
 		return false
 	}))
 
@@ -37,8 +37,6 @@ func init() {
 }
 
 func publish_date(m Post) int64 {
-	if m.PublishedAt.IsZero() {
-		return 9223372036854775807 - 0
-	}
-	return 9223372036854775807 - m.PublishedAt.Unix()
+	i := m.PublishedAt.Unix()
+	return 9223372036854775807 - i
 }

@@ -1,8 +1,8 @@
 package runtime
 
 import (
-	"github.com/fd/simplex/cas"
-	"github.com/fd/simplex/runtime/event"
+	"simplex.sh/cas"
+	"simplex.sh/runtime/event"
 )
 
 func DeclareTable(name string) Deferred {

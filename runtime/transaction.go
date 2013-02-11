@@ -2,9 +2,9 @@ package runtime
 
 import (
 	"fmt"
-	"github.com/fd/simplex/cas"
-	"github.com/fd/simplex/cas/btree"
-	"github.com/fd/simplex/runtime/event"
+	"simplex.sh/cas"
+	"simplex.sh/cas/btree"
+	"simplex.sh/runtime/event"
 	"time"
 )
 
@@ -116,8 +116,8 @@ func (txn *Transaction) Commit() {
 	}
 
 	// wait for the workers to finish
-	pool.Stop()
 	disp.Stop()
+	pool.Stop()
 
 	// commit the _tables table
 	tables_addr, err := txn.tables.Commit()
@@ -185,7 +185,7 @@ func (txn *Transaction) CommitTable(name string, tree *btree.Tree) (prev, curr c
 	return prev_elt_addr, elt_addr
 }
 
-func (txn *Transaction) Resolve(def Deferred) event.Subscription {
+func (txn *Transaction) Resolve(def Deferred) *event.Subscription {
 	if txn.pool == nil {
 		panic("transaction has no running worker pool")
 	}
