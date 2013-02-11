@@ -10,6 +10,8 @@ func (op *select_op) Resolve(txn *Transaction, events chan<- event.Event) {
 		src_events = txn.Resolve(op.src)
 	)
 
+	defer src_events.Cancel()
+
 	apply_select_reject_filter(op.name, op.fun, true, src_events, events, txn)
 }
 
@@ -18,19 +20,27 @@ func (op *reject_op) Resolve(txn *Transaction, events chan<- event.Event) {
 		src_events = txn.Resolve(op.src)
 	)
 
+	defer src_events.Cancel()
+
 	apply_select_reject_filter(op.name, select_func(op.fun), false, src_events, events, txn)
 }
 
 func apply_select_reject_filter(op_name string, op_fun select_func,
-	expexted bool, src_events event.Subscription, dst_events chan<- event.Event,
+	expected bool, src_events event.Subscription, dst_events chan<- event.Event,
 	txn *Transaction) {
 
 	var (
 		table = txn.GetTable(op_name)
 	)
 
-	for event := range src_events.C {
-		i_change, ok := event.(*ChangedMember)
+	for e := range src_events.C {
+		// propagate error events
+		if err, ok := e.(event.Error); ok {
+			dst_events <- err
+			continue
+		}
+
+		i_change, ok := e.(*ChangedMember)
 		if !ok {
 			continue
 		}
@@ -40,13 +50,13 @@ func apply_select_reject_filter(op_name string, op_fun select_func,
 		)
 
 		if o_change.a != nil {
-			if op_fun(&Context{txn}, o_change.a) != expexted {
+			if op_fun(&Context{txn}, o_change.a) != expected {
 				o_change.a = nil
 			}
 		}
 
 		if o_change.b != nil {
-			if op_fun(&Context{txn}, o_change.b) != expexted {
+			if op_fun(&Context{txn}, o_change.b) != expected {
 				o_change.b = nil
 			}
 		}

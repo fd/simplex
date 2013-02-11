@@ -24,6 +24,12 @@ func (t *dump_terminal) Resolve(txn *Transaction, events chan<- event.Event) {
 	i_events := txn.Resolve(t.view)
 
 	for e := range i_events.C {
+		// propagate error events
+		if err, ok := e.(event.Error); ok {
+			events <- err
+			continue
+		}
+
 		event, ok := e.(*ConsistentTable)
 		if !ok {
 			continue

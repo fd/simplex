@@ -1,5 +1,9 @@
 package event
 
+import (
+	"fmt"
+)
+
 type (
 	Dispatcher struct {
 		operations chan interface{}
@@ -11,11 +15,13 @@ type (
 		C    <-chan Event
 		name string
 		id   int
+		c    chan Event
 		disp *Dispatcher
 	}
 
 	exchange struct {
-		c chan Event
+		name string
+		c    chan Event
 	}
 
 	disp_op__register struct {
@@ -74,6 +80,7 @@ func (disp *Dispatcher) Register(name string) chan<- Event {
 
 func (sub Subscription) Cancel() {
 	defer func() { recover() }()
+	ensure_closed(sub.c)
 	reply := make(chan bool, 1)
 	sub.disp.operations <- &disp_op__cancel{sub.name, sub.id, reply}
 	<-reply
@@ -86,7 +93,8 @@ func (disp *Dispatcher) register(name string) *exchange {
 	}
 
 	e = &exchange{
-		c: make(chan Event, 1),
+		name: name,
+		c:    make(chan Event, 1),
 	}
 
 	disp.exchanges[name] = e
@@ -101,15 +109,17 @@ func (disp *Dispatcher) go_run() {
 		switch o := op.(type) {
 
 		case *disp_op__register:
+			fmt.Printf("pubsub: REGISTER  %s\n", o.name)
 			o.reply <- disp.register(o.name).c
 			close(o.reply)
 
 		case *disp_op__subscribe:
+			fmt.Printf("pubsub: SUBSCRIBE %s\n", o.name)
 			disp.curr_id += 1
 			c := make(chan Event, 1)
 
 			disp.register(o.name).send_op(&exch_op__subscribe{disp.curr_id, c})
-			o.reply <- Subscription{c, o.name, disp.curr_id, disp}
+			o.reply <- Subscription{c, o.name, disp.curr_id, c, disp}
 
 		case *disp_op__cancel:
 			disp.register(o.name).send_op(&exch_op__cancel{o.id})
@@ -131,11 +141,18 @@ func ensure_closed(c chan Event) {
 	close(c)
 }
 
+func try_send(c chan<- Event, e Event) {
+	defer func() { recover() }()
+	c <- e
+}
+
 func (exch *exchange) send_op(op Event) {
 	defer func() {
 		// no error
 		if e := recover(); e == nil {
 			return
+		} else {
+			fmt.Printf("ERR: %s\n", e)
 		}
 
 		// channel was closed, make a new one
@@ -169,7 +186,7 @@ func (exch *exchange) go_run() {
 			// remove from subscribers
 			// close channel
 			if c, ok := subscribers[e.id]; ok {
-				close(c)
+				ensure_closed(c)
 				delete(subscribers, e.id)
 			}
 
@@ -178,7 +195,7 @@ func (exch *exchange) go_run() {
 			// deliver event to subscriber
 			log = append(log, e)
 			for _, sub := range subscribers {
-				sub <- e
+				try_send(sub, e)
 			}
 
 		}
@@ -189,6 +206,8 @@ func (exch *exchange) go_run() {
 		close(sub)
 	}
 	subscribers = make(map[int]chan Event, 1)
+
+	fmt.Printf("pubsub: LOGGING %s\n", exch.name)
 
 	// go in log delivery mode
 	for event := range exch.c {
@@ -204,7 +223,7 @@ func (exch *exchange) go_run() {
 			// remove from subscribers
 			// close channel
 			if c, ok := subscribers[op.id]; ok {
-				close(c)
+				ensure_closed(c)
 				delete(subscribers, op.id)
 			}
 		}
@@ -215,11 +234,18 @@ func (exch *exchange) go_run() {
 		close(sub)
 	}
 	subscribers = nil
+
+	fmt.Printf("pubsub: CLOSED %s\n", exch.name)
 }
 
 func go_deliver_log(c chan<- Event, log []Event) {
 	defer close(c)
-	defer func() { recover() }()
+	defer func() {
+		e := recover()
+		if e != nil {
+			fmt.Printf("ERR: %s\n", e)
+		}
+	}()
 	for _, log_e := range log {
 		c <- log_e
 	}

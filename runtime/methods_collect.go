@@ -11,8 +11,14 @@ func (op *collect_op) Resolve(txn *Transaction, events chan<- event.Event) {
 		table     = txn.GetTable(op.name)
 	)
 
-	for event := range src_event.C {
-		i_change, ok := event.(*ChangedMember)
+	for e := range src_event.C {
+		// propagate error events
+		if err, ok := e.(event.Error); ok {
+			events <- err
+			continue
+		}
+
+		i_change, ok := e.(*ChangedMember)
 		if !ok {
 			continue
 		}

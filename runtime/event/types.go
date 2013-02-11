@@ -5,17 +5,22 @@ type (
 		Event() string
 	}
 
-	ErrorEvent struct{ Err error }
+	Error interface {
+		Event
+		error
+	}
+
+	error_event struct{ Err error }
 )
 
-func Error(err error) ErrorEvent {
-	return ErrorEvent{err}
+func NewError(err error) Error {
+	return error_event{err}
 }
 
-func (err ErrorEvent) Event() string {
+func (err error_event) Event() string {
 	return err.Error()
 }
 
-func (err ErrorEvent) Error() string {
+func (err error_event) Error() string {
 	return err.Err.Error()
 }

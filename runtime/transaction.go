@@ -5,7 +5,6 @@ import (
 	"github.com/fd/simplex/cas"
 	"github.com/fd/simplex/cas/btree"
 	"github.com/fd/simplex/runtime/event"
-	"runtime"
 	"time"
 )
 
@@ -82,8 +81,6 @@ func (txn *Transaction) Unset(table Table, key interface{}) {
 }
 
 func (txn *Transaction) Commit() {
-	defer runtime.GC()
-
 	var txn_addr cas.Addr
 	{
 		now := time.Now()
@@ -100,22 +97,27 @@ func (txn *Transaction) Commit() {
 	txn.pool = pool
 	txn.dispatcher = disp
 
+	// start the workers
+	disp.Start()
 	pool.Start()
 
-	disp.Start()
-	defer disp.Stop()
+	var (
+		event_collector event.Funnel
+	)
 
 	for _, t := range txn.env.terminals {
 		pool.schedule(txn, t)
+		event_collector.Add(disp.Subscribe(t.DeferredId()).C)
 	}
 
-	//for event := range events {
-	//// handle events
-	//fmt.Printf("Ev (%T): %+v\n", event, event)
-	//}
+	for e := range event_collector.Run() {
+		// handle events
+		fmt.Printf("Ev (%T): %+v\n", e, e)
+	}
 
 	// wait for the workers to finish
 	pool.Stop()
+	disp.Stop()
 
 	// commit the _tables table
 	tables_addr, err := txn.tables.Commit()

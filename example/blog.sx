@@ -25,10 +25,11 @@ func init() {
 		if len(p.Title) > len("Hello World (10)") {
 			return true
 		}
+		panic("hello")
 		return false
 	}))
 
-	// runtime.Dump(posts)
+	//runtime.Dump(posts)
 
 	a = api.New(runtime.Env, "blog")
 	a.RegisterTable(posts)

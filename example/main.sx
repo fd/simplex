@@ -26,7 +26,7 @@ func main() {
 		for {
 			txn := runtime.Env.Transaction()
 			now := time.Now()
-			for i := 0; i < 10000; i++ {
+			for i := 0; i < 100; i++ {
 				txn.Set(posts, i, Post{
 					Title:       fmt.Sprintf("Hello world (%d)", i),
 					PublishedAt: now,

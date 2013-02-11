@@ -111,7 +111,7 @@ func (api *API) DeferredId() string {
 
 func (api *API) Resolve(txn *runtime.Transaction, events chan<- event.Event) {
 	var (
-		funnel runtime.Funnel
+		funnel event.Funnel
 	)
 
 	for _, table := range api.tables {
@@ -123,6 +123,12 @@ func (api *API) Resolve(txn *runtime.Transaction, events chan<- event.Event) {
 	}
 
 	for e := range funnel.Run() {
+		// propagate error events
+		if err, ok := e.(event.Error); ok {
+			events <- err
+			continue
+		}
+
 		event, ok := e.(*runtime.ConsistentTable)
 		if !ok {
 			continue
