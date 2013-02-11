@@ -4,7 +4,7 @@
 
 package doc
 
-import "github.com/fd/simplex/ast"
+import "github.com/fd/simplex/lang/ast"
 
 type Filter func(string) bool
 

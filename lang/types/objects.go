@@ -5,8 +5,8 @@
 package types
 
 import (
-	"github.com/fd/simplex/ast"
-	"github.com/fd/simplex/token"
+	"github.com/fd/simplex/lang/ast"
+	"github.com/fd/simplex/lang/token"
 )
 
 // An Object describes a named language entity such as a package,

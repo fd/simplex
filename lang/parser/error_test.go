@@ -23,8 +23,8 @@
 package parser
 
 import (
-	"github.com/fd/simplex/scanner"
-	"github.com/fd/simplex/token"
+	"github.com/fd/simplex/lang/scanner"
+	"github.com/fd/simplex/lang/token"
 	"io/ioutil"
 	"path/filepath"
 	"regexp"

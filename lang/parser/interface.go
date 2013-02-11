@@ -9,8 +9,8 @@ package parser
 import (
 	"bytes"
 	"errors"
-	"github.com/fd/simplex/ast"
-	"github.com/fd/simplex/token"
+	"github.com/fd/simplex/lang/ast"
+	"github.com/fd/simplex/lang/token"
 	"io"
 	"io/ioutil"
 	"os"

@@ -1,8 +1,8 @@
 package compiler
 
 import (
-	"github.com/fd/simplex/printer"
-	"github.com/fd/simplex/types"
+	"github.com/fd/simplex/lang/printer"
+	"github.com/fd/simplex/lang/types"
 	"io"
 	"os"
 	"path"

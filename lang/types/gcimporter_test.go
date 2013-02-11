@@ -5,8 +5,8 @@
 package types
 
 import (
-	"github.com/fd/simplex/ast"
-	"github.com/fd/simplex/build"
+	"github.com/fd/simplex/lang/ast"
+	"github.com/fd/simplex/lang/build"
 	"io/ioutil"
 	"os"
 	"os/exec"

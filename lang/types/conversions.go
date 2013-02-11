@@ -7,7 +7,7 @@
 package types
 
 import (
-	"github.com/fd/simplex/ast"
+	"github.com/fd/simplex/lang/ast"
 )
 
 // conversion typechecks the type conversion conv to type typ. iota is the current

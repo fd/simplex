@@ -1,7 +1,7 @@
 package types
 
 import (
-	"github.com/fd/simplex/ast"
+	"github.com/fd/simplex/lang/ast"
 )
 
 // rawExpr typechecks expression e and initializes x with the expression

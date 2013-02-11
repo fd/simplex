@@ -7,8 +7,8 @@ package printer
 
 import (
 	"fmt"
-	"github.com/fd/simplex/ast"
-	"github.com/fd/simplex/token"
+	"github.com/fd/simplex/lang/ast"
+	"github.com/fd/simplex/lang/token"
 	"io"
 	"os"
 	"strconv"
