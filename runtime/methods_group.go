@@ -40,35 +40,18 @@ func (op *group_op) Resolve(txn *Transaction, events chan<- event.Event) {
 			coll_key_b = cas.Collate(key_b)
 		}
 
-		// skip when they are equal
+		// propagate event
+		// - to sub table at coll_key_b
+		// - to groups table
 		if bytes.Compare(coll_key_a, coll_key_b) == 0 {
 			continue
 		}
 
-		// remove old entry
-		if i_change.a != nil {
-			key_addr, elt_addr, err := table.Del(coll_key_a)
-			if err != nil {
-				panic("runtime: " + err.Error())
-			}
-			events <- &ChangedMember{op.name, coll_key_a, key_addr, elt_addr, nil}
-		}
-
-		// add new entry
-		if i_change.b != nil {
-			key_addr, err := cas.Encode(txn.env.Store, key_b, -1)
-			if err != nil {
-				panic("runtime: " + err.Error())
-			}
-
-			prev_elt_addr, err := table.Set(coll_key_a, key_addr, i_change.b)
-			if err != nil {
-				panic("runtime: " + err.Error())
-			}
-
-			events <- &ChangedMember{op.name, coll_key_b, key_addr, prev_elt_addr, i_change.b}
-		}
+		// remove old entry from sub table
+		// add new entry to sub table (while potentially adding new subtables)
 	}
+
+	// remove empty sub tables
 
 	tab_addr_a, tab_addr_b := txn.CommitTable(op.name, table)
 	events <- &ConsistentTable{op.name, tab_addr_a, tab_addr_b}
