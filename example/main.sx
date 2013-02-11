@@ -24,7 +24,7 @@ func main() {
 	go func() {
 		time.Sleep(5 * time.Second)
 		for {
-			txn := runtime.Env.Transaction()
+			txn := runtime.NewTransaction(runtime.Env)
 			now := time.Now()
 			for i := 0; i < 5000; i++ {
 				txn.Set(posts, i, Post{

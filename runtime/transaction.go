@@ -37,7 +37,7 @@ const (
 	UNSET
 )
 
-func (env *Environment) Transaction() *Transaction {
+func NewTransaction(env *Environment) *Transaction {
 	txn := &Transaction{env: env}
 
 	txn_addr, err := env.GetCurrentTransaction()
