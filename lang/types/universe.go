@@ -7,7 +7,7 @@
 package types
 
 import (
-	"github.com/fd/simplex/lang/ast"
+	"simplex.sh/lang/ast"
 	"strings"
 )
 

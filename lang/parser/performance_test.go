@@ -5,8 +5,8 @@
 package parser
 
 import (
-	"github.com/fd/simplex/lang/token"
 	"io/ioutil"
+	"simplex.sh/lang/token"
 	"testing"
 )
 

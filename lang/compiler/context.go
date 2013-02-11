@@ -1,9 +1,9 @@
 package compiler
 
 import (
-	"github.com/fd/simplex/lang/ast"
-	"github.com/fd/simplex/lang/token"
-	"github.com/fd/simplex/lang/types"
+	"simplex.sh/lang/ast"
+	"simplex.sh/lang/token"
+	"simplex.sh/lang/types"
 )
 
 type Context struct {

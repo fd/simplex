@@ -1,7 +1,7 @@
 package runtime
 
 import (
-	"github.com/fd/simplex/runtime/event"
+	"simplex.sh/runtime/event"
 )
 
 /*

@@ -1,7 +1,7 @@
 package btree
 
 import (
-	"github.com/fd/simplex/cas"
+	"simplex.sh/cas"
 )
 
 type Tree struct {

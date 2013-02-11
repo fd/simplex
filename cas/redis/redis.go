@@ -2,10 +2,10 @@ package redis
 
 import (
 	"bytes"
-	"github.com/fd/simplex/cas"
 	"github.com/simonz05/godis/redis"
 	"io"
 	"io/ioutil"
+	"simplex.sh/cas"
 )
 
 type store struct {

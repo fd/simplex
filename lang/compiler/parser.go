@@ -1,9 +1,9 @@
 package compiler
 
 import (
-	"github.com/fd/simplex/lang/ast"
-	"github.com/fd/simplex/lang/parser"
-	"github.com/fd/simplex/lang/token"
+	"simplex.sh/lang/ast"
+	"simplex.sh/lang/parser"
+	"simplex.sh/lang/token"
 )
 
 func (c *Context) parse_files() error {

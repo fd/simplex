@@ -8,11 +8,11 @@ package main
 
 import (
 	"fmt"
-	"github.com/fd/simplex/lang/build"
 	"os"
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"simplex.sh/lang/build"
 	"strconv"
 	"strings"
 )

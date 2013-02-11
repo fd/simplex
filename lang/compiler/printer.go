@@ -1,11 +1,11 @@
 package compiler
 
 import (
-	"github.com/fd/simplex/lang/printer"
-	"github.com/fd/simplex/lang/types"
 	"io"
 	"os"
 	"path"
+	"simplex.sh/lang/printer"
+	"simplex.sh/lang/types"
 	"sort"
 	"text/template"
 )
@@ -102,8 +102,8 @@ package {{.PkgName}}
 
 import (
   sx_reflect "reflect"
-  sx_runtime "github.com/fd/simplex/runtime"
-  sx_event "github.com/fd/simplex/runtime/event"
+  sx_runtime "simplex.sh/runtime"
+  sx_event "simplex.sh/runtime/event"
 )
 
 `))

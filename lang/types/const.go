@@ -8,8 +8,8 @@ package types
 
 import (
 	"fmt"
-	"github.com/fd/simplex/lang/token"
 	"math/big"
+	"simplex.sh/lang/token"
 	"strconv"
 )
 

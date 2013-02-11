@@ -8,12 +8,12 @@ package main
 
 import (
 	"bytes"
-	"github.com/fd/simplex/lang/doc"
-	"github.com/fd/simplex/lang/parser"
-	"github.com/fd/simplex/lang/token"
 	"log"
 	"os"
 	pathpkg "path"
+	"simplex.sh/lang/doc"
+	"simplex.sh/lang/parser"
+	"simplex.sh/lang/token"
 	"strings"
 )
 

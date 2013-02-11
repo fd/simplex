@@ -1,9 +1,9 @@
 package compiler
 
 import (
-	template "github.com/fd/simplex/w/template/compiler"
 	"os"
 	"os/exec"
+	template "simplex.sh/w/template/compiler"
 )
 
 func compile_go_files(ctx *template.Context) error {

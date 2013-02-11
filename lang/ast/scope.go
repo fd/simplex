@@ -9,7 +9,7 @@ package ast
 import (
 	"bytes"
 	"fmt"
-	"github.com/fd/simplex/lang/token"
+	"simplex.sh/lang/token"
 )
 
 // A Scope maintains the set of named language entities declared

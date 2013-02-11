@@ -4,7 +4,7 @@
 
 package types
 
-import "github.com/fd/simplex/lang/ast"
+import "simplex.sh/lang/ast"
 
 // All types implement the Type interface.
 type Type interface {

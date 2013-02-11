@@ -1,8 +1,8 @@
 package main
 
 import (
-	"github.com/fd/simplex/net/http/api"
-	"github.com/fd/simplex/runtime"
+	"simplex.sh/net/http/api"
+	"simplex.sh/runtime"
 	"time"
 )
 

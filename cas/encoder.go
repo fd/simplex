@@ -4,10 +4,10 @@ import (
 	"bytes"
 	"compress/zlib"
 	"crypto/sha1"
-	"github.com/fd/simplex/cas/blob"
 	"hash"
 	"io"
 	"reflect"
+	"simplex.sh/cas/blob"
 )
 
 const DEFAULT_OVERFLOW_TRIGGER = 256

@@ -12,10 +12,10 @@ package main
 
 import (
 	"fmt"
-	"github.com/fd/simplex/lang/scanner"
-	"github.com/fd/simplex/lang/token"
 	"io"
 	"regexp"
+	"simplex.sh/lang/scanner"
+	"simplex.sh/lang/token"
 	"strconv"
 	"text/template"
 )

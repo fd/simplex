@@ -10,11 +10,11 @@
 package main
 
 import (
-	"github.com/fd/simplex/lang/ast"
-	"github.com/fd/simplex/lang/parser"
-	"github.com/fd/simplex/lang/token"
 	"os"
 	pathpkg "path"
+	"simplex.sh/lang/ast"
+	"simplex.sh/lang/parser"
+	"simplex.sh/lang/token"
 )
 
 func parseFile(fset *token.FileSet, filename string, mode parser.Mode) (*ast.File, error) {

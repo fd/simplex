@@ -3,8 +3,8 @@ package compiler
 import (
 	"bytes"
 	"fmt"
-	"github.com/fd/simplex/lang/ast"
-	"github.com/fd/simplex/lang/types"
+	"simplex.sh/lang/ast"
+	"simplex.sh/lang/types"
 )
 
 func sx_type_string(typ types.Type) string {

@@ -1,7 +1,7 @@
 package cron
 
 import (
-	"github.com/fd/simplex/runtime"
+	"simplex.sh/runtime"
 	"time"
 )
 

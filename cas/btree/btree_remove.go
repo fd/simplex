@@ -1,7 +1,7 @@
 package btree
 
 import (
-	"github.com/fd/simplex/cas"
+	"simplex.sh/cas"
 )
 
 func (n *node_t) remove_ref(collated_key []byte, order int, store cas.GetterSetter) (prev *ref_t, err error) {

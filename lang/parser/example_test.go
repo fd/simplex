@@ -6,8 +6,8 @@ package parser_test
 
 import (
 	"fmt"
-	"github.com/fd/simplex/lang/parser"
-	"github.com/fd/simplex/lang/token"
+	"simplex.sh/lang/parser"
+	"simplex.sh/lang/token"
 )
 
 func ExampleParseFile() {
@@ -29,6 +29,6 @@ func ExampleParseFile() {
 	// output:
 	//
 	// "fmt"
-	// "github.com/fd/simplex/lang/parser"
-	// "github.com/fd/simplex/lang/token"
+	// "simplex.sh/lang/parser"
+	// "simplex.sh/lang/token"
 }

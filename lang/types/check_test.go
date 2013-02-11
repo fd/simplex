@@ -25,13 +25,13 @@ package types
 import (
 	"flag"
 	"fmt"
-	"github.com/fd/simplex/lang/ast"
-	"github.com/fd/simplex/lang/parser"
-	"github.com/fd/simplex/lang/scanner"
-	"github.com/fd/simplex/lang/token"
 	"io/ioutil"
 	"os"
 	"regexp"
+	"simplex.sh/lang/ast"
+	"simplex.sh/lang/parser"
+	"simplex.sh/lang/scanner"
+	"simplex.sh/lang/token"
 	"strings"
 	"testing"
 )

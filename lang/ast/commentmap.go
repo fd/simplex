@@ -7,7 +7,7 @@ package ast
 import (
 	"bytes"
 	"fmt"
-	"github.com/fd/simplex/lang/token"
+	"simplex.sh/lang/token"
 	"sort"
 )
 

@@ -1,8 +1,8 @@
 package parser
 
 import (
-	"github.com/fd/simplex/lang/ast"
-	"github.com/fd/simplex/lang/token"
+	"simplex.sh/lang/ast"
+	"simplex.sh/lang/token"
 )
 
 func (p *parser) parseViewType() *ast.ViewType {

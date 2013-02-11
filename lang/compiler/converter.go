@@ -1,9 +1,9 @@
 package compiler
 
 import (
-	"github.com/fd/simplex/lang/ast"
-	"github.com/fd/simplex/lang/token"
-	"github.com/fd/simplex/lang/types"
+	"simplex.sh/lang/ast"
+	"simplex.sh/lang/token"
+	"simplex.sh/lang/types"
 	"strconv"
 )
 
@@ -18,14 +18,14 @@ func (c *Context) convert_sx_to_go() error {
 		)
 
 		for _, imp := range file.Imports {
-			if imp.Path.Value == `"github.com/fd/simplex/runtime"` {
+			if imp.Path.Value == `"simplex.sh/runtime"` {
 				if imp.Name == nil {
 					runtime_name = "runtime"
 				} else {
 					runtime_name = imp.Name.Name
 				}
 			}
-			if imp.Path.Value == `"github.com/fd/simplex/cas"` {
+			if imp.Path.Value == `"simplex.sh/cas"` {
 				if imp.Name == nil {
 					cas_name = "cas"
 				} else {
@@ -35,7 +35,7 @@ func (c *Context) convert_sx_to_go() error {
 		}
 		if runtime_name == "" {
 			runtime_name = "sx_runtime"
-			add_import(file, runtime_name, "github.com/fd/simplex/runtime")
+			add_import(file, runtime_name, "simplex.sh/runtime")
 		}
 		if cas_name == "" {
 			cas_name = "sx_cas"
@@ -53,7 +53,7 @@ func (c *Context) convert_sx_to_go() error {
 		ast.Replace(v, file)
 
 		if cas_missing && v.used_cas_import {
-			add_import(file, cas_name, "github.com/fd/simplex/cas")
+			add_import(file, cas_name, "simplex.sh/cas")
 		}
 	}
 

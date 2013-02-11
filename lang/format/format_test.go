@@ -6,9 +6,9 @@ package format
 
 import (
 	"bytes"
-	"github.com/fd/simplex/lang/parser"
-	"github.com/fd/simplex/lang/token"
 	"io/ioutil"
+	"simplex.sh/lang/parser"
+	"simplex.sh/lang/token"
 	"strconv"
 	"strings"
 	"testing"

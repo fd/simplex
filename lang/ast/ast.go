@@ -8,7 +8,7 @@
 package ast
 
 import (
-	"github.com/fd/simplex/lang/token"
+	"simplex.sh/lang/token"
 	"strings"
 	"unicode"
 	"unicode/utf8"

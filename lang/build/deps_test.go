@@ -8,7 +8,7 @@
 package build_test
 
 import (
-	"github.com/fd/simplex/build"
+	"simplex.sh/build"
 	"sort"
 	"testing"
 )

@@ -8,8 +8,8 @@
 package types
 
 import (
-	"github.com/fd/simplex/lang/ast"
-	"github.com/fd/simplex/lang/parser"
+	"simplex.sh/lang/ast"
+	"simplex.sh/lang/parser"
 	"testing"
 )
 

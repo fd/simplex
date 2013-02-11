@@ -1,7 +1,7 @@
 package compiler
 
 import (
-	"github.com/fd/simplex/lang/types"
+	"simplex.sh/lang/types"
 )
 
 func underlying_type(typ types.Type) types.Type {

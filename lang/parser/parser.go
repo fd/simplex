@@ -11,9 +11,9 @@ package parser
 
 import (
 	"fmt"
-	"github.com/fd/simplex/lang/ast"
-	"github.com/fd/simplex/lang/scanner"
-	"github.com/fd/simplex/lang/token"
+	"simplex.sh/lang/ast"
+	"simplex.sh/lang/scanner"
+	"simplex.sh/lang/token"
 	"strconv"
 	"strings"
 	"unicode"

@@ -6,11 +6,11 @@ package main
 
 import (
 	"fmt"
-	"github.com/fd/simplex/lang/ast"
-	"github.com/fd/simplex/lang/parser"
-	"github.com/fd/simplex/lang/token"
 	"os"
 	"reflect"
+	"simplex.sh/lang/ast"
+	"simplex.sh/lang/parser"
+	"simplex.sh/lang/token"
 	"strings"
 	"unicode"
 	"unicode/utf8"

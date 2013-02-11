@@ -2,8 +2,8 @@ package runtime
 
 import (
 	"fmt"
-	"github.com/fd/simplex/cas"
-	"github.com/fd/simplex/cas/btree"
+	"simplex.sh/cas"
+	"simplex.sh/cas/btree"
 )
 
 type (

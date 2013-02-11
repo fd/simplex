@@ -1,11 +1,11 @@
 package file_system
 
 import (
-	"github.com/fd/simplex/cas"
 	"io"
 	"io/ioutil"
 	"os"
 	path "path/filepath"
+	"simplex.sh/cas"
 )
 
 type store struct {

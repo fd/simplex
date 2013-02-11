@@ -10,8 +10,8 @@
 package types
 
 import (
-	"github.com/fd/simplex/lang/ast"
-	"github.com/fd/simplex/lang/token"
+	"simplex.sh/lang/ast"
+	"simplex.sh/lang/token"
 )
 
 // A Context specifies the supporting context for type checking.

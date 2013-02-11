@@ -5,11 +5,11 @@
 package scanner
 
 import (
-	"github.com/fd/simplex/lang/token"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"runtime"
+	"simplex.sh/lang/token"
 	"testing"
 )
 

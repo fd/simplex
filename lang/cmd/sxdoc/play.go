@@ -9,8 +9,8 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/fd/simplex/lang/format"
 	"net/http"
+	"simplex.sh/lang/format"
 )
 
 // The server that will service compile and share requests.

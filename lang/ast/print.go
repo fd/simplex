@@ -8,10 +8,10 @@ package ast
 
 import (
 	"fmt"
-	"github.com/fd/simplex/lang/token"
 	"io"
 	"os"
 	"reflect"
+	"simplex.sh/lang/token"
 )
 
 // A FieldFilter may be provided to Fprint to control the output.

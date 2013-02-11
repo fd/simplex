@@ -1,8 +1,8 @@
 package runtime
 
 import (
-	"github.com/fd/simplex/runtime/event"
 	"reflect"
+	"simplex.sh/runtime/event"
 )
 
 type Deferred interface {

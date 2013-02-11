@@ -9,12 +9,12 @@ package parser
 import (
 	"bytes"
 	"errors"
-	"github.com/fd/simplex/lang/ast"
-	"github.com/fd/simplex/lang/token"
 	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"simplex.sh/lang/ast"
+	"simplex.sh/lang/token"
 )
 
 // If src != nil, readSource converts src to a []byte if possible;

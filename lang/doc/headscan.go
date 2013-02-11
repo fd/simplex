@@ -19,12 +19,12 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
-	"github.com/fd/simplex/lang/doc"
-	"github.com/fd/simplex/lang/parser"
-	"github.com/fd/simplex/lang/token"
 	"os"
 	"path/filepath"
 	"runtime"
+	"simplex.sh/lang/doc"
+	"simplex.sh/lang/parser"
+	"simplex.sh/lang/token"
 	"strings"
 )
 

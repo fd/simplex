@@ -2,10 +2,10 @@ package runtime
 
 import (
 	"fmt"
-	"github.com/fd/simplex/cas"
-	"github.com/fd/simplex/cas/btree"
-	"github.com/fd/simplex/runtime/event"
 	"reflect"
+	"simplex.sh/cas"
+	"simplex.sh/cas/btree"
+	"simplex.sh/runtime/event"
 )
 
 func Dump(view IndexedView) {

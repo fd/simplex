@@ -10,8 +10,8 @@ package printer
 
 import (
 	"bytes"
-	"github.com/fd/simplex/lang/ast"
-	"github.com/fd/simplex/lang/token"
+	"simplex.sh/lang/ast"
+	"simplex.sh/lang/token"
 	"unicode/utf8"
 )
 

@@ -6,10 +6,10 @@ package doc_test
 
 import (
 	"bytes"
-	"github.com/fd/simplex/lang/doc"
-	"github.com/fd/simplex/lang/format"
-	"github.com/fd/simplex/lang/parser"
-	"github.com/fd/simplex/lang/token"
+	"simplex.sh/lang/doc"
+	"simplex.sh/lang/format"
+	"simplex.sh/lang/parser"
+	"simplex.sh/lang/token"
 	"strings"
 	"testing"
 )

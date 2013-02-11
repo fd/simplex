@@ -5,9 +5,9 @@
 package doc
 
 import (
-	"github.com/fd/simplex/lang/ast"
-	"github.com/fd/simplex/lang/token"
 	"regexp"
+	"simplex.sh/lang/ast"
+	"simplex.sh/lang/token"
 	"sort"
 	"strconv"
 )

@@ -3,15 +3,15 @@ package container
 import (
 	"fmt"
 	"github.com/fd/options"
-	"github.com/fd/simplex/w/data"
 	"os"
 	"os/signal"
 	"runtime"
+	"simplex.sh/w/data"
 	"syscall"
 )
 
 import (
-	_ "github.com/fd/simplex/w/data/storage/file_system"
+	_ "simplex.sh/w/data/storage/file_system"
 )
 
 var spec = options.MustParse(`

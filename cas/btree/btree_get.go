@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"sort"
 
-	"github.com/fd/simplex/cas"
+	"simplex.sh/cas"
 )
 
 func (n *node_t) get(key []byte, store cas.GetterSetter) (ref *ref_t, err error) {

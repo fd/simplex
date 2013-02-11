@@ -9,8 +9,8 @@ package types
 import (
 	"bytes"
 	"fmt"
-	"github.com/fd/simplex/lang/ast"
-	"github.com/fd/simplex/lang/token"
+	"simplex.sh/lang/ast"
+	"simplex.sh/lang/token"
 )
 
 // TODO(gri) eventually assert and unimplemented should disappear.

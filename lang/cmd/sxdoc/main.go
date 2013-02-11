@@ -34,9 +34,6 @@ import (
 	_ "expvar" // to serve /debug/vars
 	"flag"
 	"fmt"
-	"github.com/fd/simplex/lang/ast"
-	"github.com/fd/simplex/lang/build"
-	"github.com/fd/simplex/lang/printer"
 	"io"
 	"log"
 	"net/http"
@@ -47,6 +44,9 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"simplex.sh/lang/ast"
+	"simplex.sh/lang/build"
+	"simplex.sh/lang/printer"
 	"strings"
 )
 

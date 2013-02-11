@@ -5,9 +5,9 @@
 package main
 
 import (
-	"github.com/fd/simplex/lang/ast"
-	"github.com/fd/simplex/lang/token"
 	"reflect"
+	"simplex.sh/lang/ast"
+	"simplex.sh/lang/token"
 )
 
 type simplifier struct {

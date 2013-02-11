@@ -4,10 +4,10 @@ import (
 	"bytes"
 	"compress/zlib"
 	"fmt"
-	"github.com/fd/simplex/cas/blob"
 	"io"
 	"io/ioutil"
 	"reflect"
+	"simplex.sh/cas/blob"
 )
 
 type Decoder struct {

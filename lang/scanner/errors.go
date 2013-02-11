@@ -6,8 +6,8 @@ package scanner
 
 import (
 	"fmt"
-	"github.com/fd/simplex/lang/token"
 	"io"
+	"simplex.sh/lang/token"
 	"sort"
 )
 

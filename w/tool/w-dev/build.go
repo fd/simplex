@@ -3,8 +3,8 @@ package main
 import (
 	"fmt"
 	"github.com/fd/options"
-	"github.com/fd/simplex/w/compiler"
 	"os"
+	"simplex.sh/w/compiler"
 )
 
 func Build(args []string) {

@@ -5,13 +5,13 @@
 package types
 
 import (
-	"github.com/fd/simplex/lang/ast"
-	"github.com/fd/simplex/lang/build"
 	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"simplex.sh/lang/ast"
+	"simplex.sh/lang/build"
 	"strings"
 	"testing"
 	"time"
