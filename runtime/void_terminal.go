@@ -21,7 +21,9 @@ func (t *void_terminal) DeferredId() string {
 }
 
 func (t *void_terminal) Resolve(txn *Transaction, events chan<- event.Event) {
-	for e := range txn.Resolve(t.def).C {
+	src_events := txn.Resolve(t.def)
+
+	for e := range src_events.C {
 		// propagate error events
 		if err, ok := e.(event.Error); ok {
 			events <- err
