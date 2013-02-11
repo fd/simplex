@@ -1,6 +1,7 @@
 package api
 
 import (
+	"crypto/sha1"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -81,6 +82,8 @@ func (api *API) RegisterView(view runtime.IndexedView, route string) {
 		panic(fmt.Sprintf("Already registered a view by the name of `%s`", view.DeferredId()))
 	}
 
+	sha := sha1.New()
+
 	json_view := runtime.Collect(
 		view,
 		func(ctx *runtime.Context, m_addr cas.Addr) cas.Addr {
@@ -88,8 +91,11 @@ func (api *API) RegisterView(view runtime.IndexedView, route string) {
 			m = reflect.New(view.EltType())
 			ctx.LoadValue(m_addr, m)
 
+			sha.Reset()
+			sha.Write([]byte(m_addr[:]))
+
 			data, err := json.Marshal(map[string]interface{}{
-				"Vsn": hex.EncodeToString([]byte(m_addr[:])),
+				"Vsn": hex.EncodeToString(sha.Sum(nil)),
 				"Obj": m.Interface(),
 			})
 			if err != nil {
