@@ -84,8 +84,8 @@ func TestLocalDirectory(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if p.ImportPath != "simplex.sh/build" {
-		t.Fatalf("ImportPath=%q, want %q", p.ImportPath, "simplex.sh/build")
+	if p.ImportPath != "simplex.sh/lang/build" {
+		t.Fatalf("ImportPath=%q, want %q", p.ImportPath, "simplex.sh/lang/build")
 	}
 }
 

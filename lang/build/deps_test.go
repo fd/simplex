@@ -8,7 +8,7 @@
 package build_test
 
 import (
-	"simplex.sh/build"
+	"simplex.sh/lang/build"
 	"sort"
 	"testing"
 )
