@@ -3,30 +3,33 @@ package runtime
 import (
 	"simplex.sh/cas"
 	"simplex.sh/runtime/event"
+	"simplex.sh/runtime/promise"
 )
 
-func (op *select_op) Resolve(txn *Transaction, events chan<- event.Event) {
+func (op *select_op) Resolve(state promise.State, events chan<- event.Event) {
 	var (
-		src_events = txn.Resolve(op.src)
+		src_events = state.Resolve(op.src)
+		fun        = op.fun
 	)
 
-	apply_select_reject_filter(op.name, op.fun, true, src_events, events, txn)
+	apply_select_reject_filter(op.name, fun, true, src_events, events, state)
 }
 
-func (op *reject_op) Resolve(txn *Transaction, events chan<- event.Event) {
+func (op *reject_op) Resolve(state promise.State, events chan<- event.Event) {
 	var (
-		src_events = txn.Resolve(op.src)
+		src_events = state.Resolve(op.src)
+		fun        = select_func(op.fun)
 	)
 
-	apply_select_reject_filter(op.name, select_func(op.fun), false, src_events, events, txn)
+	apply_select_reject_filter(op.name, fun, false, src_events, events, state)
 }
 
 func apply_select_reject_filter(op_name string, op_fun select_func,
 	expected bool, src_events *event.Subscription, dst_events chan<- event.Event,
-	txn *Transaction) {
+	state promise.State) {
 
 	var (
-		table = txn.GetTable(op_name)
+		table = state.GetTable(op_name)
 	)
 
 	for e := range src_events.C {
@@ -46,13 +49,13 @@ func apply_select_reject_filter(op_name string, op_fun select_func,
 		)
 
 		if o_change.a != nil {
-			if op_fun(&Context{txn}, o_change.a) != expected {
+			if op_fun(&Context{state.Store()}, o_change.a) != expected {
 				o_change.a = nil
 			}
 		}
 
 		if o_change.b != nil {
-			if op_fun(&Context{txn}, o_change.b) != expected {
+			if op_fun(&Context{state.Store()}, o_change.b) != expected {
 				o_change.b = nil
 			}
 		}
@@ -92,6 +95,6 @@ func apply_select_reject_filter(op_name string, op_fun select_func,
 		dst_events <- o_change
 	}
 
-	tab_addr_a, tab_addr_b := txn.CommitTable(op_name, table)
+	tab_addr_a, tab_addr_b := state.CommitTable(op_name, table)
 	dst_events <- &ConsistentTable{op_name, tab_addr_a, tab_addr_b}
 }

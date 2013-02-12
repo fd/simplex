@@ -4,12 +4,13 @@ import (
 	"bytes"
 	"simplex.sh/cas"
 	"simplex.sh/runtime/event"
+	"simplex.sh/runtime/promise"
 )
 
-func (op *sort_op) Resolve(txn *Transaction, events chan<- event.Event) {
+func (op *sort_op) Resolve(state promise.State, events chan<- event.Event) {
 	var (
-		src_events = txn.Resolve(op.src)
-		table      = txn.GetTable(op.name)
+		src_events = state.Resolve(op.src)
+		table      = state.GetTable(op.name)
 	)
 
 	for e := range src_events.C {
@@ -32,18 +33,18 @@ func (op *sort_op) Resolve(txn *Transaction, events chan<- event.Event) {
 
 		// calculate collated sort key for a and b
 		if i_change.a != nil {
-			sort_key := op.fun(&Context{txn}, i_change.a)
+			sort_key := op.fun(&Context{state.Store()}, i_change.a)
 			coll_key_a = cas.Collate([]interface{}{sort_key, i_change.collated_key})
 		}
 		if i_change.b != nil {
-			sort_key := op.fun(&Context{txn}, i_change.b)
+			sort_key := op.fun(&Context{state.Store()}, i_change.b)
 			key_b = []interface{}{sort_key, i_change.collated_key}
 			coll_key_b = cas.Collate(key_b)
 		}
 
 		// forward when the keys are equal
 		if bytes.Compare(coll_key_a, coll_key_b) == 0 {
-			key_addr, err := cas.Encode(txn.env.Store, key_b, -1)
+			key_addr, err := cas.Encode(state.Store(), key_b, -1)
 			if err != nil {
 				panic("runtime: " + err.Error())
 			}
@@ -63,7 +64,7 @@ func (op *sort_op) Resolve(txn *Transaction, events chan<- event.Event) {
 
 		// add new entry
 		if i_change.b != nil {
-			key_addr, err := cas.Encode(txn.env.Store, key_b, -1)
+			key_addr, err := cas.Encode(state.Store(), key_b, -1)
 			if err != nil {
 				panic("runtime: " + err.Error())
 			}
@@ -77,6 +78,6 @@ func (op *sort_op) Resolve(txn *Transaction, events chan<- event.Event) {
 		}
 	}
 
-	tab_addr_a, tab_addr_b := txn.CommitTable(op.name, table)
+	tab_addr_a, tab_addr_b := state.CommitTable(op.name, table)
 	events <- &ConsistentTable{op.name, tab_addr_a, tab_addr_b}
 }

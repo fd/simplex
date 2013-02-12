@@ -11,10 +11,8 @@ import (
 )
 
 type printer_t struct {
-	ctx                 *Context
-	reflect_import_name string
-	runtime_import_name string
-	printed_types       map[string]bool
+	ctx           *Context
+	printed_types map[string]bool
 }
 
 func (c *Context) print_go() error {
@@ -104,14 +102,12 @@ import (
   sx_reflect "reflect"
   sx_runtime "simplex.sh/runtime"
   sx_event "simplex.sh/runtime/event"
+  sx_promise "simplex.sh/runtime/promise"
 )
 
 `))
 
 func (p *printer_t) print_intro(w io.Writer, pkg_name string) error {
-	p.reflect_import_name = "sx_reflect"
-	p.runtime_import_name = "sx_runtime"
-
 	type data struct {
 		PkgName string
 	}
@@ -131,12 +127,12 @@ type (
   }
 )
 func (t sx_{{.TypeName}}) TableId() string { return t.DeferredId() }
-func (t sx_{{.TypeName}}) Resolve(txn *{{.Runtime}}.Transaction, events chan<- sx_event.Event) {
-  t.Deferred.Resolve(txn, events)
+func (t sx_{{.TypeName}}) Resolve(state sx_promise.State, events chan<- sx_event.Event) {
+  t.Deferred.Resolve(state, events)
 }
-func new_{{.TypeName}}(env *{{.Runtime}}.Environment, id string) {{.TypeName}} {
+func new_{{.TypeName}}(env *sx_runtime.Environment, id string) {{.TypeName}} {
   t := sx_{{.TypeName}}{}
-  t.Deferred = {{.Runtime}}.DeclareTable(id)
+  t.Deferred = sx_runtime.DeclareTable(id)
   env.RegisterTable(t)
   return t
 }
@@ -144,9 +140,6 @@ func new_{{.TypeName}}(env *{{.Runtime}}.Environment, id string) {{.TypeName}} {
 
 func (p *printer_t) print_tables(w io.Writer, tables map[string]*types.Table) error {
 	type data struct {
-		Runtime string
-		Reflect string
-
 		TypeName string
 		KeyType  string
 		EltType  string
@@ -173,9 +166,6 @@ func (p *printer_t) print_tables(w io.Writer, tables map[string]*types.Table) er
 		p.ctx.ViewTypes[go_type_string(parent)] = parent
 
 		err := table_tmpl.Execute(w, data{
-			Runtime: p.runtime_import_name,
-			Reflect: p.reflect_import_name,
-
 			TypeName: name,
 			KeyType:  go_type_string(typ.Key),
 			EltType:  go_type_string(typ.Elt),
@@ -204,12 +194,12 @@ type (
     sx_{{.IndexedTypeName}}
   }
 )
-func (s sx_{{.TypeName}}) KeyType() {{.Reflect}}.Type { return {{.Reflect}}.TypeOf(s.KeyZero()) }
+func (s sx_{{.TypeName}}) KeyType() sx_reflect.Type { return sx_reflect.TypeOf(s.KeyZero()) }
 func (s sx_{{.TypeName}}) KeyZero() {{.KeyType}} { return {{.KeyZero}} }
-func (t sx_{{.TypeName}}) Resolve(txn *{{.Runtime}}.Transaction, events chan<- sx_event.Event) {
-  t.Deferred.Resolve(txn, events)
+func (t sx_{{.TypeName}}) Resolve(state sx_promise.State, events chan<- sx_event.Event) {
+  t.Deferred.Resolve(state, events)
 }
-func wrap_{{.TypeName}}(def {{.Runtime}}.Deferred) {{.TypeName}} {
+func wrap_{{.TypeName}}(def sx_promise.Deferred) {{.TypeName}} {
   t := sx_{{.TypeName}}{}
   t.Deferred = def
   return t
@@ -218,9 +208,6 @@ func wrap_{{.TypeName}}(def {{.Runtime}}.Deferred) {{.TypeName}} {
 
 func (p *printer_t) print_keyed_views(w io.Writer, views map[string]*types.View) error {
 	type data struct {
-		Runtime string
-		Reflect string
-
 		TypeName string
 		KeyType  string
 		EltType  string
@@ -251,9 +238,6 @@ func (p *printer_t) print_keyed_views(w io.Writer, views map[string]*types.View)
 		p.ctx.ViewTypes[go_type_string(parent)] = parent
 
 		err := keyed_view_tmpl.Execute(w, &data{
-			Runtime: p.runtime_import_name,
-			Reflect: p.reflect_import_name,
-
 			TypeName: name,
 			KeyType:  go_type_string(typ.Key),
 			EltType:  go_type_string(typ.Elt),
@@ -276,21 +260,21 @@ type (
     EltType() sx_reflect.Type
     EltZero() {{.EltType}}
     DeferredId() string
-    Resolve(txn *{{.Runtime}}.Transaction, events chan<- sx_event.Event)
+    Resolve(state sx_promise.State, events chan<- sx_event.Event)
   }
 
   sx_{{.TypeName}} struct {
-    Deferred {{.Runtime}}.Deferred
+    Deferred sx_promise.Deferred
   }
 )
 
 func (s sx_{{.TypeName}}) DeferredId() string { return s.Deferred.DeferredId() }
-func (s sx_{{.TypeName}}) EltType() {{.Reflect}}.Type { return {{.Reflect}}.TypeOf(s.EltZero()) }
+func (s sx_{{.TypeName}}) EltType() sx_reflect.Type { return sx_reflect.TypeOf(s.EltZero()) }
 func (s sx_{{.TypeName}}) EltZero() {{.EltType}} { return {{.EltZero}} }
-func (t sx_{{.TypeName}}) Resolve(txn *{{.Runtime}}.Transaction, events chan<- sx_event.Event) {
-  t.Deferred.Resolve(txn, events)
+func (t sx_{{.TypeName}}) Resolve(state sx_promise.State, events chan<- sx_event.Event) {
+  t.Deferred.Resolve(state, events)
 }
-func wrap_{{.TypeName}}(def {{.Runtime}}.Deferred) {{.TypeName}} {
+func wrap_{{.TypeName}}(def sx_promise.Deferred) {{.TypeName}} {
   t := sx_{{.TypeName}}{}
   t.Deferred = def
   return t
@@ -299,9 +283,6 @@ func wrap_{{.TypeName}}(def {{.Runtime}}.Deferred) {{.TypeName}} {
 
 func (p *printer_t) print_indexed_views(w io.Writer, views map[string]*types.View) error {
 	type data struct {
-		Runtime string
-		Reflect string
-
 		TypeName string
 		EltType  string
 		EltZero  string
@@ -325,9 +306,6 @@ func (p *printer_t) print_indexed_views(w io.Writer, views map[string]*types.Vie
 		p.printed_types[name] = true
 
 		err := indexed_view_tmpl.Execute(w, data{
-			Runtime: p.runtime_import_name,
-			Reflect: p.reflect_import_name,
-
 			TypeName: name,
 			EltType:  go_type_string(typ.Elt),
 			EltZero:  type_zero(typ.Elt),

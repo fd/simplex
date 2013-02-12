@@ -3,12 +3,18 @@ package runtime
 import (
 	"simplex.sh/cas"
 	"simplex.sh/runtime/event"
+	"simplex.sh/runtime/promise"
 )
 
-func (op *table_op) Resolve(txn *Transaction, events chan<- event.Event) {
-	table := txn.GetTable(op.name)
+func (op *table_op) Resolve(state promise.State, events chan<- event.Event) {
+	table := state.GetTable(op.name)
 
-	for _, change := range txn.changes {
+	transaction, ok := state.(*Transaction)
+	if !ok {
+		panic("Expected state to be a transaction.")
+	}
+
+	for _, change := range transaction.changes {
 		if change.Table != op.name {
 			continue
 		}
@@ -25,12 +31,12 @@ func (op *table_op) Resolve(txn *Transaction, events chan<- event.Event) {
 
 			key_coll = cas.Collate(change.Key)
 
-			key_addr, err = cas.Encode(txn.env.Store, change.Key, -1)
+			key_addr, err = cas.Encode(state.Store(), change.Key, -1)
 			if err != nil {
 				panic("runtime: " + err.Error())
 			}
 
-			elt_addr, err = cas.Encode(txn.env.Store, change.Elt, -1)
+			elt_addr, err = cas.Encode(state.Store(), change.Elt, -1)
 			if err != nil {
 				panic("runtime: " + err.Error())
 			}
@@ -66,6 +72,6 @@ func (op *table_op) Resolve(txn *Transaction, events chan<- event.Event) {
 		}
 	}
 
-	tab_addr_a, tab_addr_b := txn.CommitTable(op.name, table)
+	tab_addr_a, tab_addr_b := state.CommitTable(op.name, table)
 	events <- &ConsistentTable{op.name, tab_addr_a, tab_addr_b}
 }

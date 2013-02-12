@@ -2,31 +2,32 @@ package runtime
 
 import (
 	"reflect"
-	"simplex.sh/runtime/event"
+	"simplex.sh/runtime/promise"
 )
 
-type Deferred interface {
-	DeferredId() string
-	Resolve(txn *Transaction, events chan<- event.Event)
-}
+type (
+	Terminal interface {
+		promise.Deferred
+	}
 
-type Table interface {
-	TableId() string
-	KeyType() reflect.Type
-	EltType() reflect.Type
-	DeferredId() string
-	Resolve(txn *Transaction, events chan<- event.Event)
-}
+	Table interface {
+		promise.Deferred
 
-type KeyedView interface {
-	KeyType() reflect.Type
-	EltType() reflect.Type
-	DeferredId() string
-	Resolve(txn *Transaction, events chan<- event.Event)
-}
+		TableId() string
+		KeyType() reflect.Type
+		EltType() reflect.Type
+	}
 
-type IndexedView interface {
-	EltType() reflect.Type
-	DeferredId() string
-	Resolve(txn *Transaction, events chan<- event.Event)
-}
+	KeyedView interface {
+		promise.Deferred
+
+		KeyType() reflect.Type
+		EltType() reflect.Type
+	}
+
+	IndexedView interface {
+		promise.Deferred
+
+		EltType() reflect.Type
+	}
+)

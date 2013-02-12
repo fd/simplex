@@ -4,12 +4,13 @@ import (
 	"fmt"
 	"runtime/debug"
 	"simplex.sh/runtime/event"
+	"simplex.sh/runtime/promise"
 	"sync"
 )
 
 type worker_t struct {
 	txn *Transaction
-	def Deferred
+	def promise.Deferred
 }
 
 func (w *worker_t) String() string {

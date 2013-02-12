@@ -5,6 +5,7 @@ import (
 	"simplex.sh/cas"
 	"simplex.sh/cas/btree"
 	"simplex.sh/runtime/event"
+	"simplex.sh/runtime/promise"
 	"time"
 )
 
@@ -185,7 +186,7 @@ func (txn *Transaction) CommitTable(name string, tree *btree.Tree) (prev, curr c
 	return prev_elt_addr, elt_addr
 }
 
-func (txn *Transaction) Resolve(def Deferred) *event.Subscription {
+func (txn *Transaction) Resolve(def promise.Deferred) *event.Subscription {
 	if txn.pool == nil {
 		panic("transaction has no running worker pool")
 	}
@@ -193,3 +194,5 @@ func (txn *Transaction) Resolve(def Deferred) *event.Subscription {
 	txn.pool.schedule(txn, def)
 	return txn.dispatcher.Subscribe(def.DeferredId())
 }
+
+func (txn *Transaction) Store() cas.Store { return txn.env.Store }

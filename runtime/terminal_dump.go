@@ -6,6 +6,7 @@ import (
 	"simplex.sh/cas"
 	"simplex.sh/cas/btree"
 	"simplex.sh/runtime/event"
+	"simplex.sh/runtime/promise"
 )
 
 func Dump(view IndexedView) {
@@ -20,8 +21,8 @@ func (t *dump_terminal) DeferredId() string {
 	return "dump(" + t.view.DeferredId() + ")"
 }
 
-func (t *dump_terminal) Resolve(txn *Transaction, events chan<- event.Event) {
-	src_events := txn.Resolve(t.view)
+func (t *dump_terminal) Resolve(state promise.State, events chan<- event.Event) {
+	src_events := state.Resolve(t.view)
 
 	for e := range src_events.C {
 		// propagate error events
@@ -36,7 +37,7 @@ func (t *dump_terminal) Resolve(txn *Transaction, events chan<- event.Event) {
 		}
 
 		var (
-			table   = event.GetTableB(txn)
+			table   = GetTable(state.Store(), event.B)
 			iter    = table.Iter()
 			keyed   bool
 			key_typ reflect.Type
@@ -64,14 +65,14 @@ func (t *dump_terminal) Resolve(txn *Transaction, events chan<- event.Event) {
 
 			if keyed {
 				key = reflect.New(key_typ)
-				err = cas.DecodeValue(txn.env.Store, key_addr, key)
+				err = cas.DecodeValue(state.Store(), key_addr, key)
 				if err != nil {
 					panic("runtime: " + err.Error())
 				}
 			}
 
 			elt = reflect.New(t.view.EltType())
-			err = cas.DecodeValue(txn.env.Store, elt_addr, elt)
+			err = cas.DecodeValue(state.Store(), elt_addr, elt)
 			if err != nil {
 				panic("runtime: " + err.Error())
 			}

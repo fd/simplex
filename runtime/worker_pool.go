@@ -1,6 +1,7 @@
 package runtime
 
 import (
+	"simplex.sh/runtime/promise"
 	"sync"
 )
 
@@ -10,7 +11,7 @@ type worker_pool_t struct {
 }
 
 type schedule_worker_op struct {
-	def   Deferred
+	def   promise.Deferred
 	txn   *Transaction
 	reply chan bool
 }
@@ -49,7 +50,7 @@ func (p *worker_pool_t) go_run() {
 	}
 }
 
-func (p *worker_pool_t) schedule(txn *Transaction, def Deferred) {
+func (p *worker_pool_t) schedule(txn *Transaction, def promise.Deferred) {
 	reply := make(chan bool, 1)
 	p.operations <- &schedule_worker_op{
 		txn:   txn,

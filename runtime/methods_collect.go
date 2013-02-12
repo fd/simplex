@@ -3,12 +3,13 @@ package runtime
 import (
 	"simplex.sh/cas"
 	"simplex.sh/runtime/event"
+	"simplex.sh/runtime/promise"
 )
 
-func (op *collect_op) Resolve(txn *Transaction, events chan<- event.Event) {
+func (op *collect_op) Resolve(state promise.State, events chan<- event.Event) {
 	var (
-		src_events = txn.Resolve(op.src)
-		table      = txn.GetTable(op.name)
+		src_events = state.Resolve(op.src)
+		table      = state.GetTable(op.name)
 	)
 
 	for e := range src_events.C {
@@ -38,7 +39,7 @@ func (op *collect_op) Resolve(txn *Transaction, events chan<- event.Event) {
 		}
 
 		{ // added or updated
-			curr_elt_addr := op.fun(&Context{txn}, i_change.b)
+			curr_elt_addr := op.fun(&Context{state.Store()}, i_change.b)
 
 			prev_elt_addr, err := table.Set(i_change.collated_key, i_change.key, curr_elt_addr)
 			if err != nil {
@@ -50,6 +51,6 @@ func (op *collect_op) Resolve(txn *Transaction, events chan<- event.Event) {
 		}
 	}
 
-	tab_addr_a, tab_addr_b := txn.CommitTable(op.name, table)
+	tab_addr_a, tab_addr_b := state.CommitTable(op.name, table)
 	events <- &ConsistentTable{op.name, tab_addr_a, tab_addr_b}
 }

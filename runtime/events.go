@@ -3,7 +3,6 @@ package runtime
 import (
 	"fmt"
 	"simplex.sh/cas"
-	"simplex.sh/cas/btree"
 )
 
 type (
@@ -57,11 +56,3 @@ func (e *ConsistentTable) Event() string {
 }
 
 func (e *WorkerError) Error() string { return fmt.Sprintf("%s: %s\n%s", e.w, e.err, e.caller) }
-
-func (e *ConsistentTable) GetTableA(txn *Transaction) *btree.Tree {
-	return txn.env.LoadTable(e.A)
-}
-
-func (e *ConsistentTable) GetTableB(txn *Transaction) *btree.Tree {
-	return txn.env.LoadTable(e.B)
-}

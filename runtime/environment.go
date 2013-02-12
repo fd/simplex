@@ -5,8 +5,6 @@ import (
 	"os/signal"
 	go_runtime "runtime"
 	"simplex.sh/cas"
-	"simplex.sh/cas/btree"
-	"simplex.sh/runtime/event"
 	"sort"
 	"syscall"
 )
@@ -20,11 +18,6 @@ type (
 		tables    map[string]Table
 		terminals []Terminal
 		services  []Service
-	}
-
-	Terminal interface {
-		DeferredId() string
-		Resolve(txn *Transaction, events chan<- event.Event)
 	}
 
 	Service interface {
@@ -97,14 +90,6 @@ func (env *Environment) Tables() []string {
 	}
 	sort.Strings(names)
 	return names
-}
-
-func (env *Environment) LoadTable(addr cas.Addr) *btree.Tree {
-	tree, err := btree.Open(env.Store, addr)
-	if err != nil {
-		panic("runtime: " + err.Error())
-	}
-	return tree
 }
 
 func (env *Environment) GetCurrentTransaction() (cas.Addr, error) {

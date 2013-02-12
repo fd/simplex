@@ -11,6 +11,7 @@ import (
 	"simplex.sh/cas/btree"
 	"simplex.sh/runtime"
 	"simplex.sh/runtime/event"
+	"simplex.sh/runtime/promise"
 	"strings"
 )
 
@@ -19,7 +20,7 @@ type (
 		name   string
 		env    *runtime.Environment
 		tables map[string]runtime.Table
-		views  map[string]runtime.Deferred
+		views  map[string]promise.Deferred
 		routes map[string]string
 
 		ViewTables map[string]*table_handle
@@ -36,7 +37,7 @@ func New(env *runtime.Environment, name string) *API {
 		name,
 		env,
 		map[string]runtime.Table{},
-		map[string]runtime.Deferred{},
+		map[string]promise.Deferred{},
 		map[string]string{},
 		map[string]*table_handle{},
 	}
@@ -115,17 +116,17 @@ func (api *API) DeferredId() string {
 	return "API/" + api.name
 }
 
-func (api *API) Resolve(txn *runtime.Transaction, events chan<- event.Event) {
+func (api *API) Resolve(state promise.State, events chan<- event.Event) {
 	var (
 		funnel event.Funnel
 	)
 
 	for _, table := range api.tables {
-		funnel.Add(txn.Resolve(table).C)
+		funnel.Add(state.Resolve(table).C)
 	}
 
 	for _, view := range api.views {
-		funnel.Add(txn.Resolve(view).C)
+		funnel.Add(state.Resolve(view).C)
 	}
 
 	for e := range funnel.Run() {
@@ -206,7 +207,7 @@ func (api *API) handle_GET_view(w http.ResponseWriter, req *http.Request, handle
 	)
 
 	if table == nil {
-		table = runtime.Env.LoadTable(handle.addr)
+		table = runtime.GetTable(store, handle.addr)
 		handle.table = table
 	}
 

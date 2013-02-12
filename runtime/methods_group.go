@@ -4,12 +4,13 @@ import (
 	"bytes"
 	"simplex.sh/cas"
 	"simplex.sh/runtime/event"
+	"simplex.sh/runtime/promise"
 )
 
-func (op *group_op) Resolve(txn *Transaction, events chan<- event.Event) {
+func (op *group_op) Resolve(state promise.State, events chan<- event.Event) {
 	var (
-		src_events = txn.Resolve(op.src)
-		table      = txn.GetTable(op.name)
+		src_events = state.Resolve(op.src)
+		table      = state.GetTable(op.name)
 	)
 
 	for e := range src_events.C {
@@ -32,11 +33,11 @@ func (op *group_op) Resolve(txn *Transaction, events chan<- event.Event) {
 
 		// calculate collated group key for a and b
 		if i_change.a != nil {
-			group_key := op.fun(&Context{txn}, i_change.a)
+			group_key := op.fun(&Context{state.Store()}, i_change.a)
 			coll_key_a = cas.Collate(group_key)
 		}
 		if i_change.b != nil {
-			key_b = op.fun(&Context{txn}, i_change.b)
+			key_b = op.fun(&Context{state.Store()}, i_change.b)
 			coll_key_b = cas.Collate(key_b)
 		}
 
@@ -53,6 +54,6 @@ func (op *group_op) Resolve(txn *Transaction, events chan<- event.Event) {
 
 	// remove empty sub tables
 
-	tab_addr_a, tab_addr_b := txn.CommitTable(op.name, table)
+	tab_addr_a, tab_addr_b := state.CommitTable(op.name, table)
 	events <- &ConsistentTable{op.name, tab_addr_a, tab_addr_b}
 }
