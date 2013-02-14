@@ -16,6 +16,7 @@ type (
 		Store() cas.Store
 
 		Resolve(Deferred) *event.Subscription
+		RegisterPublisher(name string) chan<- event.Event
 
 		GetTable(string) *btree.Tree
 		CommitTable(string, *btree.Tree) (prev, curr cas.Addr)
