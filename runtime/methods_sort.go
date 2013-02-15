@@ -20,8 +20,12 @@ func (op *sort_op) Resolve(state promise.State, events chan<- event.Event) {
 			continue
 		}
 
-		i_change, ok := e.(*ChangedMember)
+		i_change, ok := e.(*Changed)
 		if !ok {
+			continue
+		}
+
+		if i_change.Depth() != 1 {
 			continue
 		}
 
@@ -32,13 +36,13 @@ func (op *sort_op) Resolve(state promise.State, events chan<- event.Event) {
 		)
 
 		// calculate collated sort key for a and b
-		if i_change.a != nil {
-			sort_key := op.fun(&Context{state.Store()}, i_change.a)
-			coll_key_a = cas.Collate([]interface{}{sort_key, i_change.collated_key})
+		if i_change.A != nil {
+			sort_key := op.fun(&Context{state.Store()}, i_change.A)
+			coll_key_a = cas.Collate([]interface{}{sort_key, i_change.IdAt(-1)})
 		}
-		if i_change.b != nil {
-			sort_key := op.fun(&Context{state.Store()}, i_change.b)
-			key_b = []interface{}{sort_key, i_change.collated_key}
+		if i_change.B != nil {
+			sort_key := op.fun(&Context{state.Store()}, i_change.B)
+			key_b = []interface{}{sort_key, i_change.IdAt(-1)}
 			coll_key_b = cas.Collate(key_b)
 		}
 
@@ -49,35 +53,67 @@ func (op *sort_op) Resolve(state promise.State, events chan<- event.Event) {
 				panic("runtime: " + err.Error())
 			}
 
-			events <- &ChangedMember{op.name, coll_key_b, key_addr, i_change.a, i_change.b}
+			events <- &Changed{
+				[][]byte{
+					[]byte(op.name),
+					coll_key_b,
+				},
+				key_addr,
+				i_change.A,
+				i_change.B,
+			}
 			continue
 		}
 
 		// remove old entry
-		if i_change.a != nil {
+		if i_change.A != nil {
 			key_addr, elt_addr, err := table.Del(coll_key_a)
 			if err != nil {
 				panic("runtime: " + err.Error())
 			}
-			events <- &ChangedMember{op.name, coll_key_a, key_addr, elt_addr, nil}
+
+			events <- &Changed{
+				[][]byte{
+					[]byte(op.name),
+					coll_key_a,
+				},
+				key_addr,
+				elt_addr,
+				nil,
+			}
 		}
 
 		// add new entry
-		if i_change.b != nil {
+		if i_change.B != nil {
 			key_addr, err := cas.Encode(state.Store(), key_b, -1)
 			if err != nil {
 				panic("runtime: " + err.Error())
 			}
 
-			prev_elt_addr, err := table.Set(coll_key_a, key_addr, i_change.b)
+			prev_elt_addr, err := table.Set(coll_key_a, key_addr, i_change.B)
 			if err != nil {
 				panic("runtime: " + err.Error())
 			}
 
-			events <- &ChangedMember{op.name, coll_key_b, key_addr, prev_elt_addr, i_change.b}
+			events <- &Changed{
+				[][]byte{
+					[]byte(op.name),
+					coll_key_b,
+				},
+				key_addr,
+				prev_elt_addr,
+				i_change.B,
+			}
 		}
 	}
 
 	tab_addr_a, tab_addr_b := state.CommitTable(op.name, table)
-	events <- &ConsistentTable{op.name, tab_addr_a, tab_addr_b}
+	events <- &Changed{
+		[][]byte{
+			[]byte(op.name),
+		},
+		nil,
+		tab_addr_a,
+		tab_addr_b,
+	}
 }

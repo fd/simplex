@@ -47,7 +47,15 @@ func (op *table_op) Resolve(state promise.State, events chan<- event.Event) {
 			}
 
 			if cas.CompareAddr(prev_elt_addr, elt_addr) != 0 {
-				events <- &ChangedMember{op.name, key_coll, key_addr, prev_elt_addr, elt_addr}
+				events <- &Changed{
+					[][]byte{
+						[]byte(op.name),
+						key_coll,
+					},
+					key_addr,
+					prev_elt_addr,
+					elt_addr,
+				}
 			}
 
 		case UNSET:
@@ -66,12 +74,27 @@ func (op *table_op) Resolve(state promise.State, events chan<- event.Event) {
 			}
 
 			if key_addr != nil || elt_addr != nil {
-				events <- &ChangedMember{op.name, key_coll, key_addr, elt_addr, nil}
+				events <- &Changed{
+					[][]byte{
+						[]byte(op.name),
+						key_coll,
+					},
+					key_addr,
+					elt_addr,
+					nil,
+				}
 			}
 
 		}
 	}
 
 	tab_addr_a, tab_addr_b := state.CommitTable(op.name, table)
-	events <- &ConsistentTable{op.name, tab_addr_a, tab_addr_b}
+	events <- &Changed{
+		[][]byte{
+			[]byte(op.name),
+		},
+		nil,
+		tab_addr_a,
+		tab_addr_b,
+	}
 }

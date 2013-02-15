@@ -1,6 +1,7 @@
 package api
 
 import (
+	"bytes"
 	"crypto/sha1"
 	"encoding/hex"
 	"encoding/json"
@@ -12,7 +13,6 @@ import (
 	"simplex.sh/runtime"
 	"simplex.sh/runtime/event"
 	"simplex.sh/runtime/promise"
-	"strings"
 )
 
 type (
@@ -136,13 +136,17 @@ func (api *API) Resolve(state promise.State, events chan<- event.Event) {
 			continue
 		}
 
-		event, ok := e.(*runtime.ConsistentTable)
+		event, ok := e.(*runtime.Changed)
 		if !ok {
 			continue
 		}
 
-		if strings.HasPrefix(event.Table, "API/FORMAT_JSON/") {
-			name := event.Table[len("API/FORMAT_JSON/"):]
+		if event.Depth() != 0 {
+			continue
+		}
+
+		if bytes.HasPrefix(event.IdAt(-1), []byte("API/FORMAT_JSON/")) {
+			name := string(event.IdAt(-1)[len("API/FORMAT_JSON/"):])
 
 			if event.B == nil {
 				delete(api.ViewTables, name)

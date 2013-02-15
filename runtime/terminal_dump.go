@@ -31,8 +31,12 @@ func (t *dump_terminal) Resolve(state promise.State, events chan<- event.Event) 
 			continue
 		}
 
-		event, ok := e.(*ConsistentTable)
+		event, ok := e.(*Changed)
 		if !ok {
+			continue
+		}
+
+		if event.Depth() != 0 {
 			continue
 		}
 

@@ -6,10 +6,6 @@ import (
 )
 
 type (
-	ev_DONE_pool struct {
-		p *worker_pool_t
-	}
-
 	WorkerError struct {
 		w      *worker_t
 		data   interface{}
@@ -17,42 +13,28 @@ type (
 		caller []byte
 	}
 
-	// a unit of progres from a -> b
-	// representing a changing key/value
-	// a is ZeroSHA when adding the key
-	// b is ZeroSHA when remove the key
-	ChangedMember struct {
-		table        string
-		collated_key []byte
-		key          cas.Addr
-		a            cas.Addr
-		b            cas.Addr
-	}
-
-	// a unit of progres from a -> b
-	// representing a changing table
-	// a is ZeroSHA when adding the table
-	// b is ZeroSHA when remove the table
-	ConsistentTable struct {
-		Table string
-		A     cas.Addr
-		B     cas.Addr
+	Changed struct {
+		Id  [][]byte
+		Key cas.Addr
+		A   cas.Addr
+		B   cas.Addr
 	}
 )
 
-func (*ev_DONE_pool) isEvent()       {}
 func (e *WorkerError) Event() string { return e.Error() }
-func (e *ChangedMember) Event() string {
-	return fmt.Sprintf(
-		"ChangedMember(table: %s, member: %s)",
-		e.table, e.collated_key,
-	)
-}
-func (e *ConsistentTable) Event() string {
-	return fmt.Sprintf(
-		"Consistent(table: %s)",
-		e.Table,
-	)
+func (e *WorkerError) Error() string { return fmt.Sprintf("%s: %s\n%s", e.w, e.err, e.caller) }
+
+func (e *Changed) Event() string {
+	return "Changed()"
 }
 
-func (e *WorkerError) Error() string { return fmt.Sprintf("%s: %s\n%s", e.w, e.err, e.caller) }
+func (e *Changed) Depth() int {
+	return len(e.Id) - 1
+}
+
+func (e *Changed) IdAt(idx int) []byte {
+	if idx < 0 {
+		idx = len(e.Id) + idx
+	}
+	return e.Id[idx]
+}
