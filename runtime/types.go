@@ -2,16 +2,20 @@ package runtime
 
 import (
 	"reflect"
-	"simplex.sh/runtime/promise"
 )
 
 type (
+	Resolver interface {
+		DeferredId() string
+		Resolve(*Transaction) IChange
+	}
+
 	Terminal interface {
-		promise.Deferred
+		Resolver
 	}
 
 	Table interface {
-		promise.Deferred
+		Resolver
 
 		TableId() string
 		KeyType() reflect.Type
@@ -19,14 +23,14 @@ type (
 	}
 
 	KeyedView interface {
-		promise.Deferred
+		Resolver
 
 		KeyType() reflect.Type
 		EltType() reflect.Type
 	}
 
 	IndexedView interface {
-		promise.Deferred
+		Resolver
 
 		EltType() reflect.Type
 	}

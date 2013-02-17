@@ -2,19 +2,15 @@ package runtime
 
 import (
 	"simplex.sh/cas"
-	"simplex.sh/runtime/event"
-	"simplex.sh/runtime/promise"
 )
 
-func (op *table_op) Resolve(state promise.State, events chan<- event.Event) {
-	table := state.GetTable(op.name)
+func (op *table_op) Resolve(state *Transaction) IChange {
+	var (
+		table    = state.GetTable(op.name)
+		o_change IChange
+	)
 
-	transaction, ok := state.(*Transaction)
-	if !ok {
-		panic("Expected state to be a transaction.")
-	}
-
-	for _, change := range transaction.changes {
+	for _, change := range state.changes {
 		if change.Table != op.name {
 			continue
 		}
@@ -46,32 +42,28 @@ func (op *table_op) Resolve(state promise.State, events chan<- event.Event) {
 				panic("runtime: " + err.Error())
 			}
 
-			if cas.CompareAddr(prev_elt_addr, elt_addr) != 0 {
-				events <- &ChangedMember{op.name, key_coll, key_addr, prev_elt_addr, elt_addr}
-			}
+			o_change.MemberChanged(key_coll, key_addr, IChange{A: prev_elt_addr, B: elt_addr})
 
 		case UNSET:
 			var (
-				key_coll []byte
-				key_addr cas.Addr
-				elt_addr cas.Addr
-				err      error
+				key_coll      []byte
+				key_addr      cas.Addr
+				prev_elt_addr cas.Addr
+				err           error
 			)
 
 			key_coll = cas.Collate(change.Key)
 
-			key_addr, elt_addr, err = table.Del(key_coll)
+			key_addr, prev_elt_addr, err = table.Del(key_coll)
 			if err != nil {
 				panic("runtime: " + err.Error())
 			}
 
-			if key_addr != nil || elt_addr != nil {
-				events <- &ChangedMember{op.name, key_coll, key_addr, elt_addr, nil}
-			}
+			o_change.MemberChanged(key_coll, key_addr, IChange{A: prev_elt_addr, B: nil})
 
 		}
 	}
 
-	tab_addr_a, tab_addr_b := state.CommitTable(op.name, table)
-	events <- &ConsistentTable{op.name, tab_addr_a, tab_addr_b}
+	o_change.A, o_change.B = state.CommitTable(op.name, table)
+	return o_change
 }

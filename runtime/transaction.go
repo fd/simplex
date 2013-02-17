@@ -2,21 +2,21 @@ package runtime
 
 import (
 	"fmt"
+	"runtime/debug"
 	"simplex.sh/cas"
 	"simplex.sh/cas/btree"
-	"simplex.sh/runtime/event"
-	"simplex.sh/runtime/promise"
+	"sync"
 	"time"
 )
 
 type (
 	Transaction struct {
-		env        *Environment
-		changes    []*Change
-		tables     *btree.Tree
-		errors     []interface{}
-		pool       *worker_pool_t
-		dispatcher *event.Dispatcher
+		env          *Environment
+		changes      []*Change
+		tables       *btree.Tree
+		errors       []interface{}
+		broadcasters map[string]broadcaster
+		mutex        sync.Mutex
 
 		// parent transaction
 		Parent cas.Addr
@@ -93,32 +93,19 @@ func (txn *Transaction) Commit() {
 
 	// wait for prev txn to resolve
 
-	pool := &worker_pool_t{}
-	disp := &event.Dispatcher{}
-	txn.pool = pool
-	txn.dispatcher = disp
+	promises := make([]broadcaster, len(txn.env.terminals))
 
-	// start the workers
-	disp.Start()
-	pool.Start()
-
-	var (
-		event_collector event.Funnel
-	)
-
-	for _, t := range txn.env.terminals {
-		pool.schedule(txn, t)
-		event_collector.Add(disp.Subscribe(t.DeferredId()).C)
+	for i, t := range txn.env.terminals {
+		promises[i] = txn.GoResolve(t)
 	}
 
-	for e := range event_collector.Run() {
-		// handle events
-		fmt.Printf("Ev (%T): %+v\n", e, e)
+	for _, b := range promises {
+		b <- <-b
 	}
 
-	// wait for the workers to finish
-	disp.Stop()
-	pool.Stop()
+	for _, err := range txn.errors {
+		fmt.Printf("[E] %s\n", err)
+	}
 
 	// commit the _tables table
 	tables_addr, err := txn.tables.Commit()
@@ -186,13 +173,45 @@ func (txn *Transaction) CommitTable(name string, tree *btree.Tree) (prev, curr c
 	return prev_elt_addr, elt_addr
 }
 
-func (txn *Transaction) Resolve(def promise.Deferred) *event.Subscription {
-	if txn.pool == nil {
-		panic("transaction has no running worker pool")
+func (txn *Transaction) Resolve(r Resolver) IChange {
+	b := txn.GoResolve(r)
+	c := <-b
+	b <- c
+	return c
+}
+
+func (txn *Transaction) GoResolve(r Resolver) broadcaster {
+	txn.mutex.Lock()
+	defer txn.mutex.Unlock()
+
+	if txn.broadcasters == nil {
+		txn.broadcasters = make(map[string]broadcaster, 50)
 	}
 
-	txn.pool.schedule(txn, def)
-	return txn.dispatcher.Subscribe(def.DeferredId())
+	b := txn.broadcasters[r.DeferredId()]
+	if b != nil {
+		return b
+	}
+
+	b = make(chan IChange, 1)
+	txn.broadcasters[r.DeferredId()] = b
+	go func() {
+		if e := recover(); e != nil {
+			if err, ok := e.(error); ok {
+				txn.errors = append(txn.errors, err)
+				b <- IChange{Err: err, Stack: debug.Stack()}
+			} else {
+				txn.errors = append(txn.errors, fmt.Errorf("panic: %+v", e))
+				b <- IChange{Err: fmt.Errorf("panic: %+v", e), Stack: debug.Stack()}
+			}
+		}
+
+		b <- r.Resolve(txn)
+	}()
+
+	return b
 }
 
 func (txn *Transaction) Store() cas.Store { return txn.env.Store }
+
+type broadcaster chan IChange

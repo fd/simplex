@@ -16,7 +16,7 @@ type (
 )
 
 var (
-	posts = make(table[string]Post)
+	posts = make(table[int]Post)
 	a     *api.API
 )
 
@@ -29,7 +29,7 @@ func init() {
 		return false
 	}))
 
-	//runtime.Dump(posts)
+	//runtime.Dump(posts.sort(publish_date))
 
 	a = api.New(runtime.Env, "blog")
 	a.RegisterTable(posts)
