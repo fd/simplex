@@ -10,8 +10,8 @@ package printer
 
 import (
 	"bytes"
-	"go/ast"
-	"go/token"
+	"simplex.sh/lang/ast"
+	"simplex.sh/lang/token"
 	"unicode/utf8"
 )
 
@@ -866,6 +866,22 @@ func (p *printer) expr1(expr ast.Expr, prec1, depth int) {
 		}
 		p.print(blank)
 		p.expr(x.Value)
+
+	case *ast.ViewType:
+		p.print(token.VIEW)
+		p.print(token.LBRACK)
+		if x.Key != nil {
+			p.print(x.Key)
+		}
+		p.print(token.RBRACK)
+		p.print(x.Value)
+
+	case *ast.TableType:
+		p.print(token.TABLE)
+		p.print(token.LBRACK)
+		p.print(x.Key)
+		p.print(token.RBRACK)
+		p.print(x.Value)
 
 	default:
 		panic("unreachable")

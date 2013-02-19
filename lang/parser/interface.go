@@ -9,12 +9,12 @@ package parser
 import (
 	"bytes"
 	"errors"
-	"go/ast"
-	"go/token"
 	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"simplex.sh/lang/ast"
+	"simplex.sh/lang/token"
 )
 
 // If src != nil, readSource converts src to a []byte if possible;
@@ -58,6 +58,8 @@ const (
 	Trace                              // print a trace of parsed productions
 	DeclarationErrors                  // report declaration errors
 	SpuriousErrors                     // report all (not just the first) errors per line
+
+	SimplexExtentions
 )
 
 // ParseFile parses the source code of a single Go source file and returns

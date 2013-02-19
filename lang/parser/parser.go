@@ -11,9 +11,9 @@ package parser
 
 import (
 	"fmt"
-	"go/ast"
-	"go/scanner"
-	"go/token"
+	"simplex.sh/lang/ast"
+	"simplex.sh/lang/scanner"
+	"simplex.sh/lang/token"
 	"strconv"
 	"strings"
 	"unicode"
@@ -982,6 +982,17 @@ func (p *parser) tryIdentOrType() ast.Expr {
 		return &ast.ParenExpr{Lparen: lparen, X: typ, Rparen: rparen}
 	}
 
+	//=== start custom
+	if p.mode&SimplexExtentions > 0 {
+		switch p.tok {
+		case token.VIEW:
+			return p.parseViewType()
+		case token.TABLE:
+			return p.parseTableType()
+		}
+	}
+	//=== end custom
+
 	// no type found
 	return nil
 }
@@ -1322,6 +1333,12 @@ func isLiteralType(x ast.Expr) bool {
 	case *ast.ArrayType:
 	case *ast.StructType:
 	case *ast.MapType:
+
+		//=== start custom
+	case *ast.ViewType:
+	case *ast.TableType:
+		//=== end custom
+
 	default:
 		return false // all other nodes are not legal composite literal types
 	}
@@ -1381,6 +1398,19 @@ L:
 			switch p.tok {
 			case token.IDENT:
 				x = p.parseSelector(p.checkExpr(x))
+
+				//=== start custom
+			case token.SELECT:
+				if p.mode&SimplexExtentions > 0 {
+					pos := p.pos
+					sel := &ast.Ident{NamePos: pos, Name: "select"}
+					p.next()
+					x = &ast.SelectorExpr{X: p.checkExpr(x), Sel: sel}
+				} else {
+					break L
+				}
+				//=== end custom
+
 			case token.LPAREN:
 				x = p.parseTypeAssertion(p.checkExpr(x))
 			default:
@@ -2389,4 +2419,35 @@ func (p *parser) parseFile() *ast.File {
 		Unresolved: p.unresolved[0:i],
 		Comments:   p.comments,
 	}
+}
+
+// ----------------------------------------------------------------------------
+// Simplex Views and Tables
+
+func (p *parser) parseViewType() *ast.ViewType {
+	if p.trace {
+		defer un(trace(p, "ViewType"))
+	}
+
+	pos := p.expect(token.VIEW)
+	p.expect(token.LBRACK)
+	key := p.tryType()
+	p.expect(token.RBRACK)
+	value := p.parseType()
+
+	return &ast.ViewType{View: pos, Key: key, Value: value}
+}
+
+func (p *parser) parseTableType() *ast.TableType {
+	if p.trace {
+		defer un(trace(p, "TableType"))
+	}
+
+	pos := p.expect(token.TABLE)
+	p.expect(token.LBRACK)
+	key := p.parseType()
+	p.expect(token.RBRACK)
+	value := p.parseType()
+
+	return &ast.TableType{Table: pos, Key: key, Value: value}
 }

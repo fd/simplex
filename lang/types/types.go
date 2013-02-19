@@ -4,7 +4,7 @@
 
 package types
 
-import "go/ast"
+import "simplex.sh/lang/ast"
 
 // All types implement the Type interface.
 type Type interface {
@@ -229,3 +229,30 @@ func (*Interface) aType() {}
 func (*Map) aType()       {}
 func (*Chan) aType()      {}
 func (*NamedType) aType() {}
+
+// ==================================================================
+// == Simplex Views and Tables
+
+// A View represents a view type view[Key]Elt.
+type View struct {
+	Key, Elt Type
+}
+
+// A View represents a table type table[Key]Elt.
+type Table struct {
+	Key, Elt Type
+}
+
+type Viewish interface {
+	KeyType() Type
+	EltType() Type
+}
+
+func (v *View) KeyType() Type  { return v.Key }
+func (v *Table) KeyType() Type { return v.Key }
+
+func (v *View) EltType() Type  { return v.Elt }
+func (v *Table) EltType() Type { return v.Elt }
+
+func (*View) aType()  {}
+func (*Table) aType() {}

@@ -5,8 +5,8 @@
 package parser
 
 import (
-	"go/token"
 	"io/ioutil"
+	"simplex.sh/lang/token"
 	"testing"
 )
 

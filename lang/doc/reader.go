@@ -5,9 +5,9 @@
 package doc
 
 import (
-	"go/ast"
-	"go/token"
 	"regexp"
+	"simplex.sh/lang/ast"
+	"simplex.sh/lang/token"
 	"sort"
 	"strconv"
 )

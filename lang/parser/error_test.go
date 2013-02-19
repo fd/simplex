@@ -23,11 +23,11 @@
 package parser
 
 import (
-	"go/scanner"
-	"go/token"
 	"io/ioutil"
 	"path/filepath"
 	"regexp"
+	"simplex.sh/lang/scanner"
+	"simplex.sh/lang/token"
 	"strings"
 	"testing"
 )

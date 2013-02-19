@@ -9,8 +9,8 @@ package types
 import (
 	"bytes"
 	"fmt"
-	"go/ast"
-	"go/token"
+	"simplex.sh/lang/ast"
+	"simplex.sh/lang/token"
 )
 
 // An operandMode specifies the (addressing) mode of an operand.
@@ -166,6 +166,55 @@ func (x *operand) isAssignable(T Type) bool {
 		}
 	}
 
+	//=== start custom
+
+	// x is a keyed view value, T is a view type,
+	// x's type V and T have identical element types,
+	// and at least one of V or T is not a named type
+	if Vv, ok := Vu.(*View); ok {
+		if Tv, ok := Tu.(*View); ok && Vv.Key != nil && isIdentical(Vv.Elt, Tv.Elt) {
+			return !isNamed(V) || !isNamed(T)
+		}
+		if _, ok := Tu.(*Interface); ok && isNamed(T) {
+			n := T.(*NamedType).Obj.GetName()
+			if n == "Resolver" || n == "IndexedView" {
+				return true
+			}
+		}
+	}
+
+	// x is a table value, T is a view keyed type,
+	// x's type V and T have identical element types,
+	// and at least one of V or T is not a named type
+	if Vv, ok := Vu.(*Table); ok {
+		if Tv, ok := Tu.(*View); ok && isIdentical(Vv.Elt, Tv.Elt) && isIdentical(Vv.Key, Tv.Key) {
+			return !isNamed(V) || !isNamed(T)
+		}
+		if _, ok := Tu.(*Interface); ok && isNamed(T) {
+			n := T.(*NamedType).Obj.GetName()
+			if n == "Resolver" || n == "IndexedView" || n == "Table" {
+				return true
+			}
+		}
+	}
+
+	// x is a table value, T is a view type,
+	// x's type V and T have identical element types,
+	// and at least one of V or T is not a named type
+	if Vv, ok := Vu.(*Table); ok {
+		if Tv, ok := Tu.(*View); ok && isIdentical(Vv.Elt, Tv.Elt) && Tv.Key == nil {
+			return !isNamed(V) || !isNamed(T)
+		}
+		if _, ok := Tu.(*Interface); ok && isNamed(T) {
+			n := T.(*NamedType).Obj.GetName()
+			if n == "Resolver" || n == "IndexedView" || n == "Table" {
+				return true
+			}
+		}
+	}
+
+	//=== end custom
+
 	// x is the predeclared identifier nil and T is a pointer,
 	// function, slice, map, channel, or interface type
 	if x.isNil() {
@@ -176,6 +225,11 @@ func (x *operand) isAssignable(T Type) bool {
 			}
 		case *Pointer, *Signature, *Slice, *Map, *Chan, *Interface:
 			return true
+
+		//=== start custom
+		case *View, *Table:
+			return true
+			//=== end custom
 		}
 		return false
 	}
@@ -198,6 +252,12 @@ func (x *operand) isAssignable(T Type) bool {
 			return x.isNil() || len(t.Methods) == 0
 		case *Pointer, *Signature, *Slice, *Map, *Chan:
 			return x.isNil()
+
+		//=== start custom
+		case *View, *Table:
+			return x.isNil()
+			//=== end custom
+
 		}
 	}
 
@@ -386,6 +446,16 @@ func lookupField(typ Type, name QualifiedName) (operandMode, Type) {
 				return value, m.Type
 			}
 		}
+
+	//=== start custom
+	case *View, *Table:
+		for _, n := range sx_step_names {
+			if n == name.Name {
+				return value, &Signature{Recv: &Var{Type: typ}}
+			}
+		}
+		//=== end custom
+
 	}
 
 	// not found

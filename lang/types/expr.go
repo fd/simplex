@@ -7,8 +7,8 @@
 package types
 
 import (
-	"go/ast"
-	"go/token"
+	"simplex.sh/lang/ast"
+	"simplex.sh/lang/token"
 	"strconv"
 )
 
@@ -1100,7 +1100,17 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
 			goto Error
 		} else if x.mode == typexpr {
 			check.conversion(x, e, x.typ, iota)
+
 		} else if sig, ok := underlying(x.typ).(*Signature); ok {
+			if sig.Recv != nil {
+				if _, ok := sig.Recv.Type.(Viewish); ok {
+					check.sx_step(x, e, sig, hint, iota)
+					if x.mode == invalid {
+						goto Error
+					}
+				}
+			}
+
 			// check parameters
 
 			// If we have a trailing ... at the end of the parameter
@@ -1262,6 +1272,20 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
 		x.mode = typexpr
 		x.typ = &Chan{Dir: e.Dir, Elt: check.typ(e.Value, true)}
 
+	//=== start custom
+	case *ast.ViewType:
+		x.mode = typexpr
+		if e.Key != nil {
+			x.typ = &View{Key: check.typ(e.Key, false), Elt: check.typ(e.Value, false)}
+		} else {
+			x.typ = &View{Elt: check.typ(e.Value, false)}
+		}
+
+	case *ast.TableType:
+		x.mode = typexpr
+		x.typ = &Table{Key: check.typ(e.Key, false), Elt: check.typ(e.Value, false)}
+	//=== end custom
+
 	default:
 		check.dump("e = %s", e)
 		unreachable()
@@ -1331,4 +1355,311 @@ func (check *checker) typOrNil(e ast.Expr, cycleOk bool) Type {
 //
 func (check *checker) typ(e ast.Expr, cycleOk bool) Type {
 	return check.rawTyp(e, cycleOk, false)
+}
+
+// ==================================================
+// == Simplex methods
+
+func (check *checker) sx_step(x *operand, e *ast.CallExpr, sig *Signature, hint Type, iota int) {
+	sel, ok := e.Fun.(*ast.SelectorExpr)
+	if !ok {
+		x.mode = invalid
+		return
+	}
+	builtin := sel.Sel.Name
+
+	switch builtin {
+
+	case "select", "reject":
+		check.sx_predicate_function(x, e, sig, hint, iota)
+		if x.mode != invalid {
+			v := sig.Recv.Type.(Viewish)
+			r := &View{Key: v.KeyType(), Elt: v.EltType()}
+			sig.Results = []*Var{{Type: r}}
+		}
+
+	case "detect":
+		check.sx_predicate_function(x, e, sig, hint, iota)
+		if x.mode != invalid {
+			r := sig.Recv.Type.(Viewish).EltType()
+			sig.Results = []*Var{{Type: r}}
+		}
+
+	case "collect":
+		res_typ := check.sx_map_function(x, e, sig, hint, iota)
+		if x.mode != invalid {
+			v := sig.Recv.Type.(Viewish)
+			r := &View{Key: v.KeyType(), Elt: res_typ}
+			sig.Results = []*Var{{Type: r}}
+		}
+
+	case "inject":
+		res_typ := check.sx_inject_function(x, e, sig, hint, iota)
+		if x.mode != invalid {
+			v := sig.Recv.Type.(Viewish)
+			r := &View{Key: v.KeyType(), Elt: res_typ}
+			sig.Results = []*Var{{Type: r}}
+		}
+
+	case "group":
+		res_typ := check.sx_map_function(x, e, sig, hint, iota)
+		if x.mode != invalid {
+			v := sig.Recv.Type.(Viewish)
+			r := &View{Key: res_typ, Elt: &View{Key: v.KeyType(), Elt: v.EltType()}}
+			sig.Results = []*Var{{Type: r}}
+		}
+
+	case "index":
+		res_typ := check.sx_map_function(x, e, sig, hint, iota)
+		if x.mode != invalid {
+			v := sig.Recv.Type.(Viewish)
+			r := &View{Key: res_typ, Elt: v.EltType()}
+			sig.Results = []*Var{{Type: r}}
+		}
+
+	case "sort":
+		check.sx_map_function(x, e, sig, hint, iota)
+		if x.mode != invalid {
+			v := sig.Recv.Type.(Viewish)
+			r := &View{Elt: v.EltType()}
+			sig.Results = []*Var{{Type: r}}
+		}
+
+	default:
+		unreachable()
+
+	}
+}
+
+func (check *checker) sx_predicate_function(x *operand, e *ast.CallExpr, sig *Signature, hint Type, iota int) {
+	sel, ok := e.Fun.(*ast.SelectorExpr)
+	if !ok {
+		check.errorf(e.Pos(), "not a view or table receiver %s", e.Fun)
+		x.mode = invalid
+		return
+	}
+
+	var view_typ Viewish
+	switch v := sig.Recv.Type.(type) {
+	case *View:
+		view_typ = v
+	case *Table:
+		view_typ = v
+	default:
+		check.errorf(e.Pos(), "not a view or table receiver %s", e.Fun)
+		x.mode = invalid
+		return
+	}
+
+	var f_op operand
+	var f ast.Expr
+
+	switch sel.Sel.Name {
+	case "select", "detect", "reject", "collect", "inject", "group", "index", "sort":
+		if len(e.Args) != 1 {
+			check.errorf(e.Pos(), "%s expects one argument", e)
+			x.mode = invalid
+			return
+		}
+
+		f = e.Args[0]
+		check.expr(&f_op, f, nil, iota)
+
+	default:
+		unreachable()
+	}
+
+	if f_sig, ok := f_op.typ.(*Signature); ok {
+		if len(f_sig.Results) != 1 {
+			check.errorf(f.Pos(), "not a "+sel.Sel.Name+" function %s", f)
+			x.mode = invalid
+			return
+		}
+		if !isBoolean(f_sig.Results[0].Type) {
+			check.errorf(f.Pos(), "not a "+sel.Sel.Name+" function %s", f)
+			x.mode = invalid
+			return
+		}
+		if len(f_sig.Params) != 1 {
+			check.errorf(f.Pos(), "not a "+sel.Sel.Name+" function %s", f)
+			x.mode = invalid
+			return
+		}
+		if !isIdentical(f_sig.Params[0].Type, view_typ.EltType()) {
+			check.errorf(f.Pos(), "not a "+sel.Sel.Name+" function %s", f)
+			x.mode = invalid
+			return
+		}
+
+		sig.Params = []*Var{{Type: f_sig}}
+	} else {
+		check.errorf(f.Pos(), "not a "+sel.Sel.Name+" function %s", f)
+		x.mode = invalid
+		return
+	}
+}
+
+func (check *checker) sx_map_function(x *operand, e *ast.CallExpr, sig *Signature, hint Type, iota int) Type {
+	var res_typ Type
+
+	sel, ok := e.Fun.(*ast.SelectorExpr)
+	if !ok {
+		check.errorf(e.Pos(), "not a view or table receiver %s", e.Fun)
+		x.mode = invalid
+		return nil
+	}
+
+	var view_typ Viewish
+	switch v := sig.Recv.Type.(type) {
+	case *View:
+		view_typ = v
+	case *Table:
+		view_typ = v
+	default:
+		check.errorf(e.Pos(), "not a view or table receiver %s", e.Fun)
+		x.mode = invalid
+		return nil
+	}
+
+	var f_op operand
+	var f ast.Expr
+
+	switch sel.Sel.Name {
+	case "select", "detect", "reject", "collect", "inject", "group", "index", "sort":
+		if len(e.Args) != 1 {
+			check.errorf(e.Pos(), "%s expects one argument", e)
+			x.mode = invalid
+			return nil
+		}
+
+		f = e.Args[0]
+		check.expr(&f_op, f, nil, iota)
+
+	default:
+		unreachable()
+	}
+
+	if f_sig, ok := f_op.typ.(*Signature); ok {
+		if len(f_sig.Results) != 1 {
+			check.errorf(f.Pos(), "not a "+sel.Sel.Name+" function %s", f)
+			x.mode = invalid
+			return nil
+		}
+		if _, isSig := f_sig.Results[0].Type.(*Signature); isSig {
+			check.errorf(f.Pos(), "not a "+sel.Sel.Name+" function %s", f)
+			x.mode = invalid
+			return nil
+		}
+		res_typ = f_sig.Results[0].Type
+
+		if len(f_sig.Params) != 1 {
+			check.errorf(f.Pos(), "not a "+sel.Sel.Name+" function %s", f)
+			x.mode = invalid
+			return nil
+		}
+		if !isIdentical(f_sig.Params[0].Type, view_typ.EltType()) {
+			check.errorf(f.Pos(), "not a "+sel.Sel.Name+" function %s", f)
+			x.mode = invalid
+			return nil
+		}
+
+		sig.Params = []*Var{{Type: f_sig}}
+
+	} else {
+		check.errorf(f.Pos(), "not a "+sel.Sel.Name+" function %s", f)
+		x.mode = invalid
+		return nil
+	}
+
+	return res_typ
+}
+
+func (check *checker) sx_inject_function(x *operand, e *ast.CallExpr, sig *Signature, hint Type, iota int) Type {
+	var res_typ Type
+
+	sel, ok := e.Fun.(*ast.SelectorExpr)
+	if !ok {
+		check.errorf(e.Pos(), "not a view or table receiver %s", e.Fun)
+		x.mode = invalid
+		return nil
+	}
+
+	var view_typ Viewish
+	var group_view_typ *View
+	switch v := sig.Recv.Type.(type) {
+	case *View:
+		view_typ = v
+	case *Table:
+		view_typ = v
+	default:
+		check.errorf(e.Pos(), "not a view or table receiver %s", e.Fun)
+		x.mode = invalid
+		return nil
+	}
+
+	group_view_typ, ok = view_typ.EltType().(*View)
+	if !ok {
+		check.errorf(e.Pos(), "not an inject view receiver %s", e)
+		x.mode = invalid
+		return nil
+	}
+
+	var f_op operand
+	var f ast.Expr
+
+	switch sel.Sel.Name {
+	case "select", "detect", "reject", "collect", "inject", "group", "index", "sort":
+		if len(e.Args) != 1 {
+			check.errorf(e.Pos(), "%s expects one argument", e)
+			x.mode = invalid
+			return nil
+		}
+
+		f = e.Args[0]
+		check.expr(&f_op, f, nil, iota)
+
+	default:
+		unreachable()
+	}
+
+	if f_sig, ok := f_op.typ.(*Signature); ok {
+		if len(f_sig.Results) != 1 {
+			check.errorf(f.Pos(), "not a "+sel.Sel.Name+" function %s", f)
+			x.mode = invalid
+			return nil
+		}
+		if _, isSig := f_sig.Results[0].Type.(*Signature); isSig {
+			check.errorf(f.Pos(), "not a "+sel.Sel.Name+" function %s", f)
+			x.mode = invalid
+			return nil
+		}
+		res_typ = f_sig.Results[0].Type
+
+		if len(f_sig.Params) != 2 {
+			check.errorf(f.Pos(), "not a "+sel.Sel.Name+" function %s", f)
+			x.mode = invalid
+			return nil
+		}
+
+		acc_typ := &Slice{Elt: res_typ}
+		if !isIdentical(f_sig.Params[0].Type, acc_typ) {
+			check.errorf(f.Pos(), "not a "+sel.Sel.Name+" function %s", f)
+			x.mode = invalid
+			return nil
+		}
+		if !isIdentical(f_sig.Params[1].Type, group_view_typ.EltType()) {
+			check.errorf(f.Pos(), "not a "+sel.Sel.Name+" function %s", f)
+			x.mode = invalid
+			return nil
+		}
+
+		sig.Params = []*Var{{Type: f_sig}}
+
+	} else {
+		check.errorf(f.Pos(), "not a "+sel.Sel.Name+" function %s", f)
+		x.mode = invalid
+		return nil
+	}
+
+	return res_typ
 }

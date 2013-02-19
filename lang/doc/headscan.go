@@ -19,12 +19,12 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
-	"go/doc"
-	"go/parser"
-	"go/token"
 	"os"
 	"path/filepath"
 	"runtime"
+	"simplex.sh/lang/doc"
+	"simplex.sh/lang/parser"
+	"simplex.sh/lang/token"
 	"strings"
 )
 

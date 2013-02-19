@@ -9,8 +9,8 @@ package types
 import (
 	"bytes"
 	"fmt"
-	"go/ast"
-	"go/token"
+	"simplex.sh/lang/ast"
+	"simplex.sh/lang/token"
 )
 
 // TODO(gri) eventually assert and unimplemented should disappear.
@@ -311,6 +311,22 @@ func writeType(buf *bytes.Buffer, typ Type) {
 			s = t.Obj.GetName()
 		}
 		buf.WriteString(s)
+
+	//=== start custom
+	case *View:
+		buf.WriteString("view[")
+		if t.Key != nil {
+			writeType(buf, t.Key)
+		}
+		buf.WriteByte(']')
+		writeType(buf, t.Elt)
+
+	case *Table:
+		buf.WriteString("table[")
+		writeType(buf, t.Key)
+		buf.WriteByte(']')
+		writeType(buf, t.Elt)
+	//=== end custom
 
 	default:
 		fmt.Fprintf(buf, "<type %T>", t)

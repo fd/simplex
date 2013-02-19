@@ -34,8 +34,8 @@ type (
 	T4  *int
 	T5  chan int
 	T6a chan<- int
-	T6b chan (<-chan int)
-	T6c chan<- (chan int)
+	T6b chan<- chan int
+	T6c chan<- chan int
 	T7  <-chan *ast.File
 	T8  struct{}
 	T9  struct {

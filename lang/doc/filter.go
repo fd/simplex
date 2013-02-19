@@ -4,7 +4,7 @@
 
 package doc
 
-import "go/ast"
+import "simplex.sh/lang/ast"
 
 type Filter func(string) bool
 

@@ -88,6 +88,12 @@ func hasNil(typ Type) bool {
 	switch underlying(typ).(type) {
 	case *Slice, *Pointer, *Signature, *Interface, *Map, *Chan:
 		return true
+
+	//=== start custom
+	case *View, *Table:
+		return true
+		//=== end custom
+
 	}
 	return false
 }
@@ -184,6 +190,21 @@ func isIdentical(x, y Type) bool {
 		if y, ok := y.(*NamedType); ok {
 			return x.Obj == y.Obj
 		}
+
+	//=== start custom
+	case *View:
+		// Two map types are identical if they have identical key and value types.
+		if y, ok := y.(*View); ok {
+			return isIdentical(x.Key, y.Key) && isIdentical(x.Elt, y.Elt)
+		}
+
+	case *Table:
+		// Two map types are identical if they have identical key and value types.
+		if y, ok := y.(*Table); ok {
+			return isIdentical(x.Key, y.Key) && isIdentical(x.Elt, y.Elt)
+		}
+		//=== end custom
+
 	}
 
 	return false

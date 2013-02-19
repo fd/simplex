@@ -9,11 +9,11 @@ package printer
 
 import (
 	"bytes"
-	"go/ast"
-	"go/parser"
 	"io"
 	"io/ioutil"
 	"log"
+	"simplex.sh/lang/ast"
+	"simplex.sh/lang/parser"
 	"testing"
 )
 

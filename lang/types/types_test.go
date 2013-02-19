@@ -8,15 +8,15 @@
 package types
 
 import (
-	"go/ast"
-	"go/parser"
+	"simplex.sh/lang/ast"
+	"simplex.sh/lang/parser"
 	"testing"
 )
 
 const filename = "<src>"
 
 func makePkg(t *testing.T, src string) (*Package, error) {
-	file, err := parser.ParseFile(fset, filename, src, parser.DeclarationErrors)
+	file, err := parser.ParseFile(fset, filename, src, parser.DeclarationErrors|parser.SimplexExtentions)
 	if err != nil {
 		return nil, err
 	}
@@ -95,6 +95,10 @@ var testTypes = []testEntry{
 	// maps
 	dup("map[string]int"),
 	{"map[struct{x, y int}][]byte", "map[struct{x int; y int}][]byte"},
+
+	// views
+	dup("view[]int"),
+	dup("view[string]int"),
 
 	// channels
 	dup("chan int"),

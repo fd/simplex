@@ -6,10 +6,10 @@ package doc_test
 
 import (
 	"bytes"
-	"go/doc"
-	"go/format"
-	"go/parser"
-	"go/token"
+	"simplex.sh/lang/doc"
+	"simplex.sh/lang/format"
+	"simplex.sh/lang/parser"
+	"simplex.sh/lang/token"
 	"strings"
 	"testing"
 )

@@ -6,9 +6,9 @@ package ast_test
 
 import (
 	"fmt"
-	"go/ast"
-	"go/parser"
-	"go/token"
+	"simplex.sh/lang/ast"
+	"simplex.sh/lang/parser"
+	"simplex.sh/lang/token"
 )
 
 // This example demonstrates how to inspect the AST of a Go program.

@@ -6,8 +6,8 @@ package types
 
 import (
 	"fmt"
-	"go/ast"
-	"go/token"
+	"simplex.sh/lang/ast"
+	"simplex.sh/lang/token"
 	"strconv"
 )
 

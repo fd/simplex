@@ -120,6 +120,11 @@ const (
 	SWITCH
 	TYPE
 	VAR
+
+	//=== start custom
+	VIEW
+	TABLE
+	//=== end custom
 	keyword_end
 )
 
@@ -221,6 +226,11 @@ var tokens = [...]string{
 	SWITCH: "switch",
 	TYPE:   "type",
 	VAR:    "var",
+
+	//=== start custom
+	VIEW:  "view",
+	TABLE: "table",
+	//=== end custom
 }
 
 // String returns the string corresponding to the token tok.

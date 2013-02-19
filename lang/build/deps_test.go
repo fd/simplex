@@ -8,7 +8,7 @@
 package build_test
 
 import (
-	"go/build"
+	"simplex.sh/lang/build"
 	"sort"
 	"testing"
 )

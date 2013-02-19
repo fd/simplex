@@ -7,8 +7,8 @@
 package types
 
 import (
-	"go/ast"
-	"go/token"
+	"simplex.sh/lang/ast"
+	"simplex.sh/lang/token"
 )
 
 func (check *checker) assignOperand(z, x *operand) {
@@ -286,7 +286,7 @@ func (check *checker) stmt(s ast.Stmt) {
 
 	case *ast.DeclStmt:
 		d, _ := s.Decl.(*ast.GenDecl)
-		if d == nil || (d.Tok != token.CONST && d.Tok != token.TYPE && d.Tok != token.VAR) {
+		if d == nil || d.Tok != token.CONST && d.Tok != token.TYPE && d.Tok != token.VAR {
 			check.invalidAST(token.NoPos, "const, type, or var declaration expected")
 			return
 		}

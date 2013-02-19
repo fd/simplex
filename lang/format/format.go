@@ -8,11 +8,11 @@ package format
 import (
 	"bytes"
 	"fmt"
-	"go/ast"
-	"go/parser"
-	"go/printer"
-	"go/token"
 	"io"
+	"simplex.sh/lang/ast"
+	"simplex.sh/lang/parser"
+	"simplex.sh/lang/printer"
+	"simplex.sh/lang/token"
 	"strings"
 )
 

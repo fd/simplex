@@ -8,8 +8,8 @@ package types
 
 import (
 	"fmt"
-	"go/token"
 	"math/big"
+	"simplex.sh/lang/token"
 	"strconv"
 )
 

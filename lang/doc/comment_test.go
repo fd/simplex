@@ -35,7 +35,7 @@ var headingTests = []struct {
 
 func TestIsHeading(t *testing.T) {
 	for _, tt := range headingTests {
-		if h := heading(tt.line); (len(h) > 0) != tt.ok {
+		if h := heading(tt.line); len(h) > 0 != tt.ok {
 			t.Errorf("isHeading(%q) = %v, want %v", tt.line, h, tt.ok)
 		}
 	}

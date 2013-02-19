@@ -5,7 +5,7 @@
 package ast
 
 import (
-	"go/token"
+	"simplex.sh/lang/token"
 	"sort"
 )
 
@@ -151,6 +151,21 @@ func filterType(typ Expr, f Filter, export bool) bool {
 		return b1 || b2
 	case *ChanType:
 		return filterType(t.Value, f, export)
+
+	//=== start Simplex
+	case *ViewType:
+		if t.Key == nil {
+			return filterType(t.Value, f, export)
+		}
+		b1 := filterType(t.Key, f, export)
+		b2 := filterType(t.Value, f, export)
+		return b1 || b2
+	case *TableType:
+		b1 := filterType(t.Key, f, export)
+		b2 := filterType(t.Value, f, export)
+		return b1 || b2
+		//=== end Simplex
+
 	}
 	return false
 }

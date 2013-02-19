@@ -7,10 +7,10 @@ package printer
 
 import (
 	"fmt"
-	"go/ast"
-	"go/token"
 	"io"
 	"os"
+	"simplex.sh/lang/ast"
+	"simplex.sh/lang/token"
 	"strconv"
 	"strings"
 	"text/tabwriter"

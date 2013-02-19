@@ -10,13 +10,13 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
-	"go/ast"
-	"go/build"
-	"go/token"
 	"io"
 	"math/big"
 	"os"
 	"path/filepath"
+	"simplex.sh/lang/ast"
+	"simplex.sh/lang/build"
+	"simplex.sh/lang/token"
 	"strconv"
 	"strings"
 	"text/scanner"
@@ -726,7 +726,7 @@ func (p *gcParser) parseConstDecl() {
 		re := p.parseNumber()
 		p.expect('+')
 		im := p.parseNumber()
-		p.expectKeyword("i")
+		//p.expectKeyword("i")
 		p.expect(')')
 		x.typ = Typ[UntypedComplex]
 		// TODO(gri) fix this

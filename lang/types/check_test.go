@@ -25,13 +25,14 @@ package types
 import (
 	"flag"
 	"fmt"
-	"go/ast"
-	"go/parser"
-	"go/scanner"
-	"go/token"
 	"io/ioutil"
 	"os"
 	"regexp"
+	"simplex.sh/lang/ast"
+	"simplex.sh/lang/parser"
+	"simplex.sh/lang/scanner"
+	"simplex.sh/lang/token"
+	"strings"
 	"testing"
 )
 
@@ -54,8 +55,11 @@ var tests = []struct {
 	{"expr1", []string{"testdata/expr1.src"}},
 	{"expr2", []string{"testdata/expr2.src"}},
 	{"expr3", []string{"testdata/expr3.src"}},
+	{"expr0_sx", []string{"testdata/expr0_sx.src"}},
 	{"builtins", []string{"testdata/builtins.src"}},
+	{"builtins_sx", []string{"testdata/builtins_sx.src"}},
 	{"conversions", []string{"testdata/conversions.src"}},
+	{"conversions_sx", []string{"testdata/conversions_sx.src"}},
 	{"stmt0", []string{"testdata/stmt0.src"}},
 }
 
@@ -92,7 +96,11 @@ func parseFiles(t *testing.T, testname string, filenames []string) ([]*ast.File,
 	var files []*ast.File
 	var errlist []error
 	for _, filename := range filenames {
-		file, err := parser.ParseFile(fset, filename, nil, parser.DeclarationErrors)
+		mod := parser.DeclarationErrors
+		if strings.Index(filename, "_sx") >= 0 {
+			mod = parser.DeclarationErrors | parser.SimplexExtentions
+		}
+		file, err := parser.ParseFile(fset, filename, nil, mod)
 		if file == nil {
 			t.Fatalf("%s: could not parse file %s", testname, filename)
 		}

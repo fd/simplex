@@ -6,8 +6,8 @@
 package doc
 
 import (
-	"go/ast"
-	"go/token"
+	"simplex.sh/lang/ast"
+	"simplex.sh/lang/token"
 )
 
 // Package is the documentation for an entire package.

@@ -11,8 +11,8 @@ package scanner
 import (
 	"bytes"
 	"fmt"
-	"go/token"
 	"path/filepath"
+	"simplex.sh/lang/token"
 	"strconv"
 	"unicode"
 	"unicode/utf8"

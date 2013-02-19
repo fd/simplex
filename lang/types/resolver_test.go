@@ -5,9 +5,9 @@
 package types
 
 import (
-	"go/ast"
-	"go/parser"
-	"go/token"
+	"simplex.sh/lang/ast"
+	"simplex.sh/lang/parser"
+	"simplex.sh/lang/token"
 	"testing"
 )
 

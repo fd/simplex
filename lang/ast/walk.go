@@ -355,6 +355,16 @@ func Walk(v Visitor, node Node) {
 			Walk(v, f)
 		}
 
+	case *ViewType:
+		if n.Key != nil {
+			Walk(v, n.Key)
+		}
+		Walk(v, n.Value)
+
+	case *TableType:
+		Walk(v, n.Key)
+		Walk(v, n.Value)
+
 	default:
 		fmt.Printf("ast.Walk: unexpected node type %T", n)
 		panic("ast.Walk")

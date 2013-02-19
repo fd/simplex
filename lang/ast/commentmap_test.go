@@ -9,9 +9,9 @@ package ast_test
 import (
 	"bytes"
 	"fmt"
-	. "go/ast"
-	"go/parser"
-	"go/token"
+	. "simplex.sh/lang/ast"
+	"simplex.sh/lang/parser"
+	"simplex.sh/lang/token"
 	"sort"
 	"testing"
 )
@@ -48,9 +48,9 @@ func f1() {
 	/* associated with s1 */
 	s1()
 	// also associated with s1
-	
+
 	// associated with s2
-	
+
 	// also associated with s2
 	s2() // line comment for s2
 }

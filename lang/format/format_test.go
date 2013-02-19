@@ -6,9 +6,10 @@ package format
 
 import (
 	"bytes"
-	"go/parser"
-	"go/token"
 	"io/ioutil"
+	"simplex.sh/lang/parser"
+	"simplex.sh/lang/token"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -22,8 +23,8 @@ func diff(t *testing.T, dst, src []byte) {
 		d := dst[i]
 		s := src[i]
 		if d != s {
-			t.Errorf("dst:%d: %s\n", line, dst[offs:i+1])
-			t.Errorf("src:%d: %s\n", line, src[offs:i+1])
+			t.Errorf("dst:%d: `%s`\n", line, strconv.Quote(string(dst[offs:i+1])))
+			t.Errorf("src:%d: `%s`\n", line, strconv.Quote(string(src[offs:i+1])))
 			return
 		}
 		if s == '\n' {

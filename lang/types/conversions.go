@@ -7,7 +7,7 @@
 package types
 
 import (
-	"go/ast"
+	"simplex.sh/lang/ast"
 )
 
 // conversion typechecks the type conversion conv to type typ. iota is the current

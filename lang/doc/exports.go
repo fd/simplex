@@ -6,7 +6,7 @@
 
 package doc
 
-import "go/ast"
+import "simplex.sh/lang/ast"
 
 // filterIdentList removes unexported names from list in place
 // and returns the resulting list.

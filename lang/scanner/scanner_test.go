@@ -5,11 +5,11 @@
 package scanner
 
 import (
-	"go/token"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"runtime"
+	"simplex.sh/lang/token"
 	"testing"
 )
 
@@ -178,6 +178,11 @@ var tokens = [...]elt{
 	{token.SWITCH, "switch", keyword},
 	{token.TYPE, "type", keyword},
 	{token.VAR, "var", keyword},
+
+	//=== start custom
+	{token.VIEW, "view", keyword},
+	{token.TABLE, "table", keyword},
+	//=== end custim
 }
 
 const whitespace = "  \t  \n\n\n" // to separate tokens
@@ -464,6 +469,11 @@ var lines = []string{
 
 	"package main$\n\nfunc main() {\n\tif {\n\t\treturn /* */ }$\n}$\n",
 	"package main$",
+
+	//=== start custom
+	"view\n",
+	"table\n",
+	//=== end custom
 }
 
 func TestSemis(t *testing.T) {

@@ -5,7 +5,7 @@
 package ast
 
 import (
-	"go/token"
+	"simplex.sh/lang/token"
 	"sort"
 	"strconv"
 )

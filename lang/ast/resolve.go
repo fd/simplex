@@ -8,8 +8,8 @@ package ast
 
 import (
 	"fmt"
-	"go/scanner"
-	"go/token"
+	"simplex.sh/lang/scanner"
+	"simplex.sh/lang/token"
 	"strconv"
 )
 

@@ -7,10 +7,10 @@
 package doc
 
 import (
-	"go/ast"
-	"go/token"
 	"path"
 	"regexp"
+	"simplex.sh/lang/ast"
+	"simplex.sh/lang/token"
 	"sort"
 	"strconv"
 	"strings"

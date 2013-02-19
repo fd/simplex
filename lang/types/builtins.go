@@ -7,8 +7,8 @@
 package types
 
 import (
-	"go/ast"
-	"go/token"
+	"simplex.sh/lang/ast"
+	"simplex.sh/lang/token"
 )
 
 // builtin typechecks a built-in call. The built-in type is bin, and iota is the current
@@ -105,6 +105,12 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, bin *builtin, iota
 			if id == _Len {
 				mode = value
 			}
+
+		case *View, *Table:
+			if id == _Len {
+				mode = value
+			}
+
 		}
 
 		if mode == invalid {
@@ -261,6 +267,8 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, bin *builtin, iota
 			min = 2
 		case *Map, *Chan:
 			min = 1
+		case *Table:
+			min = 1
 		default:
 			check.invalidArg(arg0.Pos(), "cannot make %s; type must be slice, map, or channel", arg0)
 			goto Error
@@ -312,7 +320,7 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, bin *builtin, iota
 		x.typ = Typ[Uintptr]
 		// For now we return 1 always as it satisfies the spec's alignment guarantees.
 		// TODO(gri) Extend typechecker API so that platform-specific values can be
-		//           provided.
+		//                                                          provided.
 		x.val = int64(1)
 
 	case _Offsetof:

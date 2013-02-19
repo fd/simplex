@@ -10,8 +10,8 @@
 package types
 
 import (
-	"go/ast"
-	"go/token"
+	"simplex.sh/lang/ast"
+	"simplex.sh/lang/token"
 )
 
 // A Context specifies the supporting context for type checking.

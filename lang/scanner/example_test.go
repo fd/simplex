@@ -6,8 +6,8 @@ package scanner_test
 
 import (
 	"fmt"
-	"go/scanner"
-	"go/token"
+	"simplex.sh/lang/scanner"
+	"simplex.sh/lang/token"
 )
 
 func ExampleScanner_Scan() {
