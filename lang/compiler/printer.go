@@ -103,14 +103,17 @@ import (
   sx_runtime "simplex.sh/runtime"
 )
 
+const SxVersion = "{{.Version}}"
+
 `))
 
 func (p *printer_t) print_intro(w io.Writer, pkg_name string) error {
 	type data struct {
 		PkgName string
+		Version string
 	}
 
-	return intro_tmpl.Execute(w, data{pkg_name})
+	return intro_tmpl.Execute(w, data{pkg_name, p.ctx.Version})
 }
 
 var table_tmpl = template.Must(template.New("table_tmpl").Parse(`

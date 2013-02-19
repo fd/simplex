@@ -8,10 +8,8 @@ import (
 	"time"
 )
 
-func init() {
-}
-
 func main() {
+	fmt.Printf("Version: %s\n", SxVersion)
 
 	// add redis store
 	runtime.Env.Store = redis.New("", 0, "")

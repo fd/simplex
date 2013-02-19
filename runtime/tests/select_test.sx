@@ -1,0 +1,33 @@
+package tests
+
+import (
+	"testing"
+)
+
+func TestSelect(t *testing.T) {
+
+	env := runtime.Env{}
+	tab := make(table[int]string, "test/table")
+	vie := tab.select(func(m string) bool {
+		return len(m) > 0 && m[0:1] == "b"
+	})
+
+	env.Store = redis.New("", 0, "")
+	txn := env.NewTransaction()
+	txn.Set("test/table", 1, "foo")
+	txn.Set("test/table", 2, "bar")
+	txn.Commit()
+
+	if s, ok := vie[1]; ok {
+		t.Error("vie[1] is not supposed to be present")
+	}
+
+	if s, ok := vie[2]; !ok {
+		t.Error("vie[2] is supposed to be present")
+
+		if s != "bar" {
+			t.Error("vie[2] is supposed to be `bar`")
+		}
+	}
+
+}
