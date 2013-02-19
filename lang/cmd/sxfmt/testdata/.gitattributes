@@ -1,4 +1,0 @@
-*.golden !crlf !text
-*.golden.gofmt !crlf !text
-*.input !crlf !text
-*.input.gofmt !crlf !text
