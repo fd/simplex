@@ -36,6 +36,17 @@ var operandModeString = [...]string{
 	valueok:  "value,ok",
 }
 
+var sx_step_names = [...]string{
+	"select",
+	"reject",
+	"detect",
+	"collect",
+	"inject",
+	"group",
+	"index",
+	"sort",
+}
+
 // An operand represents an intermediate value during type checking.
 // Operands have an (addressing) mode, the expression evaluating to
 // the operand, the operand's type, and for constants a constant value.
