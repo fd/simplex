@@ -16,27 +16,31 @@ type (
 )
 
 var (
-	posts = make(table[int]Post)
-	a     *api.API
+	Posts     = make(table[int]Post)
+	ByDate    = Posts.sort(publish_date)
+	LongTitle = Posts.select(long_title)
+	API       *api.API
 )
 
 func init() {
-	runtime.Void(posts.select(func(p Post) bool {
-		if len(p.Title) > len("Hello World (10)") {
-			return true
-		}
-		/*panic("hello")*/
-		return false
-	}))
+	runtime.Void(LongTitle)
 
-	//runtime.Dump(posts.sort(publish_date))
+	//runtime.Dump(ByDate)
 
-	a = api.New(runtime.Env, "blog")
-	a.RegisterTable(posts)
-	a.RegisterView(posts.sort(publish_date), "posts")
+	API = api.New(runtime.Env, "blog")
+	API.RegisterTable(Posts)
+	API.RegisterView(ByDate, "posts")
 }
 
 func publish_date(m Post) int64 {
 	i := m.PublishedAt.Unix()
 	return 9223372036854775807 - i
+}
+
+func long_title(p Post) bool {
+	if len(p.Title) > len("Hello World (10)") {
+		return true
+	}
+	/*panic("hello")*/
+	return false
 }

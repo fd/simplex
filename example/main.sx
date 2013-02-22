@@ -22,7 +22,7 @@ func main() {
 
 	// register blog api
 	h := http.New(":3000")
-	h.Handle("/blog/", a)
+	h.Handle("/blog/", API)
 	runtime.Env.RegisterService(h)
 
 	go func() {
@@ -31,7 +31,7 @@ func main() {
 			txn := runtime.NewTransaction(runtime.Env)
 			now := time.Now()
 			for i := 0; i < 5000; i++ {
-				txn.Set(posts, i, Post{
+				txn.Set(Posts, i, Post{
 					Title:       fmt.Sprintf("Hello world (%d)", i),
 					PublishedAt: now,
 				})
