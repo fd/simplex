@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"os"
 	"simplex.sh/cas/redis"
 	"simplex.sh/net/http"
 	"simplex.sh/runtime"
@@ -11,8 +12,13 @@ import (
 func main() {
 	fmt.Printf("Version: %s\n", SxVersion)
 
-	// add redis store
-	runtime.Env.Store = redis.New("", 0, "")
+	{ // add redis store
+		addr := ""
+		if port := os.Getenv("BOXEN_REDIS_PORT"); port != "" {
+			addr = "tcp:localhost:" + port
+		}
+		runtime.Env.Store = redis.New(addr, 0, "")
+	}
 
 	// register blog api
 	h := http.New(":3000")
