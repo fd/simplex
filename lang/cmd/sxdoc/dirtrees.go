@@ -38,8 +38,15 @@ func isGoFile(fi os.FileInfo) bool {
 		pathpkg.Ext(name) == ".go"
 }
 
+func isSxFile(fi os.FileInfo) bool {
+	name := fi.Name()
+	return !fi.IsDir() &&
+		len(name) > 0 && name[0] != '.' && // ignore .files
+		pathpkg.Ext(name) == ".sx"
+}
+
 func isPkgFile(fi os.FileInfo) bool {
-	return isGoFile(fi) &&
+	return (isGoFile(fi) || isSxFile(fi)) &&
 		!strings.HasSuffix(fi.Name(), "_test.go") // ignore test files
 }
 
