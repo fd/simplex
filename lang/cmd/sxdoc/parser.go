@@ -15,6 +15,7 @@ import (
 	"simplex.sh/lang/ast"
 	"simplex.sh/lang/parser"
 	"simplex.sh/lang/token"
+	"strings"
 )
 
 func parseFile(fset *token.FileSet, filename string, mode parser.Mode) (*ast.File, error) {
@@ -28,7 +29,17 @@ func parseFile(fset *token.FileSet, filename string, mode parser.Mode) (*ast.Fil
 func parseFiles(fset *token.FileSet, filenames []string) (pkgs map[string]*ast.Package, first error) {
 	pkgs = make(map[string]*ast.Package)
 	for _, filename := range filenames {
-		file, err := parseFile(fset, filename, parser.ParseComments)
+		var (
+			file *ast.File
+			err  error
+		)
+
+		if strings.HasSuffix(filename, ".sx") {
+			file, err = parseFile(fset, filename, parser.ParseComments|parser.SimplexExtentions)
+		} else {
+			file, err = parseFile(fset, filename, parser.ParseComments)
+		}
+
 		if err != nil {
 			if first == nil {
 				first = err

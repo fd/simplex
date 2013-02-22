@@ -22,7 +22,6 @@ import (
 	"simplex.sh/lang/ast"
 	"simplex.sh/lang/build"
 	"simplex.sh/lang/doc"
-	"simplex.sh/lang/format"
 	"simplex.sh/lang/printer"
 	"simplex.sh/lang/token"
 	"sort"
@@ -58,12 +57,12 @@ var (
 	// TODO(gri) consider the invariant that goroot always end in '/'
 	goroot  = flag.String("goroot", runtime.GOROOT(), "Go root directory")
 	testDir = flag.String("testdir", "", "Go root subdirectory - for testing only (faster startups)")
+	pkgPath = flag.String("path", "", "additional package directories (colon-separated)")
 
 	// layout control
 	tabwidth       = flag.Int("tabwidth", 4, "tab width")
 	showTimestamps = flag.Bool("timestamps", false, "show timestamps with directory listings")
 	templateDir    = flag.String("templates", "", "directory containing alternate template files")
-	showPlayground = flag.Bool("play", false, "enable playground in web interface")
 
 	// search index
 	indexEnabled = flag.Bool("index", false, "enable search index")
@@ -84,6 +83,16 @@ var (
 )
 
 func initHandlers() {
+	// Add named directories in -path argument as
+	// subdirectories of src/pkg.
+	for _, p := range filepath.SplitList(*pkgPath) {
+		_, elem := filepath.Split(p)
+		if elem == "" {
+			log.Fatalf("invalid -path argument: %q has no final element", p)
+		}
+		fs.Bind("/src/pkg/"+elem, OS(p), "/", bindReplace)
+	}
+
 	fileServer = http.FileServer(&httpFS{fs})
 	cmdHandler = docServer{"/cmd/", "/src/cmd", false}
 	pkgHandler = docServer{"/pkg/", "/src/pkg", true}
@@ -317,21 +326,18 @@ func startsWithUppercase(s string) bool {
 
 var exampleOutputRx = regexp.MustCompile(`(?i)//[[:space:]]*output:`)
 
-// stripExampleSuffix strips lowercase braz in Foo_braz or Foo_Bar_braz from name
-// while keeping uppercase Braz in Foo_Braz.
-func stripExampleSuffix(name string) string {
-	if i := strings.LastIndex(name, "_"); i != -1 {
-		if i < len(name)-1 && !startsWithUppercase(name[i+1:]) {
-			name = name[:i]
-		}
-	}
-	return name
-}
-
 func example_htmlFunc(funcName string, examples []*doc.Example, fset *token.FileSet) string {
 	var buf bytes.Buffer
 	for _, eg := range examples {
-		name := stripExampleSuffix(eg.Name)
+		name := eg.Name
+
+		// strip lowercase braz in Foo_braz or Foo_Bar_braz from name
+		// while keeping uppercase Braz in Foo_Braz
+		if i := strings.LastIndex(name, "_"); i != -1 {
+			if i < len(name)-1 && !startsWithUppercase(name[i+1:]) {
+				name = name[:i]
+			}
+		}
 
 		if name != funcName {
 			continue
@@ -341,11 +347,9 @@ func example_htmlFunc(funcName string, examples []*doc.Example, fset *token.File
 		cnode := &printer.CommentedNode{Node: eg.Code, Comments: eg.Comments}
 		code := node_htmlFunc(cnode, fset)
 		out := eg.Output
-		wholeFile := true
 
-		// Additional formatting if this is a function body.
+		// additional formatting if this is a function body
 		if n := len(code); n >= 2 && code[0] == '{' && code[n-1] == '}' {
-			wholeFile = false
 			// remove surrounding braces
 			code = code[1 : n-1]
 			// unindent
@@ -354,28 +358,14 @@ func example_htmlFunc(funcName string, examples []*doc.Example, fset *token.File
 			if loc := exampleOutputRx.FindStringIndex(code); loc != nil {
 				code = strings.TrimSpace(code[:loc[0]])
 			}
-		}
-
-		// Write out the playground code in standard Go style
-		// (use tabs, no comment highlight, etc).
-		play := ""
-		if eg.Play != nil && *showPlayground {
-			var buf bytes.Buffer
-			if err := format.Node(&buf, fset, eg.Play); err != nil {
-				log.Print(err)
-			} else {
-				play = buf.String()
-			}
-		}
-
-		// Drop output, as the output comment will appear in the code.
-		if wholeFile && play == "" {
+		} else {
+			// drop output, as the output comment will appear in the code
 			out = ""
 		}
 
 		err := exampleHTML.Execute(&buf, struct {
-			Name, Doc, Code, Play, Output string
-		}{eg.Name, eg.Doc, code, play, out})
+			Name, Doc, Code, Output string
+		}{eg.Name, eg.Doc, code, out})
 		if err != nil {
 			log.Print(err)
 		}
@@ -548,28 +538,31 @@ func readTemplates() {
 // ----------------------------------------------------------------------------
 // Generic HTML wrapper
 
-// Page describes the contents of the top-level godoc webpage.
-type Page struct {
-	Title    string
-	Tabtitle string
-	Subtitle string
-	Query    string
-	Body     []byte
-
-	// filled in by servePage
-	SearchBox  bool
-	Playground bool
-	Version    string
-}
-
-func servePage(w http.ResponseWriter, page Page) {
-	if page.Tabtitle == "" {
-		page.Tabtitle = page.Title
+func servePage(w http.ResponseWriter, tabtitle, title, subtitle, query string, content []byte) {
+	if tabtitle == "" {
+		tabtitle = title
 	}
-	page.SearchBox = *indexEnabled
-	page.Playground = *showPlayground
-	page.Version = runtime.Version()
-	if err := godocHTML.Execute(w, page); err != nil {
+	d := struct {
+		Tabtitle  string
+		Title     string
+		Subtitle  string
+		SearchBox bool
+		Query     string
+		Version   string
+		Menu      []byte
+		Content   []byte
+	}{
+		tabtitle,
+		title,
+		subtitle,
+		*indexEnabled,
+		query,
+		runtime.Version(),
+		nil,
+		content,
+	}
+
+	if err := godocHTML.Execute(w, &d); err != nil {
 		log.Printf("godocHTML.Execute: %s", err)
 	}
 }
@@ -634,11 +627,7 @@ func serveHTMLDoc(w http.ResponseWriter, r *http.Request, abspath, relpath strin
 		src = buf.Bytes()
 	}
 
-	servePage(w, Page{
-		Title:    meta.Title,
-		Subtitle: meta.Subtitle,
-		Body:     src,
-	})
+	servePage(w, "", meta.Title, meta.Subtitle, "", src)
 }
 
 func applyTemplate(t *template.Template, name string, data interface{}) []byte {
@@ -661,18 +650,6 @@ func redirect(w http.ResponseWriter, r *http.Request) (redirected bool) {
 	return
 }
 
-func redirectFile(w http.ResponseWriter, r *http.Request) (redirected bool) {
-	c := pathpkg.Clean(r.URL.Path)
-	for strings.HasSuffix("/", c) {
-		c = c[:len(c)-1]
-	}
-	if r.URL.Path != c {
-		http.Redirect(w, r, c, http.StatusMovedPermanently)
-		redirected = true
-	}
-	return
-}
-
 func serveTextFile(w http.ResponseWriter, r *http.Request, abspath, relpath, title string) {
 	src, err := ReadFile(fs, abspath)
 	if err != nil {
@@ -686,11 +663,7 @@ func serveTextFile(w http.ResponseWriter, r *http.Request, abspath, relpath, tit
 	FormatText(&buf, src, 1, pathpkg.Ext(abspath) == ".go", r.FormValue("h"), rangeSelection(r.FormValue("s")))
 	buf.WriteString("</pre>")
 
-	servePage(w, Page{
-		Title:    title + " " + relpath,
-		Tabtitle: relpath,
-		Body:     buf.Bytes(),
-	})
+	servePage(w, relpath, title+" "+relpath, "", "", buf.Bytes())
 }
 
 func serveDirectory(w http.ResponseWriter, r *http.Request, abspath, relpath string) {
@@ -704,11 +677,8 @@ func serveDirectory(w http.ResponseWriter, r *http.Request, abspath, relpath str
 		return
 	}
 
-	servePage(w, Page{
-		Title:    "Directory " + relpath,
-		Tabtitle: relpath,
-		Body:     applyTemplate(dirlistHTML, "dirlistHTML", list),
-	})
+	contents := applyTemplate(dirlistHTML, "dirlistHTML", list)
+	servePage(w, relpath, "Directory "+relpath, "", "", contents)
 }
 
 func serveFile(w http.ResponseWriter, r *http.Request) {
@@ -764,9 +734,6 @@ func serveFile(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if isTextFile(abspath) {
-		if redirectFile(w, r) {
-			return
-		}
 		serveTextFile(w, r, abspath, relpath, "Text file")
 		return
 	}
@@ -848,6 +815,7 @@ func remoteSearchURL(query string, html bool) string {
 
 type PageInfo struct {
 	Dirname  string         // directory containing the package
+	PList    []string       // list of package names found
 	FSet     *token.FileSet // corresponding file set
 	PAst     *ast.File      // nil if no single AST with package exports
 	PDoc     *doc.Package   // nil if no single package documentation
@@ -871,12 +839,12 @@ type docServer struct {
 
 // fsReadDir implements ReadDir for the go/build package.
 func fsReadDir(dir string) ([]os.FileInfo, error) {
-	return fs.ReadDir(filepath.ToSlash(dir))
+	return fs.ReadDir(dir)
 }
 
 // fsOpenFile implements OpenFile for the go/build package.
 func fsOpenFile(name string) (r io.ReadCloser, err error) {
-	data, err := ReadFile(fs, filepath.ToSlash(name))
+	data, err := ReadFile(fs, name)
 	if err != nil {
 		return nil, err
 	}
@@ -892,95 +860,6 @@ func inList(name string, list []string) bool {
 	return false
 }
 
-// packageExports is a local implementation of ast.PackageExports
-// which correctly updates each package file's comment list.
-// (The ast.PackageExports signature is frozen, hence the local
-// implementation).
-//
-func packageExports(fset *token.FileSet, pkg *ast.Package) {
-	for _, src := range pkg.Files {
-		cmap := ast.NewCommentMap(fset, src, src.Comments)
-		ast.FileExports(src)
-		src.Comments = cmap.Filter(src).Comments()
-	}
-}
-
-// declNames returns the names declared by decl.
-// Method names are returned in the form Receiver_Method.
-func declNames(decl ast.Decl) (names []string) {
-	switch d := decl.(type) {
-	case *ast.FuncDecl:
-		name := d.Name.Name
-		if d.Recv != nil {
-			var typeName string
-			switch r := d.Recv.List[0].Type.(type) {
-			case *ast.StarExpr:
-				typeName = r.X.(*ast.Ident).Name
-			case *ast.Ident:
-				typeName = r.Name
-			}
-			name = typeName + "_" + name
-		}
-		names = []string{name}
-	case *ast.GenDecl:
-		for _, spec := range d.Specs {
-			switch s := spec.(type) {
-			case *ast.TypeSpec:
-				names = append(names, s.Name.Name)
-			case *ast.ValueSpec:
-				for _, id := range s.Names {
-					names = append(names, id.Name)
-				}
-			}
-		}
-	}
-	return
-}
-
-// globalNames finds all top-level declarations in pkgs and returns a map
-// with the identifier names as keys.
-func globalNames(pkgs map[string]*ast.Package) map[string]bool {
-	names := make(map[string]bool)
-	for _, pkg := range pkgs {
-		for _, file := range pkg.Files {
-			for _, decl := range file.Decls {
-				for _, name := range declNames(decl) {
-					names[name] = true
-				}
-			}
-		}
-	}
-	return names
-}
-
-// parseExamples gets examples for packages in pkgs from *_test.go files in dir.
-func parseExamples(fset *token.FileSet, pkgs map[string]*ast.Package, dir string) ([]*doc.Example, error) {
-	var examples []*doc.Example
-	filter := func(d os.FileInfo) bool {
-		return isGoFile(d) && strings.HasSuffix(d.Name(), "_test.go")
-	}
-	testpkgs, err := parseDir(fset, dir, filter)
-	if err != nil {
-		return nil, err
-	}
-	globals := globalNames(pkgs)
-	for _, testpkg := range testpkgs {
-		var files []*ast.File
-		for _, f := range testpkg.Files {
-			files = append(files, f)
-		}
-		for _, e := range doc.Examples(files...) {
-			name := stripExampleSuffix(e.Name)
-			if name == "" || globals[name] {
-				examples = append(examples, e)
-			} else {
-				log.Printf("skipping example Example%s: refers to unknown function or type", e.Name)
-			}
-		}
-	}
-	return examples, nil
-}
-
 // getPageInfo returns the PageInfo for a package directory abspath. If the
 // parameter genAST is set, an AST containing only the package exports is
 // computed (PageInfo.PAst), otherwise package documentation (PageInfo.Doc)
@@ -989,24 +868,27 @@ func parseExamples(fset *token.FileSet, pkgs map[string]*ast.Package, dir string
 // directories, PageInfo.Dirs is nil. If a directory read error occurred,
 // PageInfo.Err is set to the respective error but the error is not logged.
 //
-func (h *docServer) getPageInfo(abspath, relpath string, mode PageInfoMode) PageInfo {
+func (h *docServer) getPageInfo(abspath, relpath, pkgname string, mode PageInfoMode) PageInfo {
 	var pkgFiles []string
 
-	// Restrict to the package files
+	// If we're showing the default package, restrict to the ones
 	// that would be used when building the package on this
 	// system.  This makes sure that if there are separate
 	// implementations for, say, Windows vs Unix, we don't
 	// jumble them all together.
-	// Note: Uses current binary's GOOS/GOARCH.
-	// To use different pair, such as if we allowed the user
-	// to choose, set ctxt.GOOS and ctxt.GOARCH before
-	// calling ctxt.ScanDir.
-	ctxt := build.Default
-	ctxt.IsAbsPath = pathpkg.IsAbs
-	ctxt.ReadDir = fsReadDir
-	ctxt.OpenFile = fsOpenFile
-	if dir, err := ctxt.ImportDir(abspath, 0); err == nil {
-		pkgFiles = append(dir.GoFiles, dir.CgoFiles...)
+	if pkgname == "" {
+		// Note: Uses current binary's GOOS/GOARCH.
+		// To use different pair, such as if we allowed the user
+		// to choose, set ctxt.GOOS and ctxt.GOARCH before
+		// calling ctxt.ScanDir.
+		ctxt := build.Default
+		ctxt.IsAbsPath = pathpkg.IsAbs
+		ctxt.ReadDir = fsReadDir
+		ctxt.OpenFile = fsOpenFile
+		dir, err := ctxt.ImportDir(abspath, 0)
+		if err == nil {
+			pkgFiles = append(dir.GoFiles, dir.CgoFiles...)
+		}
 	}
 
 	// filter function to select the desired .go files
@@ -1027,12 +909,15 @@ func (h *docServer) getPageInfo(abspath, relpath string, mode PageInfoMode) Page
 	// get package ASTs
 	fset := token.NewFileSet()
 	pkgs, err := parseDir(fset, abspath, filter)
-	if err != nil {
+	if err != nil && pkgs == nil {
+		// only report directory read errors, ignore parse errors
+		// (may be able to extract partial package information)
 		return PageInfo{Dirname: abspath, Err: err}
 	}
 
 	// select package
 	var pkg *ast.Package // selected package
+	var plist []string   // list of other package (names), if any
 	if len(pkgs) == 1 {
 		// Exactly one package - select it.
 		for _, p := range pkgs {
@@ -1040,23 +925,66 @@ func (h *docServer) getPageInfo(abspath, relpath string, mode PageInfoMode) Page
 		}
 
 	} else if len(pkgs) > 1 {
-		// More than one package - report an error.
-		var buf bytes.Buffer
+		// Multiple packages - select the best matching package: The
+		// 1st choice is the package with pkgname, the 2nd choice is
+		// the package with dirname, and the 3rd choice is a package
+		// that is not called "main" if there is exactly one such
+		// package. Otherwise, don't select a package.
+		dirpath, dirname := pathpkg.Split(abspath)
+
+		// If the dirname is "go" we might be in a sub-directory for
+		// .go files - use the outer directory name instead for better
+		// results.
+		if dirname == "go" {
+			_, dirname = pathpkg.Split(pathpkg.Clean(dirpath))
+		}
+
+		var choice3 *ast.Package
+	loop:
 		for _, p := range pkgs {
-			if buf.Len() > 0 {
-				fmt.Fprintf(&buf, ", ")
+			switch {
+			case p.Name == pkgname:
+				pkg = p
+				break loop // 1st choice; we are done
+			case p.Name == dirname:
+				pkg = p // 2nd choice
+			case p.Name != "main":
+				choice3 = p
 			}
-			fmt.Fprintf(&buf, p.Name)
 		}
-		return PageInfo{
-			Dirname: abspath,
-			Err:     fmt.Errorf("%s contains more than one package: %s", abspath, buf.Bytes()),
+		if pkg == nil && len(pkgs) == 2 {
+			pkg = choice3
 		}
+
+		// Compute the list of other packages
+		// (excluding the selected package, if any).
+		plist = make([]string, len(pkgs))
+		i := 0
+		for name := range pkgs {
+			if pkg == nil || name != pkg.Name {
+				plist[i] = name
+				i++
+			}
+		}
+		plist = plist[0:i]
+		sort.Strings(plist)
 	}
 
-	examples, err := parseExamples(fset, pkgs, abspath)
-	if err != nil {
-		log.Println("parsing examples:", err)
+	// get examples from *_test.go files
+	var examples []*doc.Example
+	filter = func(d os.FileInfo) bool {
+		return isGoFile(d) && strings.HasSuffix(d.Name(), "_test.go")
+	}
+	if testpkgs, err := parseDir(fset, abspath, filter); err != nil {
+		log.Println("parsing test files:", err)
+	} else {
+		for _, testpkg := range testpkgs {
+			var files []*ast.File
+			for _, f := range testpkg.Files {
+				files = append(files, f)
+			}
+			examples = append(examples, doc.Examples(files...)...)
+		}
 	}
 
 	// compute package documentation
@@ -1078,9 +1006,9 @@ func (h *docServer) getPageInfo(abspath, relpath string, mode PageInfoMode) Page
 			// TODO(gri) Consider eliminating export filtering in this mode,
 			//           or perhaps eliminating the mode altogether.
 			if mode&noFiltering == 0 {
-				packageExports(fset, pkg)
+				ast.PackageExports(pkg)
 			}
-			past = ast.MergePackageFiles(pkg, 0)
+			past = ast.MergePackageFiles(pkg, ast.FilterUnassociatedComments)
 		}
 	}
 
@@ -1105,6 +1033,7 @@ func (h *docServer) getPageInfo(abspath, relpath string, mode PageInfoMode) Page
 
 	return PageInfo{
 		Dirname:  abspath,
+		PList:    plist,
 		FSet:     fset,
 		PAst:     past,
 		PDoc:     pdoc,
@@ -1128,7 +1057,7 @@ func (h *docServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if relpath == builtinPkgPath {
 		mode = noFiltering
 	}
-	info := h.getPageInfo(abspath, relpath, mode)
+	info := h.getPageInfo(abspath, relpath, r.FormValue("p"), mode)
 	if info.Err != nil {
 		log.Print(info.Err)
 		serveError(w, r, relpath, info.Err)
@@ -1136,7 +1065,8 @@ func (h *docServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if mode&noHtml != 0 {
-		serveText(w, applyTemplate(packageText, "packageText", info))
+		contents := applyTemplate(packageText, "packageText", info)
+		serveText(w, contents)
 		return
 	}
 
@@ -1173,12 +1103,8 @@ func (h *docServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		tabtitle = "Commands"
 	}
 
-	servePage(w, Page{
-		Title:    title,
-		Tabtitle: tabtitle,
-		Subtitle: subtitle,
-		Body:     applyTemplate(packageHTML, "packageHTML", info),
-	})
+	contents := applyTemplate(packageHTML, "packageHTML", info)
+	servePage(w, tabtitle, title, subtitle, "", contents)
 }
 
 // ----------------------------------------------------------------------------
@@ -1255,7 +1181,8 @@ func search(w http.ResponseWriter, r *http.Request) {
 	result := lookup(query)
 
 	if getPageInfoMode(r)&noHtml != 0 {
-		serveText(w, applyTemplate(searchText, "searchText", result))
+		contents := applyTemplate(searchText, "searchText", result)
+		serveText(w, contents)
 		return
 	}
 
@@ -1266,12 +1193,8 @@ func search(w http.ResponseWriter, r *http.Request) {
 		title = fmt.Sprintf(`No results found for query %q`, query)
 	}
 
-	servePage(w, Page{
-		Title:    title,
-		Tabtitle: query,
-		Query:    query,
-		Body:     applyTemplate(searchHTML, "searchHTML", result),
-	})
+	contents := applyTemplate(searchHTML, "searchHTML", result)
+	servePage(w, query, title, "", query, contents)
 }
 
 // ----------------------------------------------------------------------------
