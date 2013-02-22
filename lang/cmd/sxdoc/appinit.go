@@ -17,12 +17,9 @@ import (
 )
 
 func serveError(w http.ResponseWriter, r *http.Request, relpath string, err error) {
+	contents := applyTemplate(errorHTML, "errorHTML", err) // err may contain an absolute path!
 	w.WriteHeader(http.StatusNotFound)
-	servePage(w, Page{
-		Title:    "File " + relpath,
-		Subtitle: relpath,
-		Body:     applyTemplate(errorHTML, "errorHTML", err), // err may contain an absolute path!
-	})
+	servePage(w, relpath, "File "+relpath, "", "", contents)
 }
 
 func init() {
@@ -37,7 +34,6 @@ func init() {
 	*indexFiles = indexFilenames
 	*maxResults = 100    // reduce latency by limiting the number of fulltext search results
 	*indexThrottle = 0.3 // in case *indexFiles is empty (and thus the indexer is run)
-	*showPlayground = true
 
 	// read .zip file and set up file systems
 	const zipfile = zipFilename
@@ -52,7 +48,6 @@ func init() {
 	readTemplates()
 	initHandlers()
 	registerPublicHandlers(http.DefaultServeMux)
-	registerPlaygroundHandlers(http.DefaultServeMux)
 
 	// initialize default directory tree with corresponding timestamp.
 	initFSTree()
