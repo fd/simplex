@@ -70,7 +70,7 @@ func expectedErrors(t *testing.T, filename string, src []byte) map[token.Pos]str
 	// file was parsed already - do not add it again to the file
 	// set otherwise the position information returned here will
 	// not match the position information collected by the parser
-	s.Init(getFile(filename), src, nil, scanner.ScanComments)
+	s.Init(getFile(filename), src, nil, scanner.ScanComments|scanner.SimplexExtentions)
 	var prev token.Pos // position of last non-comment, non-semicolon token
 
 	for {
@@ -137,7 +137,7 @@ func checkErrors(t *testing.T, filename string, input interface{}) {
 		return
 	}
 
-	_, err = ParseFile(fset, filename, src, DeclarationErrors)
+	_, err = ParseFile(fset, filename, src, DeclarationErrors|SimplexExtentions)
 	found, ok := err.(scanner.ErrorList)
 	if err != nil && !ok {
 		t.Error(err)

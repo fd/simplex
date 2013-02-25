@@ -143,9 +143,11 @@ const pi = 3.14
 type T struct{}
 var x int
 func f() { L: }
+doct do() {}
+frag fa() {}
 `
 
-	f, err := ParseFile(fset, "", src, 0)
+	f, err := ParseFile(fset, "", src, SimplexExtentions)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -159,6 +161,8 @@ func f() { L: }
 		"int": ast.Bad, // not resolved yet
 		"f":   ast.Fun,
 		"L":   ast.Lbl,
+		"do":  ast.Fun,
+		"fa":  ast.Fun,
 	}
 
 	ast.Inspect(f, func(n ast.Node) bool {

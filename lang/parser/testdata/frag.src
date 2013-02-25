@@ -1,0 +1,4 @@
+package p
+
+frag a_fragment() {
+}
