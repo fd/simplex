@@ -1,0 +1,51 @@
+
+document PostIndex(posts view[]Post) {
+  route: /blog
+
+  <ul>
+    {{# posts.collect(frag(post Post)<<) }}
+    <li data-id={{ post.Id }}>
+      <a href="/blog/posts/show/{{ post.Id }}">{{ post.Title }}</a>
+    </li>
+    {{/ collect }}
+  </ul>
+}
+
+document PostShow(post Post) {
+  route: blog/{{ post.Id }}
+  route: /blog/{{ UrlFormattedDate(post.PublishedAt) }}/{{ Slug(post.Title) }}
+  route: ://example.com/blog-post-{{ Slug(post.Title) }}
+  X-Feed-Published: {{ post.PublishedAt }}
+
+  {{# Layout("Blog - " + post.Title, frag()<<) }}
+
+    <h1>{{ post.Title }}</h1>
+    <em class="meta">{{ post.Author }}</em>
+    {{ post.Body }}
+
+    {{# if post.AcceptsComments }}
+      {{ PostComments(CommentsForPosts[post.Id].select(accepted_comment)) }}
+    {{/ if }}
+
+  {{/ end }}
+}
+
+frag PostComments(comments view[]Comment) {
+  <ul>
+    {{# comments.collect(frag(c Comment)<<) }}
+    <li>
+      <h2>{{ c.Title }}</h2>
+      {{ c.Body }}
+    </li>
+    {{/ end }}
+  </ul>
+}
+
+frag Layout(title string, content frag()) {
+  <html>
+    <head>
+      <title>{{ title }}</title>
+    </head>
+    <body>{{ content() }}</body>
+  </html>
+}

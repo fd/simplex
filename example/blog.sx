@@ -19,8 +19,11 @@ var (
 	Posts     = make(table[int]Post)
 	ByDate    = Posts.sort(publish_date)
 	LongTitle = Posts.select(long_title)
-	API       *api.API
 )
+
+// API Endpoints:
+//   GET blog/posts
+var API *api.API
 
 func init() {
 	runtime.Void(LongTitle)
@@ -32,9 +35,9 @@ func init() {
 	API.RegisterView(ByDate, "posts")
 }
 
-func publish_date(m Post) int64 {
+func publish_date(m Post) uint64 {
 	i := m.PublishedAt.Unix()
-	return 9223372036854775807 - i
+	return 18446744073709551615 - (uint64(9223372036854775808) + uint64(i))
 }
 
 func long_title(p Post) bool {
