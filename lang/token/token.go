@@ -124,6 +124,8 @@ const (
 
 	//=== start custom
 	sx_keyword_beg
+	DOCT
+	FRAG
 	VIEW
 	TABLE
 	sx_keyword_end
@@ -230,6 +232,8 @@ var tokens = [...]string{
 	VAR:    "var",
 
 	//=== start custom
+	DOCT:  "doct",
+	FRAG:  "frag",
 	VIEW:  "view",
 	TABLE: "table",
 	//=== end custom

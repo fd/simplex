@@ -1,0 +1,2 @@
+*.go     -filter
+*.sx     -filter

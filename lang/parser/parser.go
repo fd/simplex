@@ -2323,6 +2323,129 @@ func (p *parser) parseFuncDecl() *ast.FuncDecl {
 	return decl
 }
 
+func (p *parser) parseDoctDecl() ast.Decl {
+	if p.trace {
+		defer un(trace(p, "DocumentDecl"))
+	}
+
+	doc := p.leadComment
+	pos := p.expect(token.DOCT)
+	scope := ast.NewScope(p.topScope) // function scope
+
+	var recv *ast.FieldList
+	if p.tok == token.LPAREN {
+		recv = p.parseReceiver(scope)
+	}
+
+	ident := p.parseIdent()
+
+	params, results := p.parseSignature(scope)
+
+	var body *ast.BlockStmt
+	if p.tok == token.LBRACE {
+		// TODO(fd) parse Simplebars headers
+		// TODO(fd) parse Simplebars body
+		body = p.parseBody(scope)
+	}
+	p.expectSemi()
+
+	decl := &ast.FuncDecl{
+		Doc:  doc,
+		Recv: recv,
+		Name: ident,
+		Type: &ast.FuncType{
+			Func:    pos,
+			Params:  params,
+			Results: results,
+		},
+		Body: body,
+	}
+	if recv == nil {
+		// Go spec: The scope of an identifier denoting a constant, type,
+		// variable, or function (but not method) declared at top level
+		// (outside any function) is the package block.
+		//
+		// init() functions cannot be referred to and there may
+		// be more than one - don't put them in the pkgScope
+		if ident.Name == "init" {
+			pos := p.pos
+			p.errorExpected(pos, "a doct() cannot be named `init`")
+			return &ast.BadDecl{From: pos, To: p.pos}
+		}
+
+		if ident.Name == "main" {
+			pos := p.pos
+			p.errorExpected(pos, "a doct() cannot be named `main`")
+			return &ast.BadDecl{From: pos, To: p.pos}
+		}
+
+		p.declare(decl, nil, p.pkgScope, ast.Fun, ident)
+	}
+
+	return decl
+}
+
+func (p *parser) parseFragDecl() ast.Decl {
+	if p.trace {
+		defer un(trace(p, "FragmentDecl"))
+	}
+
+	doc := p.leadComment
+	pos := p.expect(token.FRAG)
+	scope := ast.NewScope(p.topScope) // function scope
+
+	var recv *ast.FieldList
+	if p.tok == token.LPAREN {
+		recv = p.parseReceiver(scope)
+	}
+
+	ident := p.parseIdent()
+
+	params, results := p.parseSignature(scope)
+
+	var body *ast.BlockStmt
+	if p.tok == token.LBRACE {
+		// TODO(fd) parse Simplebars body
+		body = p.parseBody(scope)
+	}
+	p.expectSemi()
+
+	decl := &ast.FuncDecl{
+		Doc:  doc,
+		Recv: recv,
+		Name: ident,
+		Type: &ast.FuncType{
+			Func:    pos,
+			Params:  params,
+			Results: results,
+		},
+		Body: body,
+	}
+	if recv == nil {
+		// Go spec: The scope of an identifier denoting a constant, type,
+		// variable, or function (but not method) declared at top level
+		// (outside any function) is the package block.
+		//
+		// init() functions cannot be referred to and there may
+		// be more than one - don't put them in the pkgScope
+		if ident.Name == "init" {
+			pos := p.pos
+			p.errorExpected(pos, "a frag() cannot be named `init`")
+			return &ast.BadDecl{From: pos, To: p.pos}
+		}
+
+		if ident.Name == "main" {
+			pos := p.pos
+			p.errorExpected(pos, "a frag() cannot be named `main`")
+			return &ast.BadDecl{From: pos, To: p.pos}
+		}
+
+		p.declare(decl, nil, p.pkgScope, ast.Fun, ident)
+	}
+
+	return decl
+}
+
 func (p *parser) parseDecl(sync func(*parser)) ast.Decl {
 	if p.trace {
 		defer un(trace(p, "Declaration"))
@@ -2338,6 +2461,12 @@ func (p *parser) parseDecl(sync func(*parser)) ast.Decl {
 
 	case token.FUNC:
 		return p.parseFuncDecl()
+
+	case token.FRAG:
+		return p.parseFragDecl()
+
+	case token.DOCT:
+		return p.parseDoctDecl()
 
 	default:
 		pos := p.pos
