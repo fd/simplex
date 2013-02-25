@@ -12,6 +12,7 @@ type Context struct {
 	GoFiles    []string
 	SxFiles    []string
 
+	Version      string
 	AstFiles     map[string]*ast.File
 	TypesPackage *types.Package
 	ViewTypes    map[string]*types.View
@@ -30,6 +31,11 @@ func (c *Context) Compile() error {
 	}
 
 	err = c.check_types()
+	if err != nil {
+		return err
+	}
+
+	err = c.generate_version_hash()
 	if err != nil {
 		return err
 	}

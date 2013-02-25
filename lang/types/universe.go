@@ -59,6 +59,7 @@ var predeclaredConstants = [...]*Const{
 	{"false", Typ[UntypedBool], false, nil},
 	{"iota", Typ[UntypedInt], zeroConst, nil},
 	{"nil", Typ[UntypedNil], nilConst, nil},
+	{"SxVersion", Typ[UntypedString], "", nil},
 }
 
 var predeclaredFunctions = [...]*builtin{
@@ -128,7 +129,7 @@ func def(obj Object) {
 	}
 	// exported identifiers go into package unsafe
 	scope := Universe
-	if ast.IsExported(name) {
+	if ast.IsExported(name) && name != "SxVersion" {
 		scope = Unsafe.Scope
 	}
 	if scope.Insert(obj) != nil {

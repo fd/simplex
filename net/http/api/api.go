@@ -10,9 +10,6 @@ import (
 	"simplex.sh/cas"
 	"simplex.sh/cas/btree"
 	"simplex.sh/runtime"
-	"simplex.sh/runtime/event"
-	"simplex.sh/runtime/promise"
-	"strings"
 )
 
 type (
@@ -20,7 +17,7 @@ type (
 		name   string
 		env    *runtime.Environment
 		tables map[string]runtime.Table
-		views  map[string]promise.Deferred
+		views  map[string]runtime.Resolver
 		routes map[string]string
 
 		ViewTables map[string]*table_handle
@@ -37,7 +34,7 @@ func New(env *runtime.Environment, name string) *API {
 		name,
 		env,
 		map[string]runtime.Table{},
-		map[string]promise.Deferred{},
+		map[string]runtime.Resolver{},
 		map[string]string{},
 		map[string]*table_handle{},
 	}
@@ -116,42 +113,26 @@ func (api *API) DeferredId() string {
 	return "API/" + api.name
 }
 
-func (api *API) Resolve(state promise.State, events chan<- event.Event) {
-	var (
-		funnel event.Funnel
-	)
+func (api *API) Resolve(state *runtime.Transaction) runtime.IChange {
 
 	for _, table := range api.tables {
-		funnel.Add(state.Resolve(table).C)
+		state.Resolve(table)
 	}
 
-	for _, view := range api.views {
-		funnel.Add(state.Resolve(view).C)
-	}
+	for name, view := range api.views {
+		var (
+			change = state.Resolve(view)
+		)
 
-	for e := range funnel.Run() {
-		// propagate error events
-		if err, ok := e.(event.Error); ok {
-			events <- err
-			continue
-		}
-
-		event, ok := e.(*runtime.ConsistentTable)
-		if !ok {
-			continue
-		}
-
-		if strings.HasPrefix(event.Table, "API/FORMAT_JSON/") {
-			name := event.Table[len("API/FORMAT_JSON/"):]
-
-			if event.B == nil {
-				delete(api.ViewTables, name)
-			} else {
-				api.ViewTables[name] = &table_handle{addr: event.B}
-			}
+		switch change.Type() {
+		case runtime.ChangeRemove:
+			delete(api.ViewTables, name)
+		case runtime.ChangeInsert, runtime.ChangeUpdate:
+			api.ViewTables[name] = &table_handle{addr: change.B}
 		}
 	}
 
+	return runtime.IChange{}
 }
 
 func (api *API) ServeHTTP(w http.ResponseWriter, req *http.Request) {

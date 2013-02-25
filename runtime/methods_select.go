@@ -1,100 +1,88 @@
 package runtime
 
-import (
-	"simplex.sh/cas"
-	"simplex.sh/runtime/event"
-	"simplex.sh/runtime/promise"
-)
-
-func (op *select_op) Resolve(state promise.State, events chan<- event.Event) {
-	var (
-		src_events = state.Resolve(op.src)
-		fun        = op.fun
+func (op *select_op) Resolve(state *Transaction) IChange {
+	return apply_select_reject_filter(
+		op.src,
+		op.name,
+		op.fun,
+		true,
+		state,
 	)
-
-	apply_select_reject_filter(op.name, fun, true, src_events, events, state)
 }
 
-func (op *reject_op) Resolve(state promise.State, events chan<- event.Event) {
-	var (
-		src_events = state.Resolve(op.src)
-		fun        = select_func(op.fun)
+func (op *reject_op) Resolve(state *Transaction) IChange {
+	return apply_select_reject_filter(
+		op.src,
+		op.name,
+		select_func(op.fun),
+		false,
+		state,
 	)
-
-	apply_select_reject_filter(op.name, fun, false, src_events, events, state)
 }
 
-func apply_select_reject_filter(op_name string, op_fun select_func,
-	expected bool, src_events *event.Subscription, dst_events chan<- event.Event,
-	state promise.State) {
+func apply_select_reject_filter(r Resolver, op_name string, op_fun select_func,
+	expected bool, state *Transaction) IChange {
+
+	var (
+		i_change = state.Resolve(r)
+		o_change IChange
+	)
+
+	if i_change.Type() == ChangeNone {
+		return o_change
+	}
 
 	var (
 		table = state.GetTable(op_name)
 	)
 
-	for e := range src_events.C {
-		// propagate error events
-		if err, ok := e.(event.Error); ok {
-			dst_events <- err
-			continue
-		}
-
-		i_change, ok := e.(*ChangedMember)
-		if !ok {
-			continue
-		}
+	for _, i_m := range i_change.MemberChanges {
 
 		var (
-			o_change = &ChangedMember{op_name, i_change.collated_key, i_change.key, i_change.a, i_change.b}
+			o_m = i_m.IChange
 		)
 
-		if o_change.a != nil {
-			if op_fun(&Context{state.Store()}, o_change.a) != expected {
-				o_change.a = nil
+		// was part of selection
+		if i_m.A != nil {
+			if op_fun(&Context{state.Store()}, i_m.A) != expected {
+				o_m.A = nil
 			}
 		}
 
-		if o_change.b != nil {
-			if op_fun(&Context{state.Store()}, o_change.b) != expected {
-				o_change.b = nil
+		// will be part of selection
+		if i_m.B != nil {
+			if op_fun(&Context{state.Store()}, i_m.B) != expected {
+				o_m.B = nil
 			}
 		}
 
-		// ignore unchanged data
-		if o_change.a == nil && o_change.b == nil {
+		if o_m.Type() == ChangeNone {
 			continue
 		}
 
-		if o_change.a != nil {
-			// remove kv from table
-			_, prev, err := table.Del(o_change.collated_key)
+		switch o_m.Type() {
+		case ChangeRemove:
+			_, prev_elt_addr, err := table.Del(i_m.CollatedKey)
 			if err != nil {
 				panic("runtime: " + err.Error())
 			}
-			if prev != nil {
-				o_change.a = nil
-			}
-		}
 
-		if o_change.b != nil {
+			o_m.A = prev_elt_addr
+			o_change.MemberChanged(i_m.CollatedKey, i_m.Key, o_m)
+
+		case ChangeUpdate, ChangeInsert:
 			// insert kv into table
-			prev, err := table.Set(o_change.collated_key, o_change.key, o_change.b)
+			prev_elt_addr, err := table.Set(i_m.CollatedKey, i_m.Key, o_m.B)
 			if err != nil {
 				panic("runtime: " + err.Error())
 			}
-			if cas.CompareAddr(prev, o_change.b) == 0 {
-				o_change.b = nil
-			}
-		}
 
-		// ignore unchanged data
-		if o_change.a == nil && o_change.b == nil {
-			continue
-		}
+			o_m.A = prev_elt_addr
+			o_change.MemberChanged(i_m.CollatedKey, i_m.Key, o_m)
 
-		dst_events <- o_change
+		}
 	}
 
-	tab_addr_a, tab_addr_b := state.CommitTable(op_name, table)
-	dst_events <- &ConsistentTable{op_name, tab_addr_a, tab_addr_b}
+	o_change.A, o_change.B = state.CommitTable(op_name, table)
+	return o_change
 }

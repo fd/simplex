@@ -2,11 +2,9 @@ package runtime
 
 import (
 	"simplex.sh/cas"
-	"simplex.sh/runtime/event"
-	"simplex.sh/runtime/promise"
 )
 
-func DeclareTable(name string) promise.Deferred {
+func DeclareTable(name string) Resolver {
 	return &table_op{name}
 }
 
@@ -14,7 +12,7 @@ func DeclareTable(name string) promise.Deferred {
   type V view[]M
   V.select(func(M)bool) -> V
 */
-func Select(v IndexedView, f select_func, name string) promise.Deferred {
+func Select(v IndexedView, f select_func, name string) Resolver {
 	return &select_op{src: v, fun: f, name: name}
 }
 
@@ -22,7 +20,7 @@ func Select(v IndexedView, f select_func, name string) promise.Deferred {
   type V view[]M
   V.reject(func(M)bool) -> V
 */
-func Reject(v IndexedView, f reject_func, name string) promise.Deferred {
+func Reject(v IndexedView, f reject_func, name string) Resolver {
 	return &reject_op{src: v, fun: f, name: name}
 }
 
@@ -42,7 +40,7 @@ func Detect(v IndexedView, f func(interface{}) bool, name string) interface{} {
   V.collect(func(M)N) -> W
   (Note: the key type remains unchanged)
 */
-func Collect(v IndexedView, f collect_func, name string) promise.Deferred {
+func Collect(v IndexedView, f collect_func, name string) Resolver {
 	return &collect_op{src: v, fun: f, name: name}
 }
 
@@ -62,7 +60,7 @@ func Inject(v IndexedView, f func(interface{}, []interface{}) interface{}, name 
   V.group(func(M)N) -> W
   (Note: the key type of the inner view remains unchanged)
 */
-func Group(v IndexedView, f group_func, name string) promise.Deferred {
+func Group(v IndexedView, f group_func, name string) Resolver {
 	return &group_op{src: v, fun: f, name: name}
 }
 
@@ -74,7 +72,7 @@ func Group(v IndexedView, f group_func, name string) promise.Deferred {
 
   v.index(f) is equivalent to v.group(f).collect(func(v view[]M)M{ return v.detect(func(_){return true}) })
 */
-func Index(v IndexedView, f index_func, name string) promise.Deferred {
+func Index(v IndexedView, f index_func, name string) Resolver {
 	return &index_op{src: v, fun: f, name: name}
 }
 
@@ -83,11 +81,11 @@ func Index(v IndexedView, f index_func, name string) promise.Deferred {
   V.sort(func(M)N) -> V
   (Note: the key type is lost)
 */
-func Sort(v IndexedView, f sort_func, name string) promise.Deferred {
+func Sort(v IndexedView, f sort_func, name string) Resolver {
 	return &sort_op{src: v, fun: f, name: name}
 }
 
-func Union(v ...promise.Deferred) promise.Deferred {
+func Union(v ...Resolver) Resolver {
 	panic("not yet implemented")
 }
 
@@ -147,4 +145,4 @@ func (op *group_op) DeferredId() string   { return op.name }
 func (op *index_op) DeferredId() string   { return op.name }
 func (op *sort_op) DeferredId() string    { return op.name }
 
-func (op *index_op) Resolve(state promise.State, events chan<- event.Event) {}
+func (op *index_op) Resolve(txn *Transaction) IChange { return IChange{} }

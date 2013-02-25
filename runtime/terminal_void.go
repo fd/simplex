@@ -1,36 +1,22 @@
 package runtime
 
-import (
-	"simplex.sh/runtime/event"
-	"simplex.sh/runtime/promise"
-)
-
 /*
   Void() registers a side-effect free terminal. It is mainly useful for debugging
   as it ensurs that the Deferred def is resolved.
 */
-func Void(def promise.Deferred) {
-	Env.RegisterTerminal(&void_terminal{def})
+func Void(r Resolver) {
+	Env.RegisterTerminal(&void_terminal{r})
 }
 
 type void_terminal struct {
-	def promise.Deferred
+	r Resolver
 }
 
 func (t *void_terminal) DeferredId() string {
-	return "void(" + t.def.DeferredId() + ")"
+	return "void(" + t.r.DeferredId() + ")"
 }
 
-func (t *void_terminal) Resolve(state promise.State, events chan<- event.Event) {
-	src_events := state.Resolve(t.def)
-
-	for e := range src_events.C {
-		// propagate error events
-		if err, ok := e.(event.Error); ok {
-			events <- err
-			continue
-		}
-
-		// ignore
-	}
+func (t *void_terminal) Resolve(state *Transaction) IChange {
+	state.Resolve(t.r)
+	return IChange{}
 }

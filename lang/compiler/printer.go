@@ -101,18 +101,19 @@ package {{.PkgName}}
 import (
   sx_reflect "reflect"
   sx_runtime "simplex.sh/runtime"
-  sx_event "simplex.sh/runtime/event"
-  sx_promise "simplex.sh/runtime/promise"
 )
+
+const SxVersion = "{{.Version}}"
 
 `))
 
 func (p *printer_t) print_intro(w io.Writer, pkg_name string) error {
 	type data struct {
 		PkgName string
+		Version string
 	}
 
-	return intro_tmpl.Execute(w, data{pkg_name})
+	return intro_tmpl.Execute(w, data{pkg_name, p.ctx.Version})
 }
 
 var table_tmpl = template.Must(template.New("table_tmpl").Parse(`
@@ -127,12 +128,12 @@ type (
   }
 )
 func (t sx_{{.TypeName}}) TableId() string { return t.DeferredId() }
-func (t sx_{{.TypeName}}) Resolve(state sx_promise.State, events chan<- sx_event.Event) {
-  t.Deferred.Resolve(state, events)
+func (t sx_{{.TypeName}}) Resolve(txn *sx_runtime.Transaction) sx_runtime.IChange {
+  return t.Resolver.Resolve(txn)
 }
 func new_{{.TypeName}}(env *sx_runtime.Environment, id string) {{.TypeName}} {
   t := sx_{{.TypeName}}{}
-  t.Deferred = sx_runtime.DeclareTable(id)
+  t.Resolver = sx_runtime.DeclareTable(id)
   env.RegisterTable(t)
   return t
 }
@@ -196,12 +197,12 @@ type (
 )
 func (s sx_{{.TypeName}}) KeyType() sx_reflect.Type { return sx_reflect.TypeOf(s.KeyZero()) }
 func (s sx_{{.TypeName}}) KeyZero() {{.KeyType}} { return {{.KeyZero}} }
-func (t sx_{{.TypeName}}) Resolve(state sx_promise.State, events chan<- sx_event.Event) {
-  t.Deferred.Resolve(state, events)
+func (t sx_{{.TypeName}}) Resolve(txn *sx_runtime.Transaction) sx_runtime.IChange {
+  return t.Resolver.Resolve(txn)
 }
-func wrap_{{.TypeName}}(def sx_promise.Deferred) {{.TypeName}} {
+func wrap_{{.TypeName}}(r sx_runtime.Resolver) {{.TypeName}} {
   t := sx_{{.TypeName}}{}
-  t.Deferred = def
+  t.Resolver = r
   return t
 }
 `))
@@ -260,23 +261,23 @@ type (
     EltType() sx_reflect.Type
     EltZero() {{.EltType}}
     DeferredId() string
-    Resolve(state sx_promise.State, events chan<- sx_event.Event)
+    Resolve(txn *sx_runtime.Transaction) sx_runtime.IChange
   }
 
   sx_{{.TypeName}} struct {
-    Deferred sx_promise.Deferred
+    Resolver sx_runtime.Resolver
   }
 )
 
-func (s sx_{{.TypeName}}) DeferredId() string { return s.Deferred.DeferredId() }
+func (s sx_{{.TypeName}}) DeferredId() string { return s.Resolver.DeferredId() }
 func (s sx_{{.TypeName}}) EltType() sx_reflect.Type { return sx_reflect.TypeOf(s.EltZero()) }
 func (s sx_{{.TypeName}}) EltZero() {{.EltType}} { return {{.EltZero}} }
-func (t sx_{{.TypeName}}) Resolve(state sx_promise.State, events chan<- sx_event.Event) {
-  t.Deferred.Resolve(state, events)
+func (t sx_{{.TypeName}}) Resolve(txn *sx_runtime.Transaction) sx_runtime.IChange {
+  return t.Resolver.Resolve(txn)
 }
-func wrap_{{.TypeName}}(def sx_promise.Deferred) {{.TypeName}} {
+func wrap_{{.TypeName}}(r sx_runtime.Resolver) {{.TypeName}} {
   t := sx_{{.TypeName}}{}
-  t.Deferred = def
+  t.Resolver = r
   return t
 }
 `))

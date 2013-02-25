@@ -3,28 +3,23 @@ package runtime
 import (
 	"bytes"
 	"simplex.sh/cas"
-	"simplex.sh/runtime/event"
-	"simplex.sh/runtime/promise"
 )
 
-func (op *sort_op) Resolve(state promise.State, events chan<- event.Event) {
+func (op *sort_op) Resolve(state *Transaction) IChange {
 	var (
-		src_events = state.Resolve(op.src)
-		table      = state.GetTable(op.name)
+		i_change = state.Resolve(op.src)
+		o_change IChange
 	)
 
-	for e := range src_events.C {
-		// propagate error events
-		if err, ok := e.(event.Error); ok {
-			events <- err
-			continue
-		}
+	if i_change.Type() == ChangeNone {
+		return o_change
+	}
 
-		i_change, ok := e.(*ChangedMember)
-		if !ok {
-			continue
-		}
+	var (
+		table = state.GetTable(op.name)
+	)
 
+	for _, m := range i_change.MemberChanges {
 		var (
 			coll_key_a []byte
 			coll_key_b []byte
@@ -32,13 +27,13 @@ func (op *sort_op) Resolve(state promise.State, events chan<- event.Event) {
 		)
 
 		// calculate collated sort key for a and b
-		if i_change.a != nil {
-			sort_key := op.fun(&Context{state.Store()}, i_change.a)
-			coll_key_a = cas.Collate([]interface{}{sort_key, i_change.collated_key})
+		if m.A != nil {
+			sort_key := op.fun(&Context{state.Store()}, m.A)
+			coll_key_a = cas.Collate([]interface{}{sort_key, m.CollatedKey})
 		}
-		if i_change.b != nil {
-			sort_key := op.fun(&Context{state.Store()}, i_change.b)
-			key_b = []interface{}{sort_key, i_change.collated_key}
+		if m.B != nil {
+			sort_key := op.fun(&Context{state.Store()}, m.B)
+			key_b = []interface{}{sort_key, m.CollatedKey}
 			coll_key_b = cas.Collate(key_b)
 		}
 
@@ -49,35 +44,41 @@ func (op *sort_op) Resolve(state promise.State, events chan<- event.Event) {
 				panic("runtime: " + err.Error())
 			}
 
-			events <- &ChangedMember{op.name, coll_key_b, key_addr, i_change.a, i_change.b}
+			prev_elt_addr, err := table.Set(coll_key_a, key_addr, m.B)
+			if err != nil {
+				panic("runtime: " + err.Error())
+			}
+
+			o_change.MemberChanged(coll_key_a, key_addr, IChange{A: prev_elt_addr, B: m.B})
 			continue
 		}
 
 		// remove old entry
-		if i_change.a != nil {
-			key_addr, elt_addr, err := table.Del(coll_key_a)
+		if m.A != nil {
+			_, prev_elt_addr, err := table.Del(coll_key_a)
 			if err != nil {
 				panic("runtime: " + err.Error())
 			}
-			events <- &ChangedMember{op.name, coll_key_a, key_addr, elt_addr, nil}
+
+			o_change.MemberChanged(m.CollatedKey, m.Key, IChange{A: prev_elt_addr, B: nil})
 		}
 
 		// add new entry
-		if i_change.b != nil {
+		if m.B != nil {
 			key_addr, err := cas.Encode(state.Store(), key_b, -1)
 			if err != nil {
 				panic("runtime: " + err.Error())
 			}
 
-			prev_elt_addr, err := table.Set(coll_key_a, key_addr, i_change.b)
+			prev_elt_addr, err := table.Set(coll_key_b, key_addr, m.B)
 			if err != nil {
 				panic("runtime: " + err.Error())
 			}
 
-			events <- &ChangedMember{op.name, coll_key_b, key_addr, prev_elt_addr, i_change.b}
+			o_change.MemberChanged(coll_key_b, key_addr, IChange{A: prev_elt_addr, B: m.B})
 		}
 	}
 
-	tab_addr_a, tab_addr_b := state.CommitTable(op.name, table)
-	events <- &ConsistentTable{op.name, tab_addr_a, tab_addr_b}
+	o_change.A, o_change.B = state.CommitTable(op.name, table)
+	return o_change
 }
