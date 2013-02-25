@@ -89,6 +89,8 @@ type Mode uint
 const (
 	ScanComments    Mode = 1 << iota // return comments as COMMENT tokens
 	dontInsertSemis                  // do not automatically insert semicolons - for testing only
+
+	SimplexExtentions
 )
 
 // Init prepares the scanner s to tokenize the text src by setting the
@@ -579,7 +581,11 @@ scanAgain:
 		lit = s.scanIdentifier()
 		if len(lit) > 1 {
 			// keywords are longer than one letter - avoid lookup otherwise
-			tok = token.Lookup(lit)
+			if s.mode&SimplexExtentions == 0 {
+				tok = token.Lookup(lit)
+			} else {
+				tok = token.LookupWithSimplex(lit)
+			}
 			switch tok {
 			case token.IDENT, token.BREAK, token.CONTINUE, token.FALLTHROUGH, token.RETURN:
 				insertSemi = true

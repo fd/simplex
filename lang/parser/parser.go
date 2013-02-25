@@ -68,6 +68,9 @@ func (p *parser) init(fset *token.FileSet, filename string, src []byte, mode Mod
 	if mode&ParseComments != 0 {
 		m = scanner.ScanComments
 	}
+	if mode&SimplexExtentions != 0 {
+		m |= scanner.SimplexExtentions
+	}
 	eh := func(pos token.Position, msg string) { p.errors.Add(pos, msg) }
 	p.scanner.Init(p.file, src, eh, m)
 

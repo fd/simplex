@@ -120,12 +120,14 @@ const (
 	SWITCH
 	TYPE
 	VAR
+	keyword_end
 
 	//=== start custom
+	sx_keyword_beg
 	VIEW
 	TABLE
+	sx_keyword_end
 	//=== end custom
-	keyword_end
 )
 
 var tokens = [...]string{
@@ -282,12 +284,21 @@ func (op Token) Precedence() int {
 	return LowestPrec
 }
 
-var keywords map[string]Token
+var (
+	keywords    map[string]Token
+	sx_keywords map[string]Token
+)
 
 func init() {
 	keywords = make(map[string]Token)
+	sx_keywords = make(map[string]Token)
+
 	for i := keyword_beg + 1; i < keyword_end; i++ {
 		keywords[tokens[i]] = i
+	}
+
+	for i := sx_keyword_beg + 1; i < sx_keyword_end; i++ {
+		sx_keywords[tokens[i]] = i
 	}
 }
 
@@ -295,6 +306,16 @@ func init() {
 //
 func Lookup(ident string) Token {
 	if tok, is_keyword := keywords[ident]; is_keyword {
+		return tok
+	}
+	return IDENT
+}
+
+func LookupWithSimplex(ident string) Token {
+	if tok, is_keyword := keywords[ident]; is_keyword {
+		return tok
+	}
+	if tok, is_keyword := sx_keywords[ident]; is_keyword {
 		return tok
 	}
 	return IDENT
@@ -315,4 +336,12 @@ func (tok Token) IsOperator() bool { return operator_beg < tok && tok < operator
 // IsKeyword returns true for tokens corresponding to keywords;
 // it returns false otherwise.
 //
-func (tok Token) IsKeyword() bool { return keyword_beg < tok && tok < keyword_end }
+func (tok Token) IsKeyword() bool {
+	if keyword_beg < tok && tok < keyword_end {
+		return true
+	}
+	if sx_keyword_beg < tok && tok < sx_keyword_end {
+		return true
+	}
+	return false
+}
