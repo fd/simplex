@@ -1,4 +1,10 @@
 package p
 
-doct a_document() {
+doct empty_document() {
+}
+
+doct simple_document() {
+  A-Header: "A literal value"
+
+  Some body text.
 }
