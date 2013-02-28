@@ -91,7 +91,20 @@ const (
 	dontInsertSemis                  // do not automatically insert semicolons - for testing only
 
 	SimplexExtentions
+	SX_HEADERS
+	SX_INTERPOLATION
+	SX_LITERAL
+	SX_HTML
+	SX_TEXT
+	SX_URL
 )
+
+func (s *Scanner) SetMode(m Mode) Mode {
+	prev := s.mode
+	base := prev & (SimplexExtentions | dontInsertSemis | ScanComments)
+	s.mode = base | m
+	return prev
+}
 
 // Init prepares the scanner s to tokenize the text src by setting the
 // scanner at the beginning of src. The scanner uses the file set file
@@ -568,6 +581,31 @@ func (s *Scanner) switch4(tok0, tok1 token.Token, ch2 rune, tok2, tok3 token.Tok
 // and thus relative to the file set.
 //
 func (s *Scanner) Scan() (pos token.Pos, tok token.Token, lit string) {
+	if s.mode&SX_INTERPOLATION > 0 {
+		return s.scan_go()
+	}
+
+	if s.mode&SX_HEADERS > 0 {
+		return s.scan_simplex_headers()
+	}
+
+	if s.mode&(SX_LITERAL|SX_HTML) == (SX_LITERAL | SX_HTML) {
+		return s.scan_simplex_html()
+	}
+
+	if s.mode&(SX_LITERAL|SX_TEXT) == (SX_LITERAL | SX_TEXT) {
+		return s.scan_simplex_text()
+	}
+
+	if s.mode&(SX_LITERAL|SX_URL) == (SX_LITERAL | SX_URL) {
+		return s.scan_simplex_url()
+	}
+
+	return s.scan_go()
+}
+
+// This is the Go scanner
+func (s *Scanner) scan_go() (pos token.Pos, tok token.Token, lit string) {
 scanAgain:
 	s.skipWhitespace()
 
@@ -730,4 +768,254 @@ scanAgain:
 	}
 
 	return
+}
+
+func (s *Scanner) scan_simplex_headers() (pos token.Pos, tok token.Token, lit string) {
+scanAgain:
+	s.skipWhitespace()
+
+	// current token start
+	pos = s.file.Pos(s.offset)
+
+	insertSemi := false
+	switch ch := s.ch; {
+	case isLetter(ch):
+		lit = s.scanSimplexHeaderName()
+		insertSemi = true
+		tok = token.IDENT
+
+	default:
+		s.next()
+		switch ch {
+
+		case -1:
+			if s.insertSemi {
+				s.insertSemi = false // EOF consumed
+				return pos, token.SEMICOLON, "\n"
+			}
+			tok = token.EOF
+
+		case '\n':
+			s.insertSemi = false // newline consumed
+			return pos, token.SEMICOLON, "\n"
+
+		case '}':
+			insertSemi = true
+			tok = token.RBRACE
+
+		case ':':
+			tok = token.COLON
+
+		case '=':
+			tok = token.ASSIGN
+
+		case '/':
+			if s.ch == '/' || s.ch == '*' {
+				// comment
+				if s.insertSemi && s.findLineEnd() {
+					// reset position to the beginning of the comment
+					s.ch = '/'
+					s.offset = s.file.Offset(pos)
+					s.rdOffset = s.offset + 1
+					s.insertSemi = false // newline consumed
+					return pos, token.SEMICOLON, "\n"
+				}
+				lit = s.scanComment()
+				if s.mode&ScanComments == 0 {
+					// skip comment
+					s.insertSemi = false // newline consumed
+					goto scanAgain
+				}
+				tok = token.COMMENT
+				break
+			}
+
+			fallthrough
+
+		default:
+			s.error(s.file.Offset(pos), fmt.Sprintf("illegal character %#U (H)", ch))
+			insertSemi = s.insertSemi // preserve insertSemi info
+			tok = token.ILLEGAL
+			lit = string(ch)
+
+		}
+	}
+	if s.mode&dontInsertSemis == 0 {
+		s.insertSemi = insertSemi
+	}
+
+	return
+}
+
+// =====================================
+// HTML SCANNER
+func (s *Scanner) scan_simplex_html() (pos token.Pos, tok token.Token, lit string) {
+	pos = s.file.Pos(s.offset)
+
+	switch s.ch {
+
+	case -1:
+		tok = token.EOF
+		s.next()
+
+	case '\n':
+		tok = token.SEMICOLON
+		lit = "\n"
+		s.next()
+
+	case '}':
+		tok = token.RBRACE
+		s.next()
+
+	case '<':
+		tok = token.SX_HTML_LBROCK
+		s.next()
+		if s.ch == '/' {
+			tok = token.SX_HTML_LBROCK_SLASH
+			s.next()
+		}
+
+	case '>':
+		tok = token.SX_HTML_RBROCK
+		s.next()
+
+	case '&':
+		return s.scan_simplex_html_entity()
+
+	default:
+		return s.scan_simplex_html_literal()
+
+	}
+
+	return
+}
+
+// scan literal html text
+// until '&' '<' '\n' "{{" "//" "/*"
+func (s *Scanner) scan_simplex_html_literal() (pos token.Pos, tok token.Token, lit string) {
+	offs := s.offset
+	pos = s.file.Pos(offs)
+
+	for {
+		terminator := false
+
+		switch s.ch {
+		case '&', '<', '\n', '/', '{', '}', -1:
+			terminator = true
+		}
+
+		if terminator {
+			break
+		}
+
+		s.next()
+	}
+
+	tok = token.SX_HTML_LITERAL
+	lit = string(s.src[offs:s.offset])
+	return
+}
+
+func (s *Scanner) scan_simplex_html_entity() (pos token.Pos, tok token.Token, lit string) {
+	offs := s.offset
+	pos = s.file.Pos(offs)
+
+	s.next()
+	switch s.ch {
+
+	case '#':
+		s.next()
+
+		if s.ch == 'x' || s.ch == 'X' {
+			s.next()
+			for (s.ch >= '0' && s.ch <= '9') || (s.ch >= 'a' && s.ch <= 'f') || (s.ch >= 'A' && s.ch <= 'F') {
+				s.next()
+			}
+
+		} else {
+			for s.ch >= '0' && s.ch <= '9' {
+				s.next()
+			}
+		}
+
+	default:
+		for (s.ch >= 'a' && s.ch <= 'z') || (s.ch >= 'A' && s.ch <= 'Z') {
+			s.next()
+		}
+
+	}
+
+	if s.ch != ';' {
+		s.error(s.file.Offset(pos), fmt.Sprintf("illegal character %#U", s.ch))
+		tok = token.ILLEGAL
+		lit = string(s.ch)
+		return
+	}
+	s.next()
+
+	tok = token.SX_HTML_ENTITY
+	lit = string(s.src[offs:s.offset])
+	return
+}
+
+// =====================================
+// TEXT SCANNER
+func (s *Scanner) scan_simplex_text() (pos token.Pos, tok token.Token, lit string) {
+	pos = s.file.Pos(s.offset)
+
+	switch s.ch {
+
+	case -1:
+		tok = token.EOF
+		s.next()
+
+	case '\n':
+		tok = token.SEMICOLON
+		lit = "\n"
+		s.next()
+
+	default:
+		return s.scan_simplex_text_literal()
+
+	}
+
+	return
+}
+
+func (s *Scanner) scan_simplex_text_literal() (pos token.Pos, tok token.Token, lit string) {
+	offs := s.offset
+	pos = s.file.Pos(offs)
+
+	for {
+		terminator := false
+
+		switch s.ch {
+		case '\n', '{', -1:
+			terminator = true
+		}
+
+		if terminator {
+			break
+		}
+
+		s.next()
+	}
+
+	tok = token.SX_TEXT_LITERAL
+	lit = string(s.src[offs:s.offset])
+	return
+}
+
+// =====================================
+// URL SCANNER
+func (s *Scanner) scan_simplex_url() (pos token.Pos, tok token.Token, lit string) {
+	return
+}
+
+func (s *Scanner) scanSimplexHeaderName() string {
+	offs := s.offset
+	for isLetter(s.ch) || isDigit(s.ch) || s.ch == '-' {
+		s.next()
+	}
+	return string(s.src[offs:s.offset])
 }

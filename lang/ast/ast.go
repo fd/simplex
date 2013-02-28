@@ -993,7 +993,7 @@ func (p *Package) Pos() token.Pos { return token.NoPos }
 func (p *Package) End() token.Pos { return token.NoPos }
 
 // ----------------------------------------------------------------------------
-// Simplex Views and Tables
+// Simplex nodes
 
 type (
 
@@ -1010,6 +1010,27 @@ type (
 		Key   Expr      // primary key type
 		Value Expr
 	}
+
+	SxDoctDecl struct {
+		Doc     *CommentGroup // associated documentation; or nil
+		Recv    *FieldList    // receiver (methods); or nil (functions)
+		Name    *Ident        // function/method name
+		Type    *FuncType     // position of Func keyword, parameters and results
+		Headers []*SxHeader   // document headers
+		Body    *BlockStmt    // function body; or nil (forward declaration)
+	}
+
+	SxHeader struct {
+		Name  *Ident
+		Value Expr
+	}
+
+	SxPrint struct {
+		From      token.Pos
+		List      []Expr
+		LineBreak bool
+		To        token.Pos
+	}
 )
 
 func (x *ViewType) Pos() token.Pos { return x.View }
@@ -1019,3 +1040,20 @@ func (*ViewType) exprNode()        {}
 func (x *TableType) Pos() token.Pos { return x.Table }
 func (x *TableType) End() token.Pos { return x.Value.End() }
 func (*TableType) exprNode()        {}
+
+func (x *SxHeader) Pos() token.Pos { return x.Name.Pos() }
+func (x *SxHeader) End() token.Pos { return x.Value.End() }
+func (*SxHeader) stmtNode()        {}
+
+func (x *SxPrint) Pos() token.Pos { return x.From }
+func (x *SxPrint) End() token.Pos { return x.To }
+func (*SxPrint) exprNode()        {}
+
+func (*SxDoctDecl) declNode()        {}
+func (d *SxDoctDecl) Pos() token.Pos { return d.Type.Pos() }
+func (d *SxDoctDecl) End() token.Pos {
+	if d.Body != nil {
+		return d.Body.End()
+	}
+	return d.Type.End()
+}

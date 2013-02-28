@@ -19,6 +19,14 @@ import (
 	"unicode"
 )
 
+type simplexMode uint
+
+const (
+	sx_HTML simplexMode = 1 << iota
+	sx_TEXT
+	sx_URL
+)
+
 // The parser structure holds the parser's internal state.
 type parser struct {
 	file    *token.File
@@ -552,6 +560,49 @@ func (p *parser) parseRhsList() []ast.Expr {
 	return p.parseExprList(false)
 }
 
+func (p *parser) scanner_mode_for_parser_mode(mode simplexMode) scanner.Mode {
+	var m scanner.Mode
+	switch mode {
+	case sx_HTML:
+		m = scanner.SX_LITERAL | scanner.SX_HTML
+	case sx_TEXT:
+		m = scanner.SX_LITERAL | scanner.SX_TEXT
+	case sx_URL:
+		m = scanner.SX_LITERAL | scanner.SX_URL
+	}
+	return m
+}
+
+func (p *parser) parseSimplexHeaderValue(mode simplexMode) ast.Expr {
+	prev_mode := p.scanner.SetMode(p.scanner_mode_for_parser_mode(mode))
+	defer p.scanner.SetMode(prev_mode)
+
+	p.next()
+
+	e := p.parseSimplexExprList(mode)
+	fmt.Printf("OK (e: %+v)\n", e)
+	return e
+}
+
+func (p *parser) parseSimplexExprList(mode simplexMode) ast.Expr {
+	var (
+		from       = p.pos
+		list       []ast.Expr
+		line_break bool
+	)
+
+	for p.tok != token.SEMICOLON && p.tok != token.EOF {
+		fmt.Printf("OK (tok: %s, lit: `%+v`)\n", p.tok, p.lit)
+		list = append(list, p.parseSimplexExpr(mode))
+	}
+
+	if p.tok == token.SEMICOLON {
+		line_break = true
+	}
+
+	return &ast.SxPrint{From: from, List: list, LineBreak: line_break, To: p.pos}
+}
+
 // ----------------------------------------------------------------------------
 // Types
 
@@ -1023,6 +1074,51 @@ func (p *parser) parseStmtList() (list []ast.Stmt) {
 	return
 }
 
+func (p *parser) parseSimplexHeaderList() (list []*ast.SxHeader) {
+	if p.trace {
+		defer un(trace(p, "SimplexHeaderList"))
+	}
+
+	semicolon_count := 0
+
+	for p.tok != token.RBRACE && p.tok != token.EOF {
+		if p.tok == token.SEMICOLON {
+			semicolon_count += 1
+			if semicolon_count >= 2 {
+				break
+			}
+
+			p.next()
+			continue
+		}
+
+		header := p.parseSimplexHeader()
+		if header != nil {
+			list = append(list, header)
+			semicolon_count = 0
+		}
+	}
+
+	return
+}
+
+func (p *parser) parseSimplexBodyList(mode simplexMode) (list []ast.Stmt) {
+	if p.trace {
+		defer un(trace(p, "SimplexBodyList"))
+	}
+
+	prev_mode := p.scanner.SetMode(p.scanner_mode_for_parser_mode(mode))
+	defer p.scanner.SetMode(prev_mode)
+
+	//p.expectSemi()
+
+	for p.tok != token.RBRACE && p.tok != token.EOF {
+		list = append(list, p.parseSimplexBodyStmt(mode))
+	}
+
+	return
+}
+
 func (p *parser) parseBody(scope *ast.Scope) *ast.BlockStmt {
 	if p.trace {
 		defer un(trace(p, "Body"))
@@ -1051,6 +1147,30 @@ func (p *parser) parseBlockStmt() *ast.BlockStmt {
 	rbrace := p.expect(token.RBRACE)
 
 	return &ast.BlockStmt{Lbrace: lbrace, List: list, Rbrace: rbrace}
+}
+
+func (p *parser) parseSimplexDoctBody(scope *ast.Scope) ([]*ast.SxHeader, *ast.BlockStmt) {
+	if p.trace {
+		defer un(trace(p, "SimplexDoctBody"))
+	}
+
+	prev_mode := p.scanner.SetMode(scanner.SX_HEADERS)
+	defer p.scanner.SetMode(prev_mode)
+
+	lbrace := p.expect(token.LBRACE)
+	p.topScope = scope // open function scope
+	p.openLabelScope()
+
+	header_list := p.parseSimplexHeaderList()
+
+	body_list := p.parseSimplexBodyList(sx_HTML)
+
+	p.closeLabelScope()
+	p.closeScope()
+	rbrace := p.expect(token.RBRACE)
+
+	block := &ast.BlockStmt{Lbrace: lbrace, List: body_list, Rbrace: rbrace}
+	return header_list, block
 }
 
 // ----------------------------------------------------------------------------
@@ -1561,6 +1681,63 @@ func (p *parser) parseRhs() ast.Expr {
 
 func (p *parser) parseRhsOrType() ast.Expr {
 	return p.checkExprOrType(p.parseExpr(false))
+}
+
+func (p *parser) parseSimplexExpr(mode simplexMode) (e ast.Expr) {
+	switch mode {
+	case sx_HTML:
+		e = p.parseSimplexHtmlExpr()
+	case sx_TEXT:
+		e = p.parseSimplexTextExpr()
+	case sx_URL:
+		e = p.parseSimplexUrlExpr()
+	}
+	return
+}
+
+func (p *parser) parseSimplexHtmlExpr() (e ast.Expr) {
+	switch p.tok {
+
+	case token.SX_HTML_LITERAL:
+		e = &ast.BasicLit{p.pos, p.tok, p.lit}
+
+	case token.SX_HTML_ENTITY:
+		e = &ast.BasicLit{p.pos, p.tok, p.lit}
+
+	default:
+		// no statement found
+		pos := p.pos
+		p.errorExpected(pos, "html expression")
+		syncStmt(p)
+		return &ast.BadExpr{From: pos, To: p.pos}
+
+	}
+
+	p.next()
+	return
+}
+
+func (p *parser) parseSimplexTextExpr() (e ast.Expr) {
+	switch p.tok {
+
+	case token.SX_TEXT_LITERAL:
+		e = &ast.BasicLit{p.pos, p.tok, p.lit}
+
+	default:
+		// no statement found
+		pos := p.pos
+		p.errorExpected(pos, "text expression")
+		syncStmt(p)
+		return &ast.BadExpr{From: pos, To: p.pos}
+
+	}
+
+	p.next()
+	return
+}
+
+func (p *parser) parseSimplexUrlExpr() ast.Expr {
+	panic("not implemented")
 }
 
 // ----------------------------------------------------------------------------
@@ -2103,6 +2280,61 @@ func (p *parser) parseStmt() (s ast.Stmt) {
 	return
 }
 
+func (p *parser) parseSimplexBodyStmt(mode simplexMode) (s ast.Stmt) {
+	if p.trace {
+		defer un(trace(p, "SimplexBodyStatement"))
+	}
+
+	s = &ast.ExprStmt{X: p.parseSimplexExprList(mode)}
+	return
+}
+
+func (p *parser) parseSimplexHeader() *ast.SxHeader {
+	if p.trace {
+		defer un(trace(p, "SimplexHeader"))
+	}
+
+	var (
+		ident = p.parseIdent()
+		expr  ast.Expr
+	)
+
+	switch p.tok {
+	case token.COLON:
+		if isUrlHeaderName(ident) {
+			expr = p.parseSimplexHeaderValue(sx_URL)
+		} else {
+			expr = p.parseSimplexHeaderValue(sx_TEXT)
+		}
+
+	case token.ASSIGN:
+		prev_mode := p.scanner.SetMode(scanner.SX_INTERPOLATION)
+		defer p.scanner.SetMode(prev_mode)
+
+		p.next()
+		expr = p.parseRhs()
+
+	default:
+		// no header found
+		pos := p.pos
+		p.errorExpected(pos, "header")
+		syncStmt(p)
+		expr = &ast.BadExpr{From: pos, To: p.pos}
+
+	}
+
+	return &ast.SxHeader{ident, expr}
+}
+
+func isUrlHeaderName(ident *ast.Ident) bool {
+	switch ident.Name {
+	case "route", "Location":
+		return true
+	}
+
+	return false
+}
+
 // ----------------------------------------------------------------------------
 // Declarations
 
@@ -2341,15 +2573,14 @@ func (p *parser) parseDoctDecl() ast.Decl {
 
 	params, results := p.parseSignature(scope)
 
+	var headers []*ast.SxHeader
 	var body *ast.BlockStmt
 	if p.tok == token.LBRACE {
-		// TODO(fd) parse Simplebars headers
-		// TODO(fd) parse Simplebars body
-		body = p.parseBody(scope)
+		headers, body = p.parseSimplexDoctBody(scope)
 	}
 	p.expectSemi()
 
-	decl := &ast.FuncDecl{
+	decl := &ast.SxDoctDecl{
 		Doc:  doc,
 		Recv: recv,
 		Name: ident,
@@ -2358,7 +2589,8 @@ func (p *parser) parseDoctDecl() ast.Decl {
 			Params:  params,
 			Results: results,
 		},
-		Body: body,
+		Headers: headers,
+		Body:    body,
 	}
 	if recv == nil {
 		// Go spec: The scope of an identifier denoting a constant, type,

@@ -1,10 +1,10 @@
 package p
 
-doct empty_document() {
-}
 
 doct simple_document() {
-  A-Header: "A literal value"
+  // a comment
+  A-Header       : A literal value
+  Another-Header = a_simplex_expression()
 
   Some body text.
 }

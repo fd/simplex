@@ -123,6 +123,16 @@ const (
 	keyword_end
 
 	//=== start custom
+	sx_literal_beg
+	SX_HTML_LITERAL
+	SX_HTML_LBROCK
+	SX_HTML_LBROCK_SLASH
+	SX_HTML_RBROCK
+	SX_HTML_ENTITY
+
+	SX_TEXT_LITERAL
+	sx_literal_end
+
 	sx_keyword_beg
 	DOCT
 	FRAG
@@ -232,6 +242,14 @@ var tokens = [...]string{
 	VAR:    "var",
 
 	//=== start custom
+	SX_HTML_LITERAL:      "HTML LITERAL",
+	SX_HTML_LBROCK:       "<",
+	SX_HTML_LBROCK_SLASH: "</",
+	SX_HTML_RBROCK:       ">",
+	SX_HTML_ENTITY:       "HTML ENTITY",
+
+	SX_TEXT_LITERAL: "TEXT LITERAL",
+
 	DOCT:  "doct",
 	FRAG:  "frag",
 	VIEW:  "view",
