@@ -1,10 +1,23 @@
 package p
 
+doct false_document_decl()
 
-doct simple_document() {
+doct empty_document_decl() {
+}
+
+doct header_only_document() {
   // a comment
   A-Header       : A literal value
   Another-Header = a_simplex_expression()
+}
+
+doct simple_document() {
+  // a comment
+  Another-Header = a_simplex_expression()
+  A-Header       : A literal value
 
   Some body text.
+  Spread over multiple lines.
+
+  And with some lines in between.
 }

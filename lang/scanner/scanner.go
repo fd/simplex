@@ -106,6 +106,12 @@ func (s *Scanner) SetMode(m Mode) Mode {
 	return prev
 }
 
+func (s *Scanner) SetInsertSemi(m bool) bool {
+	prev := s.insertSemi
+	s.insertSemi = m
+	return prev
+}
+
 // Init prepares the scanner s to tokenize the text src by setting the
 // scanner at the beginning of src. The scanner uses the file set file
 // for position information and it adds line information for each line.
@@ -783,7 +789,7 @@ scanAgain:
 	// current token start
 	pos = s.file.Pos(s.offset)
 
-	insertSemi := false
+	insertSemi := true
 	switch ch := s.ch; {
 	case isLetter(ch):
 		lit = s.scanSimplexHeaderName()

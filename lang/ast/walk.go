@@ -365,6 +365,29 @@ func Walk(v Visitor, node Node) {
 		Walk(v, n.Key)
 		Walk(v, n.Value)
 
+	case *SxPrint:
+		walkExprList(v, n.List)
+
+	case *SxHeader:
+		Walk(v, n.Name)
+		Walk(v, n.Value)
+
+	case *SxDoctDecl:
+		if n.Doc != nil {
+			Walk(v, n.Doc)
+		}
+		if n.Recv != nil {
+			Walk(v, n.Recv)
+		}
+		Walk(v, n.Name)
+		Walk(v, n.Type)
+		for _, h := range n.Headers {
+			Walk(v, h)
+		}
+		if n.Body != nil {
+			Walk(v, n.Body)
+		}
+
 	default:
 		fmt.Printf("ast.Walk: unexpected node type %T", n)
 		panic("ast.Walk")

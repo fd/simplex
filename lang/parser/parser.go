@@ -598,6 +598,7 @@ func (p *parser) parseSimplexHeaderExpr() ast.Expr {
 	p.next()
 
 	e := p.parseRhs()
+	p.scanner.SetInsertSemi(true)
 	return e
 }
 
@@ -612,7 +613,7 @@ func (p *parser) parseSimplexExprList(mode simplexMode) ast.Expr {
 		line_break bool
 	)
 
-	for p.tok != token.SEMICOLON && p.tok != token.EOF {
+	for p.tok != token.SEMICOLON && p.tok != token.RBRACE && p.tok != token.EOF {
 		list = append(list, p.parseSimplexExpr(mode))
 	}
 
@@ -1103,7 +1104,6 @@ func (p *parser) parseSimplexHeaderList() (list []*ast.SxHeader) {
 
 	for p.tok != token.RBRACE && p.tok != token.EOF {
 		if p.tok == token.SEMICOLON {
-			fmt.Println("token.SEMICOLON")
 			semicolon_count += 1
 			if semicolon_count >= 2 {
 				break
@@ -1131,7 +1131,7 @@ func (p *parser) parseSimplexBodyList(mode simplexMode) (list []ast.Stmt) {
 	prev_mode := p.scanner.SetMode(p.scanner_mode_for_parser_mode(mode))
 	defer p.scanner.SetMode(prev_mode)
 
-	//p.expectSemi()
+	p.expectSemi()
 
 	for p.tok != token.RBRACE && p.tok != token.EOF {
 		list = append(list, p.parseSimplexBodyStmt(mode))
@@ -1183,8 +1183,8 @@ func (p *parser) parseSimplexDoctBody(scope *ast.Scope) ([]*ast.SxHeader, *ast.B
 	p.openLabelScope()
 
 	header_list := p.parseSimplexHeaderList()
-
 	body_list := p.parseSimplexBodyList(sx_HTML)
+	p.scanner.SetMode(prev_mode)
 
 	p.closeLabelScope()
 	p.closeScope()
@@ -1717,6 +1717,7 @@ func (p *parser) parseSimplexExpr(mode simplexMode) (e ast.Expr) {
 	case sx_URL:
 		e = p.parseSimplexUrlExpr()
 	}
+
 	return
 }
 
@@ -2319,6 +2320,9 @@ func (p *parser) parseSimplexBodyStmt(mode simplexMode) (s ast.Stmt) {
 	}
 
 	s = &ast.ExprStmt{X: p.parseSimplexExprList(mode)}
+
+	p.expectSemi()
+
 	return
 }
 
