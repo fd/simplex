@@ -348,7 +348,15 @@ func LookupWithSimplex(ident string) Token {
 // IsLiteral returns true for tokens corresponding to identifiers
 // and basic type literals; it returns false otherwise.
 //
-func (tok Token) IsLiteral() bool { return literal_beg < tok && tok < literal_end }
+func (tok Token) IsLiteral() bool {
+	if literal_beg < tok && tok < literal_end {
+		return true
+	}
+	if sx_literal_beg < tok && tok < sx_literal_end {
+		return true
+	}
+	return false
+}
 
 // IsOperator returns true for tokens corresponding to operators and
 // delimiters; it returns false otherwise.

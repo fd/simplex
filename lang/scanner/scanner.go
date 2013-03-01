@@ -507,6 +507,12 @@ func (s *Scanner) skipWhitespace() {
 	}
 }
 
+func (s *Scanner) skipHorizontalWhitespace() {
+	for s.ch == ' ' || s.ch == '\t' {
+		s.next()
+	}
+}
+
 // Helper functions for scanning multi-byte tokens such as >> += >>= .
 // Different routines recognize different length tok_i based on matches
 // of ch_i. If a token ends in '=', the result is tok1 or tok3
@@ -589,15 +595,15 @@ func (s *Scanner) Scan() (pos token.Pos, tok token.Token, lit string) {
 		return s.scan_simplex_headers()
 	}
 
-	if s.mode&(SX_LITERAL|SX_HTML) == (SX_LITERAL | SX_HTML) {
+	if s.mode&(SX_LITERAL|SX_HTML) == SX_LITERAL|SX_HTML {
 		return s.scan_simplex_html()
 	}
 
-	if s.mode&(SX_LITERAL|SX_TEXT) == (SX_LITERAL | SX_TEXT) {
+	if s.mode&(SX_LITERAL|SX_TEXT) == SX_LITERAL|SX_TEXT {
 		return s.scan_simplex_text()
 	}
 
-	if s.mode&(SX_LITERAL|SX_URL) == (SX_LITERAL | SX_URL) {
+	if s.mode&(SX_LITERAL|SX_URL) == SX_LITERAL|SX_URL {
 		return s.scan_simplex_url()
 	}
 
@@ -796,8 +802,9 @@ scanAgain:
 			tok = token.EOF
 
 		case '\n':
-			s.insertSemi = false // newline consumed
-			return pos, token.SEMICOLON, "\n"
+			insertSemi = true // newline consumed
+			tok = token.SEMICOLON
+			lit = "\n"
 
 		case '}':
 			insertSemi = true
@@ -928,7 +935,7 @@ func (s *Scanner) scan_simplex_html_entity() (pos token.Pos, tok token.Token, li
 
 		if s.ch == 'x' || s.ch == 'X' {
 			s.next()
-			for (s.ch >= '0' && s.ch <= '9') || (s.ch >= 'a' && s.ch <= 'f') || (s.ch >= 'A' && s.ch <= 'F') {
+			for s.ch >= '0' && s.ch <= '9' || s.ch >= 'a' && s.ch <= 'f' || s.ch >= 'A' && s.ch <= 'F' {
 				s.next()
 			}
 
@@ -939,7 +946,7 @@ func (s *Scanner) scan_simplex_html_entity() (pos token.Pos, tok token.Token, li
 		}
 
 	default:
-		for (s.ch >= 'a' && s.ch <= 'z') || (s.ch >= 'A' && s.ch <= 'Z') {
+		for s.ch >= 'a' && s.ch <= 'z' || s.ch >= 'A' && s.ch <= 'Z' {
 			s.next()
 		}
 

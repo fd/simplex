@@ -574,17 +574,38 @@ func (p *parser) scanner_mode_for_parser_mode(mode simplexMode) scanner.Mode {
 }
 
 func (p *parser) parseSimplexHeaderValue(mode simplexMode) ast.Expr {
+	if p.trace {
+		defer un(trace(p, "SimplexHeader Value"))
+	}
+
 	prev_mode := p.scanner.SetMode(p.scanner_mode_for_parser_mode(mode))
 	defer p.scanner.SetMode(prev_mode)
 
 	p.next()
 
 	e := p.parseSimplexExprList(mode)
-	fmt.Printf("OK (e: %+v)\n", e)
+	return e
+}
+
+func (p *parser) parseSimplexHeaderExpr() ast.Expr {
+	if p.trace {
+		defer un(trace(p, "SimplexHeader Expression"))
+	}
+
+	prev_mode := p.scanner.SetMode(scanner.SX_INTERPOLATION)
+	defer p.scanner.SetMode(prev_mode)
+
+	p.next()
+
+	e := p.parseRhs()
 	return e
 }
 
 func (p *parser) parseSimplexExprList(mode simplexMode) ast.Expr {
+	if p.trace {
+		defer un(trace(p, "SimplexExpr List"))
+	}
+
 	var (
 		from       = p.pos
 		list       []ast.Expr
@@ -592,7 +613,6 @@ func (p *parser) parseSimplexExprList(mode simplexMode) ast.Expr {
 	)
 
 	for p.tok != token.SEMICOLON && p.tok != token.EOF {
-		fmt.Printf("OK (tok: %s, lit: `%+v`)\n", p.tok, p.lit)
 		list = append(list, p.parseSimplexExpr(mode))
 	}
 
@@ -1083,6 +1103,7 @@ func (p *parser) parseSimplexHeaderList() (list []*ast.SxHeader) {
 
 	for p.tok != token.RBRACE && p.tok != token.EOF {
 		if p.tok == token.SEMICOLON {
+			fmt.Println("token.SEMICOLON")
 			semicolon_count += 1
 			if semicolon_count >= 2 {
 				break
@@ -1684,6 +1705,10 @@ func (p *parser) parseRhsOrType() ast.Expr {
 }
 
 func (p *parser) parseSimplexExpr(mode simplexMode) (e ast.Expr) {
+	if p.trace {
+		defer un(trace(p, "SimplexExpr"))
+	}
+
 	switch mode {
 	case sx_HTML:
 		e = p.parseSimplexHtmlExpr()
@@ -1696,6 +1721,10 @@ func (p *parser) parseSimplexExpr(mode simplexMode) (e ast.Expr) {
 }
 
 func (p *parser) parseSimplexHtmlExpr() (e ast.Expr) {
+	if p.trace {
+		defer un(trace(p, "SimplexExpr HTML"))
+	}
+
 	switch p.tok {
 
 	case token.SX_HTML_LITERAL:
@@ -1718,6 +1747,10 @@ func (p *parser) parseSimplexHtmlExpr() (e ast.Expr) {
 }
 
 func (p *parser) parseSimplexTextExpr() (e ast.Expr) {
+	if p.trace {
+		defer un(trace(p, "SimplexExpr TEXT"))
+	}
+
 	switch p.tok {
 
 	case token.SX_TEXT_LITERAL:
@@ -2308,11 +2341,7 @@ func (p *parser) parseSimplexHeader() *ast.SxHeader {
 		}
 
 	case token.ASSIGN:
-		prev_mode := p.scanner.SetMode(scanner.SX_INTERPOLATION)
-		defer p.scanner.SetMode(prev_mode)
-
-		p.next()
-		expr = p.parseRhs()
+		expr = p.parseSimplexHeaderExpr()
 
 	default:
 		// no header found
@@ -2323,6 +2352,7 @@ func (p *parser) parseSimplexHeader() *ast.SxHeader {
 
 	}
 
+	//fmt.Printf("OK (tok: %s, lit: `%+v`)\n", p.tok, p.lit)
 	return &ast.SxHeader{ident, expr}
 }
 
