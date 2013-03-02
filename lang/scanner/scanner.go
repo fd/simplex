@@ -825,14 +825,6 @@ scanAgain:
 		case '/':
 			if s.ch == '/' || s.ch == '*' {
 				// comment
-				if s.insertSemi && s.findLineEnd() {
-					// reset position to the beginning of the comment
-					s.ch = '/'
-					s.offset = s.file.Offset(pos)
-					s.rdOffset = s.offset + 1
-					s.insertSemi = false // newline consumed
-					return pos, token.SEMICOLON, "\n"
-				}
 				lit = s.scanComment()
 				if s.mode&ScanComments == 0 {
 					// skip comment
@@ -863,6 +855,7 @@ scanAgain:
 // =====================================
 // HTML SCANNER
 func (s *Scanner) scan_simplex_html() (pos token.Pos, tok token.Token, lit string) {
+scanAgain:
 	pos = s.file.Pos(s.offset)
 
 	switch s.ch {
@@ -891,6 +884,29 @@ func (s *Scanner) scan_simplex_html() (pos token.Pos, tok token.Token, lit strin
 	case '>':
 		tok = token.SX_HTML_RBROCK
 		s.next()
+
+	case '/':
+		s.next()
+		if s.ch == '/' || s.ch == '*' {
+			// comment
+			if s.insertSemi && s.findLineEnd() {
+				// reset position to the beginning of the comment
+				s.ch = '/'
+				s.offset = s.file.Offset(pos)
+				s.rdOffset = s.offset + 1
+				s.insertSemi = false // newline consumed
+				return pos, token.SEMICOLON, "\n"
+			}
+			lit = s.scanComment()
+			s.insertSemi = true
+			if s.mode&ScanComments == 0 {
+				// skip comment
+				s.insertSemi = false // newline consumed
+				goto scanAgain
+			}
+			tok = token.COMMENT
+			break
+		}
 
 	case '&':
 		return s.scan_simplex_html_entity()

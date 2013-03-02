@@ -56,7 +56,8 @@ type parser struct {
 	syncCnt int       // number of calls to syncXXX without progress
 
 	// Non-syntactic parser control
-	exprLev int // < 0: in control clause, >= 0: in expression
+	exprLev   int // < 0: in control clause, >= 0: in expression
+	semiCount int
 
 	// Ordinary identifier scopes
 	pkgScope   *ast.Scope        // pkgScope.Outer == nil
@@ -614,6 +615,7 @@ func (p *parser) parseSimplexExprList(mode simplexMode) ast.Expr {
 	)
 
 	for p.tok != token.SEMICOLON && p.tok != token.RBRACE && p.tok != token.EOF {
+		p.printTrace("TOK: ", p.tok, " -- LIT: ", strconv.Quote(p.lit))
 		list = append(list, p.parseSimplexExpr(mode))
 	}
 
@@ -1100,12 +1102,11 @@ func (p *parser) parseSimplexHeaderList() (list []*ast.SxHeader) {
 		defer un(trace(p, "SimplexHeaderList"))
 	}
 
-	semicolon_count := 0
-
 	for p.tok != token.RBRACE && p.tok != token.EOF {
 		if p.tok == token.SEMICOLON {
-			semicolon_count += 1
-			if semicolon_count >= 2 {
+			p.semiCount += 1
+			if p.semiCount >= 2 {
+				p.semiCount = 0
 				break
 			}
 
@@ -1116,7 +1117,7 @@ func (p *parser) parseSimplexHeaderList() (list []*ast.SxHeader) {
 		header := p.parseSimplexHeader()
 		if header != nil {
 			list = append(list, header)
-			semicolon_count = 0
+			p.semiCount = 0
 		}
 	}
 
@@ -1176,6 +1177,7 @@ func (p *parser) parseSimplexDoctBody(scope *ast.Scope) ([]*ast.SxHeader, *ast.B
 	}
 
 	prev_mode := p.scanner.SetMode(scanner.SX_HEADERS)
+	p.scanner.SetInsertSemi(true)
 	defer p.scanner.SetMode(prev_mode)
 
 	lbrace := p.expect(token.LBRACE)

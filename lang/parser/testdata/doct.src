@@ -21,3 +21,8 @@ doct simple_document() {
 
   And with some lines in between.
 }
+
+doct simple_document_without_any_headers() {
+
+  A Body Text (note the empty line).
+}
