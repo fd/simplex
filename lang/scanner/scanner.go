@@ -826,7 +826,7 @@ scanAgain:
 
 	if s.semiCount >= 2 {
 		s.mode &^= sx_HEADERS
-		s.mode |= (sx_BODY | sx_HTML)
+		s.mode |= sx_BODY | sx_HTML
 		return s.Scan()
 	}
 
@@ -860,7 +860,7 @@ scanAgain:
 		case '}': // the end of a doct/frag
 			tok = token.RBRACE
 			insertSemi = true
-			s.mode &^= (sx_HEADERS | sx_BODY)
+			s.mode &^= sx_HEADERS | sx_BODY
 
 		case ':':
 			tok = token.COLON

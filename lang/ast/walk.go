@@ -365,19 +365,9 @@ func Walk(v Visitor, node Node) {
 		Walk(v, n.Key)
 		Walk(v, n.Value)
 
-	case *SxPrint:
-		walkExprList(v, n.List)
-
-	case *SxHeader:
-		Walk(v, n.Name)
-		walkExprList(v, n.List)
-
-	case *SxDoctDecl:
+	case *SxFuncDecl:
 		if n.Doc != nil {
 			Walk(v, n.Doc)
-		}
-		if n.Recv != nil {
-			Walk(v, n.Recv)
 		}
 		Walk(v, n.Name)
 		Walk(v, n.Type)
@@ -387,6 +377,63 @@ func Walk(v Visitor, node Node) {
 		if n.Body != nil {
 			Walk(v, n.Body)
 		}
+
+	case *SxFuncType:
+		if n.Params != nil {
+			Walk(v, n.Params)
+		}
+		Walk(v, n.Mode)
+
+	case *SxHeader:
+		Walk(v, n.Name)
+		walkExprList(v, n.List)
+
+	case *SxBlockStmt:
+		walkStmtList(v, n.List)
+
+	case *SxIfStmt:
+		if n.Init != nil {
+			Walk(v, n.Init)
+		}
+		Walk(v, n.Cond)
+		Walk(v, n.Body)
+		if n.Else != nil {
+			Walk(v, n.Else)
+		}
+
+	case *SxForStmt:
+		if n.Init != nil {
+			Walk(v, n.Init)
+		}
+		if n.Cond != nil {
+			Walk(v, n.Cond)
+		}
+		if n.Post != nil {
+			Walk(v, n.Post)
+		}
+		Walk(v, n.Body)
+
+	case *SxRangeStmt:
+		Walk(v, n.Key)
+		if n.Value != nil {
+			Walk(v, n.Value)
+		}
+		Walk(v, n.X)
+		Walk(v, n.Body)
+
+	case *SxPrint:
+		walkExprList(v, n.List)
+
+	case *SxTag:
+		Walk(v, n.Name)
+		walkExprList(v, n.Attrs)
+
+	case *SxAttribute:
+		Walk(v, n.Name)
+		walkExprList(v, n.List)
+
+	case *SxInterpolation:
+		Walk(v, n.X)
 
 	default:
 		fmt.Printf("ast.Walk: unexpected node type %T", n)

@@ -1,4 +1,4 @@
 package p
 
-frag a_fragment() {
+frag a_fragment() html {
 }

@@ -1,17 +1,17 @@
 package p
 
-doct false_document_decl()
+doct false_document_decl() html
 
-doct empty_document_decl() {
+doct empty_document_decl() html {
 }
 
-doct header_only_document() {
+doct header_only_document() html {
   // a comment
   A-Header       : A literal value
   Another-Header = a_simplex_expression()
 }
 
-doct simple_document() {
+doct simple_document() html {
   // a comment
   Another-Header = a_simplex_expression()
   A-Header       : A literal value
@@ -22,12 +22,12 @@ doct simple_document() {
   And with some lines in between.
 }
 
-doct simple_document_without_any_headers() {
+doct simple_document_without_any_headers() html {
 
   A Body Text (note the empty line).
 }
 
-doct document_with_comments_in_an_html_body() {
+doct document_with_comments_in_an_html_body() html {
 
   Some body text.
   // this is a comment
@@ -37,7 +37,7 @@ doct document_with_comments_in_an_html_body() {
   And with some lines in between.
 }
 
-doct document_with_html_body() {
+doct document_with_html_body() html {
   mode: html
 
   <ul class = "a literal attribute"
@@ -52,7 +52,7 @@ doct document_with_html_body() {
   </ul>
 }
 
-doct document_with_if_statments() {
+doct document_with_if_statments() html {
   mode: html
 
   <ul class = "a literal attribute"
@@ -61,13 +61,30 @@ doct document_with_if_statments() {
       >
 
     {{# if true }}
-    <li>Some literal text</li>
+      <li>Some literal text</li>
     {{/ if }}
 
     {{# if 4 == 5 }}
-    <li>Some {{ cool() }} interpolated text</li>
+      <li>Some {{ cool() }} interpolated text</li>
     {{: else if 5 == 6 }}
-    <li>Some {{{ raw() }}} interpolated text</li>
+      <li>Some {{{ raw() }}} interpolated text</li>
+    {{/ end }}
+
+  </ul>
+}
+
+doct document_with_for_statments() html {
+  mode: html
+
+  <ul class = "a literal attribute"
+      style = "a {{ cool() }} interpolated attribute"
+      id    = {{ an_expression_attribute() }}
+      >
+
+    <li>Some literal text</li>
+
+    {{# for _, m := range items }}
+      <li id={{ m.Id }}>{{ m.Name }}</li>
     {{/ end }}
 
   </ul>

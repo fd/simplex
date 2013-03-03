@@ -2578,7 +2578,7 @@ func (p *parser) parseSimplexBlockInterpolation_IF(mode simplexMode, pos token.P
 		defer un(trace(p, "SxIfStmt"))
 	}
 
-	p.expect(token.IF)
+	pos_if := p.expect(token.IF)
 	p.openScope()
 	defer p.closeScope()
 
@@ -2636,7 +2636,7 @@ func (p *parser) parseSimplexBlockInterpolation_IF(mode simplexMode, pos token.P
 	return &ast.SxIfStmt{
 		Open:  pos,
 		Close: pos_end,
-		If:    pos,
+		If:    pos_if,
 		Init:  s,
 		Cond:  x,
 		Body:  body,
@@ -2644,8 +2644,85 @@ func (p *parser) parseSimplexBlockInterpolation_IF(mode simplexMode, pos token.P
 	}
 }
 
-func (p *parser) parseSimplexBlockInterpolation_FOR(mode simplexMode, start_pos token.Pos) ast.Stmt {
-	panic("not implemented")
+func (p *parser) parseSimplexBlockInterpolation_FOR(mode simplexMode, pos token.Pos) ast.Stmt {
+	if p.trace {
+		defer un(trace(p, "SxForStmt"))
+	}
+
+	pos_for := p.expect(token.FOR)
+	p.openScope()
+	defer p.closeScope()
+
+	var s1, s2, s3 ast.Stmt
+	var isRange bool
+	{
+		prevLev := p.exprLev
+		p.exprLev = -1
+		if p.tok != token.SEMICOLON {
+			s2, isRange = p.parseSimpleStmt(rangeOk)
+		}
+		if !isRange && p.tok == token.SEMICOLON {
+			p.next()
+			s1 = s2
+			s2 = nil
+			if p.tok != token.SEMICOLON {
+				s2, _ = p.parseSimpleStmt(basic)
+			}
+			p.expectSemi()
+			if p.tok != token.SX_INTERP_END {
+				s3, _ = p.parseSimpleStmt(basic)
+			}
+		}
+		p.exprLev = prevLev
+	}
+
+	p.expect(token.SX_INTERP_END)
+	body := p.parseSimplexStatementBlock(mode)
+
+	pos_end := p.parseSimplexEndInterpolation(token.FOR)
+	if pos_end == token.NoPos {
+		return &ast.BadStmt{From: pos, To: p.pos}
+	}
+
+	if isRange {
+		as := s2.(*ast.AssignStmt)
+		// check lhs
+		var key, value ast.Expr
+		switch len(as.Lhs) {
+		case 2:
+			key, value = as.Lhs[0], as.Lhs[1]
+		case 1:
+			key = as.Lhs[0]
+		default:
+			p.errorExpected(as.Lhs[0].Pos(), "1 or 2 expressions")
+			return &ast.BadStmt{From: pos, To: body.End()}
+		}
+		// parseSimpleStmt returned a right-hand side that
+		// is a single unary expression of the form "range x"
+		x := as.Rhs[0].(*ast.UnaryExpr).X
+		return &ast.SxRangeStmt{
+			Open:   pos,
+			Close:  pos_end,
+			For:    pos_for,
+			Key:    key,
+			Value:  value,
+			TokPos: as.TokPos,
+			Tok:    as.Tok,
+			X:      x,
+			Body:   body,
+		}
+	}
+
+	// regular for statement
+	return &ast.SxForStmt{
+		Open:  pos,
+		Close: pos_end,
+		For:   pos_for,
+		Init:  s1,
+		Cond:  p.makeExpr(s2),
+		Post:  s3,
+		Body:  body,
+	}
 }
 
 func (p *parser) parseSimplexBlockInterpolation_SWITCH(mode simplexMode, start_pos token.Pos) ast.Stmt {
@@ -2947,7 +3024,7 @@ func (p *parser) parseSimplexRawInterpolation() ast.Expr {
 	}
 }
 
-func (p *parser) parseSimplexDoctBody(scope *ast.Scope) ([]*ast.SxHeader, *ast.BlockStmt) {
+func (p *parser) parseSimplexDoctBody(scope *ast.Scope, mode simplexMode) ([]*ast.SxHeader, *ast.BlockStmt) {
 	if p.trace {
 		defer un(trace(p, "SimplexDoctBody"))
 	}
@@ -2959,7 +3036,7 @@ func (p *parser) parseSimplexDoctBody(scope *ast.Scope) ([]*ast.SxHeader, *ast.B
 	p.openLabelScope()
 
 	header_list := p.parseSimplexHeaders()
-	body_list := p.parseSimplexStatements(sx_HTML)
+	body_list := p.parseSimplexStatements(mode)
 
 	p.closeLabelScope()
 	p.closeScope()
@@ -2967,6 +3044,26 @@ func (p *parser) parseSimplexDoctBody(scope *ast.Scope) ([]*ast.SxHeader, *ast.B
 
 	block := &ast.BlockStmt{Lbrace: lbrace, List: body_list, Rbrace: rbrace}
 	return header_list, block
+}
+
+func (p *parser) parseSimplexFragBody(scope *ast.Scope, mode simplexMode) *ast.BlockStmt {
+	if p.trace {
+		defer un(trace(p, "SimplexFragBody"))
+	}
+
+	p.scanner.SetFragMode()
+
+	lbrace := p.expect(token.LBRACE)
+	p.topScope = scope // open function scope
+	p.openLabelScope()
+
+	body_list := p.parseSimplexStatements(mode)
+
+	p.closeLabelScope()
+	p.closeScope()
+	rbrace := p.expect(token.RBRACE)
+
+	return &ast.BlockStmt{Lbrace: lbrace, List: body_list, Rbrace: rbrace}
 }
 
 func (p *parser) parseSimplexHeader() *ast.SxHeader {
@@ -3011,35 +3108,31 @@ func (p *parser) parseSimplexDoctDecl() ast.Decl {
 	pos := p.expect(token.DOCT)
 	scope := ast.NewScope(p.topScope) // function scope
 
-	var recv *ast.FieldList
-	if p.tok == token.LPAREN {
-		recv = p.parseReceiver(scope)
-	}
-
 	ident := p.parseIdent()
 
-	params, results := p.parseSignature(scope)
+	params, mode := p.parseDoctFragSignature(scope)
 
 	var headers []*ast.SxHeader
 	var body *ast.BlockStmt
 	if p.tok == token.LBRACE {
-		headers, body = p.parseSimplexDoctBody(scope)
+		headers, body = p.parseSimplexDoctBody(scope, simplexModeFromIdent(mode))
 	}
 	p.expectSemi()
 
-	decl := &ast.SxDoctDecl{
+	decl := &ast.SxFuncDecl{
 		Doc:  doc,
-		Recv: recv,
 		Name: ident,
-		Type: &ast.FuncType{
-			Func:    pos,
-			Params:  params,
-			Results: results,
+		Type: &ast.SxFuncType{
+			Kind:   token.DOCT,
+			Func:   pos,
+			Params: params,
+			Mode:   mode,
 		},
 		Headers: headers,
 		Body:    body,
 	}
-	if recv == nil {
+
+	{
 		// Go spec: The scope of an identifier denoting a constant, type,
 		// variable, or function (but not method) declared at top level
 		// (outside any function) is the package block.
@@ -3058,6 +3151,12 @@ func (p *parser) parseSimplexDoctDecl() ast.Decl {
 			return &ast.BadDecl{From: pos, To: p.pos}
 		}
 
+		if mode.Name != "html" && mode.Name != "text" {
+			pos := p.pos
+			p.errorExpected(pos, "a doct() must return html or text")
+			return &ast.BadDecl{From: pos, To: p.pos}
+		}
+
 		p.declare(decl, nil, p.pkgScope, ast.Fun, ident)
 	}
 
@@ -3073,34 +3172,29 @@ func (p *parser) parseSimplexFragDecl() ast.Decl {
 	pos := p.expect(token.FRAG)
 	scope := ast.NewScope(p.topScope) // function scope
 
-	var recv *ast.FieldList
-	if p.tok == token.LPAREN {
-		recv = p.parseReceiver(scope)
-	}
-
 	ident := p.parseIdent()
 
-	params, results := p.parseSignature(scope)
+	params, mode := p.parseDoctFragSignature(scope)
 
 	var body *ast.BlockStmt
 	if p.tok == token.LBRACE {
-		// TODO(fd) parse Simplebars body
-		body = p.parseBody(scope)
+		body = p.parseSimplexFragBody(scope, simplexModeFromIdent(mode))
 	}
 	p.expectSemi()
 
-	decl := &ast.FuncDecl{
+	decl := &ast.SxFuncDecl{
 		Doc:  doc,
-		Recv: recv,
 		Name: ident,
-		Type: &ast.FuncType{
-			Func:    pos,
-			Params:  params,
-			Results: results,
+		Type: &ast.SxFuncType{
+			Kind:   token.FRAG,
+			Func:   pos,
+			Params: params,
+			Mode:   mode,
 		},
 		Body: body,
 	}
-	if recv == nil {
+
+	{
 		// Go spec: The scope of an identifier denoting a constant, type,
 		// variable, or function (but not method) declared at top level
 		// (outside any function) is the package block.
@@ -3119,8 +3213,34 @@ func (p *parser) parseSimplexFragDecl() ast.Decl {
 			return &ast.BadDecl{From: pos, To: p.pos}
 		}
 
+		if mode.Name != "html" && mode.Name != "text" {
+			pos := p.pos
+			p.errorExpected(pos, "a frag() must return html or text")
+			return &ast.BadDecl{From: pos, To: p.pos}
+		}
+
 		p.declare(decl, nil, p.pkgScope, ast.Fun, ident)
 	}
 
 	return decl
+}
+
+func (p *parser) parseDoctFragSignature(scope *ast.Scope) (params *ast.FieldList, mode *ast.Ident) {
+	if p.trace {
+		defer un(trace(p, "Simplex Signature"))
+	}
+
+	params = p.parseParameters(scope, true)
+	mode = p.parseIdent()
+	return
+}
+
+func simplexModeFromIdent(ident *ast.Ident) simplexMode {
+	switch ident.Name {
+	case "html":
+		return sx_HTML
+	case "text":
+		return sx_TEXT
+	}
+	return sx_HTML
 }

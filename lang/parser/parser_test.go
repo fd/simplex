@@ -143,8 +143,8 @@ const pi = 3.14
 type T struct{}
 var x int
 func f() { L: }
-doct do() {}
-frag fa() {}
+doct do() html {}
+frag fa() html {}
 `
 
 	f, err := ParseFile(fset, "", src, SimplexExtentions)

@@ -1011,13 +1011,19 @@ type (
 		Value Expr
 	}
 
-	SxDoctDecl struct {
+	SxFuncDecl struct {
 		Doc     *CommentGroup // associated documentation; or nil
-		Recv    *FieldList    // receiver (methods); or nil (functions)
 		Name    *Ident        // function/method name
-		Type    *FuncType     // position of Func keyword, parameters and results
-		Headers []*SxHeader   // document headers
+		Type    *SxFuncType   // position of Func keyword, parameters and results
+		Headers []*SxHeader   // document headers; or nil
 		Body    *BlockStmt    // function body; or nil (forward declaration)
+	}
+
+	SxFuncType struct {
+		Kind   token.Token
+		Func   token.Pos  // position of "frag" or "doct" keyword
+		Params *FieldList // (incoming) parameters; or nil
+		Mode   *Ident     // The result mode
 	}
 
 	SxHeader struct {
@@ -1037,6 +1043,27 @@ type (
 		Cond  Expr      // condition
 		Body  *SxBlockStmt
 		Else  Stmt // else branch; or nil
+	}
+
+	SxForStmt struct {
+		Open  token.Pos
+		Close token.Pos
+		For   token.Pos // position of "for" keyword
+		Init  Stmt      // initialization statement; or nil
+		Cond  Expr      // condition; or nil
+		Post  Stmt      // post iteration statement; or nil
+		Body  *SxBlockStmt
+	}
+
+	SxRangeStmt struct {
+		Open       token.Pos
+		Close      token.Pos
+		For        token.Pos   // position of "for" keyword
+		Key, Value Expr        // Value may be nil
+		TokPos     token.Pos   // position of Tok
+		Tok        token.Token // ASSIGN, DEFINE
+		X          Expr        // value to range over
+		Body       *SxBlockStmt
 	}
 
 	SxPrint struct {
@@ -1103,6 +1130,14 @@ func (x *SxIfStmt) End() token.Pos {
 	return x.Close + 2
 }
 
+func (*SxForStmt) stmtNode()        {}
+func (x *SxForStmt) Pos() token.Pos { return x.Open }
+func (x *SxForStmt) End() token.Pos { return x.Close + 2 }
+
+func (*SxRangeStmt) stmtNode()        {}
+func (x *SxRangeStmt) Pos() token.Pos { return x.Open }
+func (x *SxRangeStmt) End() token.Pos { return x.Close + 2 }
+
 func (*SxInterpolation) exprNode()        {}
 func (x *SxInterpolation) Pos() token.Pos { return x.Open }
 func (x *SxInterpolation) End() token.Pos {
@@ -1112,14 +1147,18 @@ func (x *SxInterpolation) End() token.Pos {
 	return x.Close + 2
 }
 
-func (*SxDoctDecl) declNode()        {}
-func (d *SxDoctDecl) Pos() token.Pos { return d.Type.Pos() }
-func (d *SxDoctDecl) End() token.Pos {
+func (*SxFuncDecl) declNode()        {}
+func (d *SxFuncDecl) Pos() token.Pos { return d.Type.Pos() }
+func (d *SxFuncDecl) End() token.Pos {
 	if d.Body != nil {
 		return d.Body.End()
 	}
 	return d.Type.End()
 }
+
+func (*SxFuncType) exprNode()        {}
+func (d *SxFuncType) Pos() token.Pos { return d.Func }
+func (d *SxFuncType) End() token.Pos { return d.Mode.End() }
 
 func (*SxTag) exprNode()        {}
 func (e *SxTag) Pos() token.Pos { return e.OpenPos }
