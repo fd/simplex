@@ -14,6 +14,7 @@ import (
 	"simplex.sh/lang/ast"
 	"simplex.sh/lang/scanner"
 	"simplex.sh/lang/token"
+	"simplex.sh/lang/token/html"
 	"strconv"
 	"strings"
 	"unicode"
@@ -2526,7 +2527,7 @@ func (p *parser) parseSimplexStatement(mode simplexMode) (s ast.Stmt) {
 	case
 		token.SX_INTERP_START, token.SX_RAW_INTERP_START,
 		token.SX_HTML_LITERAL, token.SX_HTML_ENTITY,
-		token.SX_HTML_TAG_OPEN, token.SX_HTML_END_TAG_OPEN,
+		token.SX_HTML_TAG_OPEN,
 		token.SX_TEXT_LITERAL:
 		s = p.parseSimplexPrintStmt(mode)
 
@@ -2774,7 +2775,7 @@ L:
 		case
 			token.SX_INTERP_START, token.SX_RAW_INTERP_START,
 			token.SX_HTML_LITERAL, token.SX_HTML_ENTITY,
-			token.SX_HTML_TAG_OPEN, token.SX_HTML_END_TAG_OPEN,
+			token.SX_HTML_TAG_OPEN,
 			token.SX_TEXT_LITERAL:
 
 			list = append(list, p.parseSimplexExpr(mode))
@@ -2830,10 +2831,7 @@ func (p *parser) parseSimplexHtmlExpr() (e ast.Expr) {
 		p.next()
 
 	case token.SX_HTML_TAG_OPEN:
-		return p.parseSimplexHtmlTagExpr()
-
-	case token.SX_HTML_END_TAG_OPEN:
-		return p.parseSimplexHtmlTagExpr()
+		return p.parseSimplexHtmlElementExpr()
 
 	case token.SX_INTERP_START:
 		return p.parseSimplexInterpolation()
@@ -2853,61 +2851,120 @@ func (p *parser) parseSimplexHtmlExpr() (e ast.Expr) {
 	return
 }
 
-func (p *parser) parseSimplexHtmlTagExpr() (e ast.Expr) {
+func (p *parser) parseSimplexHtmlElementExpr() ast.Expr {
+	if p.trace {
+		defer un(trace(p, "SimplexExpr HTML Element"))
+	}
+
+	var (
+		close_tag *ast.SxEndTag
+		list      []ast.Stmt
+	)
+
+	open_expr, open_tag := p.parseSimplexHtmlStartTagExpr()
+	if open_tag == nil {
+		return open_expr
+	}
+
+	if open_tag.Elt.IsVoidElement() {
+		goto exit
+	}
+
+	if open_tag.Elt == html.FOREIGN &&
+		open_tag.EndTok == token.SX_HTML_EMPTY_TAG_CLOSE {
+		goto exit
+	}
+
+	list = p.parseSimplexStatements(sx_HTML)
+	close_tag = p.parseSimplexHtmlEndTagExpr()
+
+	if close_tag.Elt != open_tag.Elt ||
+		close_tag.Ident.Name != open_tag.Ident.Name {
+		// error open and close tag do not match
+	}
+
+exit:
+	return &ast.SxElement{
+		Open:  open_tag,
+		List:  list,
+		Close: close_tag,
+	}
+}
+
+func (p *parser) parseSimplexHtmlStartTagExpr() (ast.Expr, *ast.SxStartTag) {
 	if p.trace {
 		defer un(trace(p, "SimplexExpr HTML Tag"))
 	}
 
 	var (
-		open_pos = p.pos
-		open_tok = p.tok
-	)
-	p.next()
-	var (
-		name      = p.parseIdent()
-		attrs     = []ast.Expr{}
-		close_pos token.Pos
-		close_tok token.Token
+		pos      = p.expect(token.SX_HTML_TAG_OPEN)
+		name     = p.parseIdent()
+		name_tok = html.Lookup(name.Name)
+		attrs    = []ast.Expr{}
+		end_pos  token.Pos
+		end_tok  token.Token
 	)
 
 	p.consumeSemicolons()
-
-	if open_tok == token.SX_HTML_END_TAG_OPEN {
-		close_pos = p.pos
-		close_tok = p.tok
-		p.expect(token.SX_HTML_TAG_CLOSE)
-
-	} else {
-		if open_tok == token.SX_HTML_TAG_OPEN {
-			for p.tok == token.IDENT {
-				attrs = append(attrs, p.parseSimplexHtmlAttributeExpr())
-				p.consumeSemicolons()
-			}
-		}
-
-		switch p.tok {
-		case token.SX_HTML_EMPTY_TAG_CLOSE, token.SX_HTML_TAG_CLOSE:
-			close_pos = p.pos
-			close_tok = p.tok
-			p.next()
-
-		default:
-			pos := p.pos
-			p.errorExpected(pos, "html tag close token (>, />)")
-			syncStmt(p)
-			return &ast.BadExpr{From: pos, To: p.pos}
-		}
+	for p.tok == token.IDENT {
+		attrs = append(attrs, p.parseSimplexHtmlAttributeExpr())
+		p.consumeSemicolons()
 	}
 
-	return &ast.SxTag{
-		OpenTok: open_tok,
-		OpenPos: open_pos,
+	if name_tok != html.FOREIGN {
+		// html elements must never self close
+		end_pos = p.expect(token.SX_HTML_TAG_CLOSE)
+		end_tok = token.SX_HTML_TAG_CLOSE
 
-		Name:  name,
+	} else if p.tok == token.SX_HTML_EMPTY_TAG_CLOSE ||
+		p.tok == token.SX_HTML_TAG_CLOSE {
+		// handle foreign tags
+		end_pos = p.pos
+		end_tok = p.tok
+		p.next()
+
+	} else {
+		// expected close tag
+		pos := p.pos
+		p.errorExpected(pos, "html tag close token (>, />)")
+		syncStmt(p)
+		return &ast.BadExpr{From: pos, To: p.pos}, nil
+	}
+
+	tag := &ast.SxStartTag{
+		BegPos: pos,
+		EndPos: end_pos,
+		EndTok: end_tok,
+
+		Elt:   name_tok,
+		Ident: name,
 		Attrs: attrs,
+	}
 
-		CloseTok: close_tok,
-		ClosePos: close_pos,
+	return tag, tag
+}
+
+func (p *parser) parseSimplexHtmlEndTagExpr() *ast.SxEndTag {
+	if p.trace {
+		defer un(trace(p, "SimplexExpr HTML Tag"))
+	}
+
+	var (
+		pos      = p.expect(token.SX_HTML_END_TAG_OPEN)
+		name     = p.parseIdent()
+		name_tok = html.Lookup(name.Name)
+		end_pos  token.Pos
+	)
+
+	p.consumeSemicolons()
+	end_pos = p.expect(token.SX_HTML_TAG_CLOSE)
+
+	return &ast.SxEndTag{
+		BegPos: pos,
+		EndPos: end_pos,
+
+		Elt:   name_tok,
+		Ident: name,
 	}
 }
 

@@ -424,9 +424,19 @@ func Walk(v Visitor, node Node) {
 	case *SxPrint:
 		walkExprList(v, n.List)
 
-	case *SxTag:
-		Walk(v, n.Name)
+	case *SxElement:
+		Walk(v, n.Open)
+		walkStmtList(v, n.List)
+		if n.Close != nil {
+			Walk(v, n.Close)
+		}
+
+	case *SxStartTag:
+		Walk(v, n.Ident)
 		walkExprList(v, n.Attrs)
+
+	case *SxEndTag:
+		Walk(v, n.Ident)
 
 	case *SxAttribute:
 		Walk(v, n.Name)

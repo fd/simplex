@@ -9,6 +9,7 @@ package ast
 
 import (
 	"simplex.sh/lang/token"
+	"simplex.sh/lang/token/html"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -1073,13 +1074,29 @@ type (
 		To        token.Pos
 	}
 
-	SxTag struct {
-		OpenPos  token.Pos
-		OpenTok  token.Token
-		Name     *Ident
-		Attrs    []Expr
-		ClosePos token.Pos
-		CloseTok token.Token
+	SxStartTag struct {
+		BegPos token.Pos
+		EndPos token.Pos
+		EndTok token.Token
+
+		Elt   html.Element
+		Ident *Ident
+
+		Attrs []Expr
+	}
+
+	SxEndTag struct {
+		BegPos token.Pos
+		EndPos token.Pos
+
+		Elt   html.Element
+		Ident *Ident
+	}
+
+	SxElement struct {
+		Open  *SxStartTag
+		List  []Stmt
+		Close *SxEndTag
 	}
 
 	SxAttribute struct {
@@ -1160,9 +1177,24 @@ func (*SxFuncType) exprNode()        {}
 func (d *SxFuncType) Pos() token.Pos { return d.Func }
 func (d *SxFuncType) End() token.Pos { return d.Mode.End() }
 
-func (*SxTag) exprNode()        {}
-func (e *SxTag) Pos() token.Pos { return e.OpenPos }
-func (e *SxTag) End() token.Pos { return token.Pos(int(e.ClosePos) + len(e.CloseTok.String())) }
+func (*SxElement) exprNode()        {}
+func (e *SxElement) Pos() token.Pos { return e.Open.Pos() }
+func (e *SxElement) End() token.Pos {
+	if e.Close != nil {
+		return e.Close.End()
+	}
+	return e.Open.End()
+}
+
+func (*SxStartTag) exprNode()        {}
+func (e *SxStartTag) Pos() token.Pos { return e.BegPos }
+func (e *SxStartTag) End() token.Pos {
+	return token.Pos(int(e.EndPos) + len(e.EndTok.String()))
+}
+
+func (*SxEndTag) exprNode()        {}
+func (e *SxEndTag) Pos() token.Pos { return e.BegPos }
+func (e *SxEndTag) End() token.Pos { return e.EndPos + 1 }
 
 func (*SxAttribute) exprNode()        {}
 func (e *SxAttribute) Pos() token.Pos { return e.Name.Pos() }
