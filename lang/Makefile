@@ -1,7 +1,7 @@
 .PHONY: all clean build \
 	test test_parser test_scanner test_token
 
-all: build test clean
+all: build test
 
 clean:
 	find . -name '*.test' | xargs rm
