@@ -3029,7 +3029,12 @@ func (p *parser) parseSimplexDoctBody(scope *ast.Scope, mode simplexMode) ([]*as
 		defer un(trace(p, "SimplexDoctBody"))
 	}
 
-	p.scanner.SetDoctMode()
+	switch mode {
+	case sx_HTML:
+		p.scanner.SetDoctMode(scanner.SX_HTML_BODY)
+	case sx_TEXT:
+		p.scanner.SetDoctMode(scanner.SX_TEXT_BODY)
+	}
 
 	lbrace := p.expect(token.LBRACE)
 	p.topScope = scope // open function scope
@@ -3051,7 +3056,12 @@ func (p *parser) parseSimplexFragBody(scope *ast.Scope, mode simplexMode) *ast.B
 		defer un(trace(p, "SimplexFragBody"))
 	}
 
-	p.scanner.SetFragMode()
+	switch mode {
+	case sx_HTML:
+		p.scanner.SetFragMode(scanner.SX_HTML_BODY)
+	case sx_TEXT:
+		p.scanner.SetFragMode(scanner.SX_TEXT_BODY)
+	}
 
 	lbrace := p.expect(token.LBRACE)
 	p.topScope = scope // open function scope

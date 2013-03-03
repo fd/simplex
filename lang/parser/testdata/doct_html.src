@@ -13,8 +13,8 @@ doct header_only_document() html {
 
 doct simple_document() html {
   // a comment
-  Another-Header = a_simplex_expression()
   A-Header       : A literal value
+  Another-Header = a_simplex_expression()
 
   Some body text.
   Spread over multiple lines.
@@ -38,7 +38,6 @@ doct document_with_comments_in_an_html_body() html {
 }
 
 doct document_with_html_body() html {
-  mode: html
 
   <ul class = "a literal attribute"
       style = "a {{ cool() }} interpolated attribute"
@@ -53,7 +52,6 @@ doct document_with_html_body() html {
 }
 
 doct document_with_if_statments() html {
-  mode: html
 
   <ul class = "a literal attribute"
       style = "a {{ cool() }} interpolated attribute"
@@ -74,7 +72,6 @@ doct document_with_if_statments() html {
 }
 
 doct document_with_for_statments() html {
-  mode: html
 
   <ul class = "a literal attribute"
       style = "a {{ cool() }} interpolated attribute"

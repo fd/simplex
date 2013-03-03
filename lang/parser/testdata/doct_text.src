@@ -1,0 +1,88 @@
+package p
+
+doct false_document_decl() text
+
+doct empty_document_decl() text {
+}
+
+doct header_only_document() text {
+  // a comment
+  A-Header       : A literal value
+  Another-Header = a_simplex_expression()
+}
+
+doct simple_document() text {
+  // a comment
+  A-Header       : A literal value
+  Another-Header = a_simplex_expression()
+
+  Some body text.
+  Spread over multiple lines.
+
+  And with some lines in between.
+}
+
+doct simple_document_without_any_headers() text {
+
+  A Body Text (note the empty line).
+}
+
+doct document_with_comments_in_an_text_body() text {
+
+  Some body text.
+  // this is a comment
+  /* And another comment */
+  Spread over multiple lines.
+
+  And with some lines in between.
+}
+
+doct document_with_text_body() text {
+
+  <ul class = "a literal attribute"
+      style = "a {{ cool() }} interpolated attribute"
+      id    = {{ an_expression_attribute() }}
+      >
+
+    <li>Some literal text</li>
+    <li>Some {{ cool() }} interpolated text</li>
+    <li>Some {{{ raw() }}} interpolated text</li>
+
+  </ul>
+}
+
+doct document_with_if_statments() text {
+
+  <ul class = "a literal attribute"
+      style = "a {{ cool() }} interpolated attribute"
+      id    = {{ an_expression_attribute() }}
+      >
+
+    {{# if true }}
+      <li>Some literal text</li>
+    {{/ if }}
+
+    {{# if 4 == 5 }}
+      <li>Some {{ cool() }} interpolated text</li>
+    {{: else if 5 == 6 }}
+      <li>Some {{{ raw() }}} interpolated text</li>
+    {{/ end }}
+
+  </ul>
+}
+
+doct document_with_for_statments() text {
+
+  <ul class = "a literal attribute"
+      style = "a {{ cool() }} interpolated attribute"
+      id    = {{ an_expression_attribute() }}
+      >
+
+    <li>Some literal text</li>
+
+    {{# for _, m := range items }}
+      <li id={{ m.Id }}>{{ m.Name }}</li>
+    {{/ end }}
+
+  </ul>
+}

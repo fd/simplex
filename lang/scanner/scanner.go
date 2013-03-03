@@ -48,6 +48,7 @@ type Scanner struct {
 	ErrorCount int // number of errors encountered
 
 	semiCount int
+	bodyMode  SxBodyMode
 }
 
 // Read the next Unicode char into s.ch.
@@ -104,15 +105,24 @@ const (
 	sx_TEXT
 )
 
-func (s *Scanner) SetDoctMode() {
+type SxBodyMode uint
+
+const (
+	SX_HTML_BODY SxBodyMode = 1 << iota
+	SX_TEXT_BODY
+)
+
+func (s *Scanner) SetDoctMode(mode SxBodyMode) {
 	// docts start with headers
 	s.mode |= sx_HEADERS
 	s.semiCount = 0
+	s.bodyMode = mode
 }
 
-func (s *Scanner) SetFragMode() {
+func (s *Scanner) SetFragMode(mode SxBodyMode) {
 	// frags start with a body
 	s.mode |= sx_BODY
+	s.bodyMode = mode
 }
 
 // Init prepares the scanner s to tokenize the text src by setting the
@@ -826,7 +836,13 @@ scanAgain:
 
 	if s.semiCount >= 2 {
 		s.mode &^= sx_HEADERS
-		s.mode |= sx_BODY | sx_HTML
+		s.mode |= sx_BODY
+		switch s.bodyMode {
+		case SX_HTML_BODY:
+			s.mode |= sx_HTML
+		case SX_TEXT_BODY:
+			s.mode |= sx_TEXT
+		}
 		return s.Scan()
 	}
 
@@ -1034,7 +1050,7 @@ exit:
 	return
 
 illegal_character:
-	s.error(s.file.Offset(pos), fmt.Sprintf("illegal character %#U (H)", illegal_ch))
+	s.error(s.file.Offset(pos), fmt.Sprintf("illegal character %#U", illegal_ch))
 	tok = token.ILLEGAL
 	lit = string(illegal_ch)
 	goto exit
@@ -1271,6 +1287,23 @@ L:
 		s.next()
 	}
 
+	{ // handle a single /
+		offs := s.offset
+		pos := s.file.Pos(offs)
+		if s.ch == '/' {
+			s.next()
+			if s.ch != '*' && s.ch != '/' {
+				goto L
+			}
+
+			// backup 1 position
+			s.ch = '/'
+			s.offset = s.file.Offset(pos)
+			s.rdOffset = s.offset + 1
+			s.insertSemi = false // newline consumed
+		}
+	}
+
 	tok = token.SX_HTML_LITERAL
 	lit = string(s.src[offs:s.offset])
 	return
@@ -1321,6 +1354,8 @@ func (s *Scanner) scan_simplex_html_entity() (pos token.Pos, tok token.Token, li
 // =====================================
 // TEXT SCANNER
 func (s *Scanner) scan_simplex_text() (pos token.Pos, tok token.Token, lit string) {
+	var illegal_ch rune
+scanAgain:
 	pos = s.file.Pos(s.offset)
 
 	switch s.ch {
@@ -1339,12 +1374,91 @@ func (s *Scanner) scan_simplex_text() (pos token.Pos, tok token.Token, lit strin
 			s.mode &^= sx_TEXT
 		}
 
+	case '}':
+		tok = token.RBRACE
+		s.insertSemi = true
+		s.next()
+
+		// turn off sx_TEXT mode when in the body
+		if s.mode&sx_BODY > 0 {
+			s.mode &^= sx_TEXT
+		}
+
+	case '/':
+		s.next()
+		if s.ch == '/' || s.ch == '*' {
+			// comment
+			if s.insertSemi && s.findLineEnd() {
+				// reset position to the beginning of the comment
+				s.ch = '/'
+				s.offset = s.file.Offset(pos)
+				s.rdOffset = s.offset + 1
+				s.insertSemi = false // newline consumed
+				return pos, token.SEMICOLON, "\n"
+			}
+			lit = s.scanComment()
+			s.insertSemi = true
+			if s.mode&ScanComments == 0 {
+				// skip comment
+				s.insertSemi = false // newline consumed
+				goto scanAgain
+			}
+			tok = token.COMMENT
+			break
+		}
+
+	case '{':
+		s.next()
+		if s.ch != '{' {
+			illegal_ch = '{'
+			goto illegal_character
+		}
+
+		s.next()
+		if s.ch == '{' {
+			// start raw {{{
+			tok = token.SX_RAW_INTERP_START
+			s.mode |= sx_INTERPOLATION
+			s.next()
+			break
+		}
+		if s.ch == '#' {
+			// start block {{#
+			tok = token.SX_BLOCK_INTERP_START
+			s.mode |= sx_INTERPOLATION
+			s.next()
+			break
+		}
+		if s.ch == '/' {
+			// start block {{/
+			tok = token.SX_END_INTERP_START
+			s.mode |= sx_INTERPOLATION
+			s.next()
+			break
+		}
+		if s.ch == ':' {
+			// start block {{:
+			tok = token.SX_CONT_INTERP_START
+			s.mode |= sx_INTERPOLATION
+			s.next()
+			break
+		}
+		s.mode |= sx_INTERPOLATION
+		tok = token.SX_INTERP_START
+
 	default:
 		return s.scan_simplex_text_literal()
 
 	}
 
+exit:
 	return
+
+illegal_character:
+	s.error(s.file.Offset(pos), fmt.Sprintf("illegal character %#U", illegal_ch))
+	tok = token.ILLEGAL
+	lit = string(illegal_ch)
+	goto exit
 }
 
 func (s *Scanner) scan_simplex_text_literal() (pos token.Pos, tok token.Token, lit string) {
@@ -1354,11 +1468,28 @@ func (s *Scanner) scan_simplex_text_literal() (pos token.Pos, tok token.Token, l
 L:
 	for {
 		switch s.ch {
-		case '\n', '{', -1:
+		case '\n', '/', '{', '}', -1:
 			break L
 		}
 
 		s.next()
+	}
+
+	{ // handle a single /
+		offs := s.offset
+		pos := s.file.Pos(offs)
+		if s.ch == '/' {
+			s.next()
+			if s.ch != '*' && s.ch != '/' {
+				goto L
+			}
+
+			// backup 1 position
+			s.ch = '/'
+			s.offset = s.file.Offset(pos)
+			s.rdOffset = s.offset + 1
+			s.insertSemi = false // newline consumed
+		}
 	}
 
 	tok = token.SX_TEXT_LITERAL
