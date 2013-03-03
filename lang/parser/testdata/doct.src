@@ -26,3 +26,28 @@ doct simple_document_without_any_headers() {
 
   A Body Text (note the empty line).
 }
+
+doct document_with_comments_in_an_html_body() {
+
+  Some body text.
+  // this is a comment
+  /* And another comment */
+  Spread over multiple lines.
+
+  And with some lines in between.
+}
+
+doct document_with_html_body() {
+  mode: html
+
+  <ul class = "a literal attribute"
+      style = "a {{ cool() }} interpolated attribute"
+      id    = {{ an_expression_attribute() }}
+      >
+
+    <li>Some literal text</li>
+    <li>Some {{ cool() }} interpolated text</li>
+    <li>Some {{{ raw() }}} interpolated text</li>
+
+  </ul>
+}

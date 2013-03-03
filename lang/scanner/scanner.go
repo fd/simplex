@@ -46,6 +46,8 @@ type Scanner struct {
 
 	// public state - ok to modify
 	ErrorCount int // number of errors encountered
+
+	semiCount int
 }
 
 // Read the next Unicode char into s.ch.
@@ -55,6 +57,7 @@ func (s *Scanner) next() {
 	if s.rdOffset < len(s.src) {
 		s.offset = s.rdOffset
 		if s.ch == '\n' {
+			s.semiCount += 1
 			s.lineOffset = s.offset
 			s.file.AddLine(s.offset)
 		}
@@ -74,6 +77,7 @@ func (s *Scanner) next() {
 	} else {
 		s.offset = len(s.src)
 		if s.ch == '\n' {
+			s.semiCount += 1
 			s.lineOffset = s.offset
 			s.file.AddLine(s.offset)
 		}
@@ -91,25 +95,24 @@ const (
 	dontInsertSemis                  // do not automatically insert semicolons - for testing only
 
 	SimplexExtentions
-	SX_HEADERS
-	SX_INTERPOLATION
-	SX_LITERAL
-	SX_HTML
-	SX_TEXT
-	SX_URL
+	sx_HEADERS
+	sx_BODY
+	sx_INTERPOLATION
+	sx_HTML
+	sx_HTML_INSIDE_TAG
+	sx_HTML_INSIDE_ATTRIBUTE
+	sx_TEXT
 )
 
-func (s *Scanner) SetMode(m Mode) Mode {
-	prev := s.mode
-	base := prev & (SimplexExtentions | dontInsertSemis | ScanComments)
-	s.mode = base | m
-	return prev
+func (s *Scanner) SetDoctMode() {
+	// docts start with headers
+	s.mode |= sx_HEADERS
+	s.semiCount = 0
 }
 
-func (s *Scanner) SetInsertSemi(m bool) bool {
-	prev := s.insertSemi
-	s.insertSemi = m
-	return prev
+func (s *Scanner) SetFragMode() {
+	// frags start with a body
+	s.mode |= sx_BODY
 }
 
 // Init prepares the scanner s to tokenize the text src by setting the
@@ -144,6 +147,7 @@ func (s *Scanner) Init(file *token.File, src []byte, err ErrorHandler, mode Mode
 	s.lineOffset = 0
 	s.insertSemi = false
 	s.ErrorCount = 0
+	s.semiCount = 0
 
 	s.next()
 	if s.ch == '\uFEFF' {
@@ -513,12 +517,6 @@ func (s *Scanner) skipWhitespace() {
 	}
 }
 
-func (s *Scanner) skipHorizontalWhitespace() {
-	for s.ch == ' ' || s.ch == '\t' {
-		s.next()
-	}
-}
-
 // Helper functions for scanning multi-byte tokens such as >> += >>= .
 // Different routines recognize different length tok_i based on matches
 // of ch_i. If a token ends in '=', the result is tok1 or tok3
@@ -593,24 +591,20 @@ func (s *Scanner) switch4(tok0, tok1 token.Token, ch2 rune, tok2, tok3 token.Tok
 // and thus relative to the file set.
 //
 func (s *Scanner) Scan() (pos token.Pos, tok token.Token, lit string) {
-	if s.mode&SX_INTERPOLATION > 0 {
-		return s.scan_go()
+	if s.mode&sx_INTERPOLATION > 0 {
+		return s.scan_simplex_interpolation()
 	}
 
-	if s.mode&SX_HEADERS > 0 {
-		return s.scan_simplex_headers()
-	}
-
-	if s.mode&(SX_LITERAL|SX_HTML) == SX_LITERAL|SX_HTML {
+	if s.mode&sx_HTML > 0 {
 		return s.scan_simplex_html()
 	}
 
-	if s.mode&(SX_LITERAL|SX_TEXT) == SX_LITERAL|SX_TEXT {
+	if s.mode&sx_TEXT > 0 {
 		return s.scan_simplex_text()
 	}
 
-	if s.mode&(SX_LITERAL|SX_URL) == SX_LITERAL|SX_URL {
-		return s.scan_simplex_url()
+	if s.mode&sx_HEADERS > 0 {
+		return s.scan_simplex_headers()
 	}
 
 	return s.scan_go()
@@ -782,9 +776,59 @@ scanAgain:
 	return
 }
 
+// =====================================
+// Interpolation SCANNER
+func (s *Scanner) scan_simplex_interpolation() (pos token.Pos, tok token.Token, lit string) {
+	insertSemi := s.insertSemi
+	s.skipWhitespace()
+	s.insertSemi = insertSemi
+
+	pos = s.file.Pos(s.offset)
+
+	// check for newlines in Headers
+	if s.ch == '\n' && s.mode&sx_HEADERS > 0 {
+		s.mode &^= sx_INTERPOLATION
+		return s.Scan()
+	}
+
+	// check for a close token }} or }}}
+	if s.ch == '}' && s.mode&(sx_TEXT|sx_HTML) > 0 {
+		s.next()
+
+		if s.ch == '}' {
+			tok = token.SX_INTERP_END
+			s.next()
+
+			if s.ch == '}' {
+				tok = token.SX_RAW_INTERP_END
+				s.next()
+			}
+
+			s.mode &^= sx_INTERPOLATION
+			return
+		}
+
+		s.ch = '}'
+		s.offset = s.file.Offset(pos)
+		s.rdOffset = s.offset + 1
+		s.insertSemi = insertSemi
+	}
+
+	// scan normal go
+	return s.scan_go()
+}
+
+// =====================================
+// Header SCANNER
 func (s *Scanner) scan_simplex_headers() (pos token.Pos, tok token.Token, lit string) {
 scanAgain:
 	s.skipWhitespace()
+
+	if s.semiCount >= 2 {
+		s.mode &^= sx_HEADERS
+		s.mode |= (sx_BODY | sx_HTML)
+		return s.Scan()
+	}
 
 	// current token start
 	pos = s.file.Pos(s.offset)
@@ -795,6 +839,7 @@ scanAgain:
 		lit = s.scanSimplexHeaderName()
 		insertSemi = true
 		tok = token.IDENT
+		s.semiCount = 0
 
 	default:
 		s.next()
@@ -812,23 +857,31 @@ scanAgain:
 			tok = token.SEMICOLON
 			lit = "\n"
 
-		case '}':
-			insertSemi = true
+		case '}': // the end of a doct/frag
 			tok = token.RBRACE
+			insertSemi = true
+			s.mode &^= (sx_HEADERS | sx_BODY)
 
 		case ':':
 			tok = token.COLON
+			insertSemi = true
+			s.mode |= sx_TEXT
+			s.skipWhitespace()
 
 		case '=':
 			tok = token.ASSIGN
+			insertSemi = true
+			s.mode |= sx_INTERPOLATION
+			s.skipWhitespace()
 
 		case '/':
 			if s.ch == '/' || s.ch == '*' {
 				// comment
 				lit = s.scanComment()
+				s.semiCount = 0
 				if s.mode&ScanComments == 0 {
 					// skip comment
-					s.insertSemi = false // newline consumed
+					s.insertSemi = true // newline consumed
 					goto scanAgain
 				}
 				tok = token.COMMENT
@@ -855,6 +908,20 @@ scanAgain:
 // =====================================
 // HTML SCANNER
 func (s *Scanner) scan_simplex_html() (pos token.Pos, tok token.Token, lit string) {
+	if s.mode&sx_HTML_INSIDE_ATTRIBUTE > 0 {
+		return s.scan_simplex_html_inside_attribute()
+	}
+
+	if s.mode&sx_HTML_INSIDE_TAG > 0 {
+		return s.scan_simplex_html_inside_tag()
+	}
+
+	return s.scan_simplex_html_text()
+}
+
+func (s *Scanner) scan_simplex_html_text() (pos token.Pos, tok token.Token, lit string) {
+	var illegal_ch rune
+
 scanAgain:
 	pos = s.file.Pos(s.offset)
 
@@ -869,21 +936,29 @@ scanAgain:
 		lit = "\n"
 		s.next()
 
-	case '}':
-		tok = token.RBRACE
-		s.next()
-
-	case '<':
-		tok = token.SX_HTML_LBROCK
-		s.next()
-		if s.ch == '/' {
-			tok = token.SX_HTML_LBROCK_SLASH
-			s.next()
+		// turn off sx_HTML mode when in a Header value (I, &fd, know that HTML node is not possible in Headers)
+		if s.mode&sx_HEADERS > 0 {
+			s.mode &^= sx_HTML
 		}
 
-	case '>':
-		tok = token.SX_HTML_RBROCK
+	case '}':
+		tok = token.RBRACE
+		s.insertSemi = true
 		s.next()
+
+		// turn off sx_HTML mode when in the body
+		if s.mode&sx_BODY > 0 {
+			s.mode &^= sx_HTML
+		}
+
+	case '<':
+		tok = token.SX_HTML_TAG_OPEN
+		s.mode |= sx_HTML_INSIDE_TAG
+		s.next()
+		if s.ch == '/' {
+			tok = token.SX_HTML_END_TAG_OPEN
+			s.next()
+		}
 
 	case '/':
 		s.next()
@@ -908,6 +983,38 @@ scanAgain:
 			break
 		}
 
+	case '{':
+		s.next()
+		if s.ch != '{' {
+			illegal_ch = '{'
+			goto illegal_character
+		}
+
+		s.next()
+		if s.ch == '{' {
+			// start raw {{{
+			tok = token.SX_RAW_INTERP_START
+			s.mode |= sx_INTERPOLATION
+			s.next()
+			break
+		}
+		if s.ch == '#' {
+			// start block {{#
+			tok = token.SX_BLOCK_INTERP_START
+			s.mode |= sx_INTERPOLATION
+			s.next()
+			break
+		}
+		if s.ch == '/' {
+			// start block {{/
+			tok = token.SX_END_INTERP_START
+			s.mode |= sx_INTERPOLATION
+			s.next()
+			break
+		}
+		s.mode |= sx_INTERPOLATION
+		tok = token.SX_INTERP_START
+
 	case '&':
 		return s.scan_simplex_html_entity()
 
@@ -916,7 +1023,215 @@ scanAgain:
 
 	}
 
+exit:
 	return
+
+illegal_character:
+	s.error(s.file.Offset(pos), fmt.Sprintf("illegal character %#U (H)", illegal_ch))
+	tok = token.ILLEGAL
+	lit = string(illegal_ch)
+	goto exit
+}
+
+func (s *Scanner) scan_simplex_html_inside_tag() (pos token.Pos, tok token.Token, lit string) {
+	var illegal_ch rune
+
+scanAgain:
+	s.skipWhitespace()
+
+	// current token start
+	pos = s.file.Pos(s.offset)
+
+	insertSemi := false
+	switch ch := s.ch; {
+	case isHtmlNameStartLetter(ch):
+		lit = s.scan_simplex_html_identifier()
+		insertSemi = false
+		tok = token.IDENT
+
+	default:
+		s.next()
+		switch ch {
+
+		case -1:
+			if s.insertSemi {
+				s.insertSemi = false // EOF consumed
+				return pos, token.SEMICOLON, "\n"
+			}
+			tok = token.EOF
+
+		case '\n':
+			insertSemi = false // newline consumed
+			tok = token.SEMICOLON
+			lit = "\n"
+
+		case '=':
+			tok = token.SX_HTML_ASSIGN
+
+		case '"':
+			tok = token.SX_HTML_QUOTE
+			s.mode |= sx_HTML_INSIDE_ATTRIBUTE
+
+		case '>':
+			tok = token.SX_HTML_TAG_CLOSE
+			s.mode &^= sx_HTML_INSIDE_TAG
+			insertSemi = true
+
+		case '{':
+			if s.ch != '{' {
+				illegal_ch = ch
+				goto illegal_character
+			}
+
+			s.next()
+			if s.ch == '{' {
+				// start raw {{{
+				tok = token.SX_RAW_INTERP_START
+				s.mode |= sx_INTERPOLATION
+				s.next()
+				break
+			}
+			if s.ch == '#' {
+				// start block {{#
+				tok = token.SX_BLOCK_INTERP_START
+				s.mode |= sx_INTERPOLATION
+				s.next()
+				break
+			}
+			if s.ch == '/' {
+				// start block {{/
+				tok = token.SX_END_INTERP_START
+				s.mode |= sx_INTERPOLATION
+				s.next()
+				break
+			}
+			s.mode |= sx_INTERPOLATION
+			tok = token.SX_INTERP_START
+
+		case '/':
+			if s.ch == '>' {
+				tok = token.SX_HTML_EMPTY_TAG_CLOSE
+				insertSemi = true
+				s.next()
+				break
+			}
+
+			if s.ch == '/' || s.ch == '*' {
+				// comment
+				lit = s.scanComment()
+				if s.ch == '\n' {
+					s.next()
+				}
+				if s.mode&ScanComments == 0 {
+					// skip comment
+					s.insertSemi = false // newline consumed
+					goto scanAgain
+				}
+				tok = token.COMMENT
+				break
+			}
+
+			illegal_ch = ch
+			goto illegal_character
+
+		default:
+			illegal_ch = ch
+			goto illegal_character
+
+		}
+	}
+
+exit:
+	if s.mode&dontInsertSemis == 0 {
+		s.insertSemi = insertSemi
+	}
+	return
+
+illegal_character:
+	s.error(s.file.Offset(pos), fmt.Sprintf("illegal character %#U (H)", illegal_ch))
+	insertSemi = s.insertSemi // preserve insertSemi info
+	tok = token.ILLEGAL
+	lit = string(illegal_ch)
+	goto exit
+}
+
+func (s *Scanner) scan_simplex_html_inside_attribute() (pos token.Pos, tok token.Token, lit string) {
+	var illegal_ch rune
+
+	pos = s.file.Pos(s.offset)
+
+	switch s.ch {
+
+	case -1:
+		tok = token.EOF
+		s.next()
+
+	case '"':
+		tok = token.SX_HTML_QUOTE
+		s.mode &^= sx_HTML_INSIDE_ATTRIBUTE
+		s.next()
+
+	case '{':
+		s.next()
+		if s.ch != '{' {
+			illegal_ch = '{'
+			goto illegal_character
+		}
+
+		s.next()
+		if s.ch == '{' {
+			// start raw {{{
+			tok = token.SX_RAW_INTERP_START
+			s.mode |= sx_INTERPOLATION
+			s.next()
+			break
+		}
+		if s.ch == '#' {
+			// start block {{#
+			tok = token.SX_BLOCK_INTERP_START
+			s.mode |= sx_INTERPOLATION
+			s.next()
+			break
+		}
+		if s.ch == '/' {
+			// start block {{/
+			tok = token.SX_END_INTERP_START
+			s.mode |= sx_INTERPOLATION
+			s.next()
+			break
+		}
+		s.mode |= sx_INTERPOLATION
+		tok = token.SX_INTERP_START
+
+	default:
+		return s.scan_simplex_html_literal()
+
+	}
+
+exit:
+	return
+
+illegal_character:
+	s.error(s.file.Offset(pos), fmt.Sprintf("illegal character %#U (H)", illegal_ch))
+	tok = token.ILLEGAL
+	lit = string(illegal_ch)
+	goto exit
+}
+
+func (s *Scanner) scan_simplex_html_identifier() string {
+	offs := s.offset
+	for isHtmlNameLetter(s.ch) {
+		s.next()
+	}
+	return string(s.src[offs:s.offset])
+}
+
+func isHtmlNameStartLetter(ch rune) bool {
+	return isLetter(ch) || ch == ':'
+}
+
+func isHtmlNameLetter(ch rune) bool {
+	return isHtmlNameStartLetter(ch) || isDigit(ch) || ch == '_' || ch == '.'
 }
 
 // scan literal html text
@@ -925,16 +1240,11 @@ func (s *Scanner) scan_simplex_html_literal() (pos token.Pos, tok token.Token, l
 	offs := s.offset
 	pos = s.file.Pos(offs)
 
+L:
 	for {
-		terminator := false
-
 		switch s.ch {
-		case '&', '<', '\n', '/', '{', '}', -1:
-			terminator = true
-		}
-
-		if terminator {
-			break
+		case '&', '<', '"', '\n', '/', '{', '}', -1:
+			break L
 		}
 
 		s.next()
@@ -1003,6 +1313,11 @@ func (s *Scanner) scan_simplex_text() (pos token.Pos, tok token.Token, lit strin
 		lit = "\n"
 		s.next()
 
+		// turn off sx_TEXT mode when in a Header value
+		if s.mode&sx_HEADERS > 0 {
+			s.mode &^= sx_TEXT
+		}
+
 	default:
 		return s.scan_simplex_text_literal()
 
@@ -1015,16 +1330,11 @@ func (s *Scanner) scan_simplex_text_literal() (pos token.Pos, tok token.Token, l
 	offs := s.offset
 	pos = s.file.Pos(offs)
 
+L:
 	for {
-		terminator := false
-
 		switch s.ch {
 		case '\n', '{', -1:
-			terminator = true
-		}
-
-		if terminator {
-			break
+			break L
 		}
 
 		s.next()
@@ -1032,12 +1342,6 @@ func (s *Scanner) scan_simplex_text_literal() (pos token.Pos, tok token.Token, l
 
 	tok = token.SX_TEXT_LITERAL
 	lit = string(s.src[offs:s.offset])
-	return
-}
-
-// =====================================
-// URL SCANNER
-func (s *Scanner) scan_simplex_url() (pos token.Pos, tok token.Token, lit string) {
 	return
 }
 

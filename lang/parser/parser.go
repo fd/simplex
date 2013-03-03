@@ -24,7 +24,6 @@ type simplexMode uint
 const (
 	sx_HTML simplexMode = 1 << iota
 	sx_TEXT
-	sx_URL
 )
 
 // The parser structure holds the parser's internal state.
@@ -56,8 +55,7 @@ type parser struct {
 	syncCnt int       // number of calls to syncXXX without progress
 
 	// Non-syntactic parser control
-	exprLev   int // < 0: in control clause, >= 0: in expression
-	semiCount int
+	exprLev int // < 0: in control clause, >= 0: in expression
 
 	// Ordinary identifier scopes
 	pkgScope   *ast.Scope        // pkgScope.Outer == nil
@@ -561,71 +559,6 @@ func (p *parser) parseRhsList() []ast.Expr {
 	return p.parseExprList(false)
 }
 
-func (p *parser) scanner_mode_for_parser_mode(mode simplexMode) scanner.Mode {
-	var m scanner.Mode
-	switch mode {
-	case sx_HTML:
-		m = scanner.SX_LITERAL | scanner.SX_HTML
-	case sx_TEXT:
-		m = scanner.SX_LITERAL | scanner.SX_TEXT
-	case sx_URL:
-		m = scanner.SX_LITERAL | scanner.SX_URL
-	}
-	return m
-}
-
-func (p *parser) parseSimplexHeaderValue(mode simplexMode) ast.Expr {
-	if p.trace {
-		defer un(trace(p, "SimplexHeader Value"))
-	}
-
-	prev_mode := p.scanner.SetMode(p.scanner_mode_for_parser_mode(mode))
-	defer p.scanner.SetMode(prev_mode)
-
-	p.next()
-
-	e := p.parseSimplexExprList(mode)
-	return e
-}
-
-func (p *parser) parseSimplexHeaderExpr() ast.Expr {
-	if p.trace {
-		defer un(trace(p, "SimplexHeader Expression"))
-	}
-
-	prev_mode := p.scanner.SetMode(scanner.SX_INTERPOLATION)
-	defer p.scanner.SetMode(prev_mode)
-
-	p.next()
-
-	e := p.parseRhs()
-	p.scanner.SetInsertSemi(true)
-	return e
-}
-
-func (p *parser) parseSimplexExprList(mode simplexMode) ast.Expr {
-	if p.trace {
-		defer un(trace(p, "SimplexExpr List"))
-	}
-
-	var (
-		from       = p.pos
-		list       []ast.Expr
-		line_break bool
-	)
-
-	for p.tok != token.SEMICOLON && p.tok != token.RBRACE && p.tok != token.EOF {
-		p.printTrace("TOK: ", p.tok, " -- LIT: ", strconv.Quote(p.lit))
-		list = append(list, p.parseSimplexExpr(mode))
-	}
-
-	if p.tok == token.SEMICOLON {
-		line_break = true
-	}
-
-	return &ast.SxPrint{From: from, List: list, LineBreak: line_break, To: p.pos}
-}
-
 // ----------------------------------------------------------------------------
 // Types
 
@@ -1097,50 +1030,6 @@ func (p *parser) parseStmtList() (list []ast.Stmt) {
 	return
 }
 
-func (p *parser) parseSimplexHeaderList() (list []*ast.SxHeader) {
-	if p.trace {
-		defer un(trace(p, "SimplexHeaderList"))
-	}
-
-	for p.tok != token.RBRACE && p.tok != token.EOF {
-		if p.tok == token.SEMICOLON {
-			p.semiCount += 1
-			if p.semiCount >= 2 {
-				p.semiCount = 0
-				break
-			}
-
-			p.next()
-			continue
-		}
-
-		header := p.parseSimplexHeader()
-		if header != nil {
-			list = append(list, header)
-			p.semiCount = 0
-		}
-	}
-
-	return
-}
-
-func (p *parser) parseSimplexBodyList(mode simplexMode) (list []ast.Stmt) {
-	if p.trace {
-		defer un(trace(p, "SimplexBodyList"))
-	}
-
-	prev_mode := p.scanner.SetMode(p.scanner_mode_for_parser_mode(mode))
-	defer p.scanner.SetMode(prev_mode)
-
-	p.expectSemi()
-
-	for p.tok != token.RBRACE && p.tok != token.EOF {
-		list = append(list, p.parseSimplexBodyStmt(mode))
-	}
-
-	return
-}
-
 func (p *parser) parseBody(scope *ast.Scope) *ast.BlockStmt {
 	if p.trace {
 		defer un(trace(p, "Body"))
@@ -1169,31 +1058,6 @@ func (p *parser) parseBlockStmt() *ast.BlockStmt {
 	rbrace := p.expect(token.RBRACE)
 
 	return &ast.BlockStmt{Lbrace: lbrace, List: list, Rbrace: rbrace}
-}
-
-func (p *parser) parseSimplexDoctBody(scope *ast.Scope) ([]*ast.SxHeader, *ast.BlockStmt) {
-	if p.trace {
-		defer un(trace(p, "SimplexDoctBody"))
-	}
-
-	prev_mode := p.scanner.SetMode(scanner.SX_HEADERS)
-	p.scanner.SetInsertSemi(true)
-	defer p.scanner.SetMode(prev_mode)
-
-	lbrace := p.expect(token.LBRACE)
-	p.topScope = scope // open function scope
-	p.openLabelScope()
-
-	header_list := p.parseSimplexHeaderList()
-	body_list := p.parseSimplexBodyList(sx_HTML)
-	p.scanner.SetMode(prev_mode)
-
-	p.closeLabelScope()
-	p.closeScope()
-	rbrace := p.expect(token.RBRACE)
-
-	block := &ast.BlockStmt{Lbrace: lbrace, List: body_list, Rbrace: rbrace}
-	return header_list, block
 }
 
 // ----------------------------------------------------------------------------
@@ -1704,76 +1568,6 @@ func (p *parser) parseRhs() ast.Expr {
 
 func (p *parser) parseRhsOrType() ast.Expr {
 	return p.checkExprOrType(p.parseExpr(false))
-}
-
-func (p *parser) parseSimplexExpr(mode simplexMode) (e ast.Expr) {
-	if p.trace {
-		defer un(trace(p, "SimplexExpr"))
-	}
-
-	switch mode {
-	case sx_HTML:
-		e = p.parseSimplexHtmlExpr()
-	case sx_TEXT:
-		e = p.parseSimplexTextExpr()
-	case sx_URL:
-		e = p.parseSimplexUrlExpr()
-	}
-
-	return
-}
-
-func (p *parser) parseSimplexHtmlExpr() (e ast.Expr) {
-	if p.trace {
-		defer un(trace(p, "SimplexExpr HTML"))
-	}
-
-	switch p.tok {
-
-	case token.SX_HTML_LITERAL:
-		e = &ast.BasicLit{p.pos, p.tok, p.lit}
-
-	case token.SX_HTML_ENTITY:
-		e = &ast.BasicLit{p.pos, p.tok, p.lit}
-
-	default:
-		// no statement found
-		pos := p.pos
-		p.errorExpected(pos, "html expression")
-		syncStmt(p)
-		return &ast.BadExpr{From: pos, To: p.pos}
-
-	}
-
-	p.next()
-	return
-}
-
-func (p *parser) parseSimplexTextExpr() (e ast.Expr) {
-	if p.trace {
-		defer un(trace(p, "SimplexExpr TEXT"))
-	}
-
-	switch p.tok {
-
-	case token.SX_TEXT_LITERAL:
-		e = &ast.BasicLit{p.pos, p.tok, p.lit}
-
-	default:
-		// no statement found
-		pos := p.pos
-		p.errorExpected(pos, "text expression")
-		syncStmt(p)
-		return &ast.BadExpr{From: pos, To: p.pos}
-
-	}
-
-	p.next()
-	return
-}
-
-func (p *parser) parseSimplexUrlExpr() ast.Expr {
-	panic("not implemented")
 }
 
 // ----------------------------------------------------------------------------
@@ -2316,61 +2110,6 @@ func (p *parser) parseStmt() (s ast.Stmt) {
 	return
 }
 
-func (p *parser) parseSimplexBodyStmt(mode simplexMode) (s ast.Stmt) {
-	if p.trace {
-		defer un(trace(p, "SimplexBodyStatement"))
-	}
-
-	s = &ast.ExprStmt{X: p.parseSimplexExprList(mode)}
-
-	p.expectSemi()
-
-	return
-}
-
-func (p *parser) parseSimplexHeader() *ast.SxHeader {
-	if p.trace {
-		defer un(trace(p, "SimplexHeader"))
-	}
-
-	var (
-		ident = p.parseIdent()
-		expr  ast.Expr
-	)
-
-	switch p.tok {
-	case token.COLON:
-		if isUrlHeaderName(ident) {
-			expr = p.parseSimplexHeaderValue(sx_URL)
-		} else {
-			expr = p.parseSimplexHeaderValue(sx_TEXT)
-		}
-
-	case token.ASSIGN:
-		expr = p.parseSimplexHeaderExpr()
-
-	default:
-		// no header found
-		pos := p.pos
-		p.errorExpected(pos, "header")
-		syncStmt(p)
-		expr = &ast.BadExpr{From: pos, To: p.pos}
-
-	}
-
-	//fmt.Printf("OK (tok: %s, lit: `%+v`)\n", p.tok, p.lit)
-	return &ast.SxHeader{ident, expr}
-}
-
-func isUrlHeaderName(ident *ast.Ident) bool {
-	switch ident.Name {
-	case "route", "Location":
-		return true
-	}
-
-	return false
-}
-
 // ----------------------------------------------------------------------------
 // Declarations
 
@@ -2591,129 +2330,6 @@ func (p *parser) parseFuncDecl() *ast.FuncDecl {
 	return decl
 }
 
-func (p *parser) parseDoctDecl() ast.Decl {
-	if p.trace {
-		defer un(trace(p, "DocumentDecl"))
-	}
-
-	doc := p.leadComment
-	pos := p.expect(token.DOCT)
-	scope := ast.NewScope(p.topScope) // function scope
-
-	var recv *ast.FieldList
-	if p.tok == token.LPAREN {
-		recv = p.parseReceiver(scope)
-	}
-
-	ident := p.parseIdent()
-
-	params, results := p.parseSignature(scope)
-
-	var headers []*ast.SxHeader
-	var body *ast.BlockStmt
-	if p.tok == token.LBRACE {
-		headers, body = p.parseSimplexDoctBody(scope)
-	}
-	p.expectSemi()
-
-	decl := &ast.SxDoctDecl{
-		Doc:  doc,
-		Recv: recv,
-		Name: ident,
-		Type: &ast.FuncType{
-			Func:    pos,
-			Params:  params,
-			Results: results,
-		},
-		Headers: headers,
-		Body:    body,
-	}
-	if recv == nil {
-		// Go spec: The scope of an identifier denoting a constant, type,
-		// variable, or function (but not method) declared at top level
-		// (outside any function) is the package block.
-		//
-		// init() functions cannot be referred to and there may
-		// be more than one - don't put them in the pkgScope
-		if ident.Name == "init" {
-			pos := p.pos
-			p.errorExpected(pos, "a doct() cannot be named `init`")
-			return &ast.BadDecl{From: pos, To: p.pos}
-		}
-
-		if ident.Name == "main" {
-			pos := p.pos
-			p.errorExpected(pos, "a doct() cannot be named `main`")
-			return &ast.BadDecl{From: pos, To: p.pos}
-		}
-
-		p.declare(decl, nil, p.pkgScope, ast.Fun, ident)
-	}
-
-	return decl
-}
-
-func (p *parser) parseFragDecl() ast.Decl {
-	if p.trace {
-		defer un(trace(p, "FragmentDecl"))
-	}
-
-	doc := p.leadComment
-	pos := p.expect(token.FRAG)
-	scope := ast.NewScope(p.topScope) // function scope
-
-	var recv *ast.FieldList
-	if p.tok == token.LPAREN {
-		recv = p.parseReceiver(scope)
-	}
-
-	ident := p.parseIdent()
-
-	params, results := p.parseSignature(scope)
-
-	var body *ast.BlockStmt
-	if p.tok == token.LBRACE {
-		// TODO(fd) parse Simplebars body
-		body = p.parseBody(scope)
-	}
-	p.expectSemi()
-
-	decl := &ast.FuncDecl{
-		Doc:  doc,
-		Recv: recv,
-		Name: ident,
-		Type: &ast.FuncType{
-			Func:    pos,
-			Params:  params,
-			Results: results,
-		},
-		Body: body,
-	}
-	if recv == nil {
-		// Go spec: The scope of an identifier denoting a constant, type,
-		// variable, or function (but not method) declared at top level
-		// (outside any function) is the package block.
-		//
-		// init() functions cannot be referred to and there may
-		// be more than one - don't put them in the pkgScope
-		if ident.Name == "init" {
-			pos := p.pos
-			p.errorExpected(pos, "a frag() cannot be named `init`")
-			return &ast.BadDecl{From: pos, To: p.pos}
-		}
-
-		if ident.Name == "main" {
-			pos := p.pos
-			p.errorExpected(pos, "a frag() cannot be named `main`")
-			return &ast.BadDecl{From: pos, To: p.pos}
-		}
-
-		p.declare(decl, nil, p.pkgScope, ast.Fun, ident)
-	}
-
-	return decl
-}
-
 func (p *parser) parseDecl(sync func(*parser)) ast.Decl {
 	if p.trace {
 		defer un(trace(p, "Declaration"))
@@ -2731,10 +2347,10 @@ func (p *parser) parseDecl(sync func(*parser)) ast.Decl {
 		return p.parseFuncDecl()
 
 	case token.FRAG:
-		return p.parseFragDecl()
+		return p.parseSimplexFragDecl()
 
 	case token.DOCT:
-		return p.parseDoctDecl()
+		return p.parseSimplexDoctDecl()
 
 	default:
 		pos := p.pos
@@ -2824,6 +2440,12 @@ func (p *parser) parseFile() *ast.File {
 // ----------------------------------------------------------------------------
 // Simplex Views and Tables
 
+func (p *parser) consumeSemicolons() {
+	for p.tok == token.SEMICOLON {
+		p.next()
+	}
+}
+
 func (p *parser) parseViewType() *ast.ViewType {
 	if p.trace {
 		defer un(trace(p, "ViewType"))
@@ -2850,4 +2472,524 @@ func (p *parser) parseTableType() *ast.TableType {
 	value := p.parseType()
 
 	return &ast.TableType{Table: pos, Key: key, Value: value}
+}
+
+// A list of document headers
+func (p *parser) parseSimplexHeaders() (list []*ast.SxHeader) {
+	if p.trace {
+		defer un(trace(p, "SimplexHeaders"))
+	}
+
+	for p.tok == token.IDENT || p.tok == token.SEMICOLON {
+		if p.tok == token.SEMICOLON {
+			p.next()
+			continue
+		}
+		header := p.parseSimplexHeader()
+		if header != nil {
+			list = append(list, header)
+		}
+	}
+
+	return
+}
+
+func (p *parser) parseSimplexStatements(mode simplexMode) (list []ast.Stmt) {
+	if p.trace {
+		defer un(trace(p, "SimplexStatements"))
+	}
+
+	p.consumeSemicolons()
+
+	for p.tok != token.RBRACE && p.tok != token.EOF {
+		list = append(list, p.parseSimplexStatement(mode))
+		p.consumeSemicolons()
+	}
+
+	return
+}
+
+func (p *parser) parseSimplexStatement(mode simplexMode) (s ast.Stmt) {
+	if p.trace {
+		defer un(trace(p, "SimplexStatement"))
+	}
+
+	switch p.tok {
+	case
+		token.SX_INTERP_START, token.SX_RAW_INTERP_START,
+		token.SX_HTML_LITERAL, token.SX_HTML_ENTITY,
+		token.SX_HTML_TAG_OPEN, token.SX_HTML_END_TAG_OPEN,
+		token.SX_TEXT_LITERAL:
+		s = p.parseSimplexPrintStmt(mode)
+
+	//case token.SX_BLOCK_INTERP_START:
+	//s = p.parseSimplexBlockInterpolation(mode)
+
+	default:
+		// no statement found
+		pos := p.pos
+		p.errorExpected(pos, "simplex statement")
+		syncStmt(p)
+		return &ast.BadStmt{From: pos, To: p.pos}
+
+	}
+
+	return
+}
+
+// A simplex print statement is list of printable simplex
+// expressions (literal, interpolation, tag)
+func (p *parser) parseSimplexPrintStmt(mode simplexMode) ast.Stmt {
+	if p.trace {
+		defer un(trace(p, "Simplex Print Statement"))
+	}
+
+	var (
+		from       = p.pos
+		list       []ast.Expr
+		line_break bool
+	)
+
+	list = p.parseSimplexExprList(mode)
+
+	if p.tok == token.SEMICOLON {
+		line_break = true
+	}
+
+	return &ast.SxPrint{From: from, List: list, LineBreak: line_break, To: p.pos}
+}
+
+func (p *parser) parseSimplexExprList(mode simplexMode) (list []ast.Expr) {
+L:
+	for {
+		switch p.tok {
+		case
+			token.SX_INTERP_START, token.SX_RAW_INTERP_START,
+			token.SX_HTML_LITERAL, token.SX_HTML_ENTITY,
+			token.SX_HTML_TAG_OPEN, token.SX_HTML_END_TAG_OPEN,
+			token.SX_TEXT_LITERAL:
+
+			list = append(list, p.parseSimplexExpr(mode))
+		default:
+			break L
+		}
+	}
+
+	return
+}
+
+func (p *parser) parseSimplexHtmlAttributeValueExprList() (list []ast.Expr) {
+L:
+	for {
+		switch p.tok {
+		case
+			token.SX_INTERP_START, token.SX_RAW_INTERP_START,
+			token.SX_HTML_LITERAL, token.SX_HTML_ENTITY:
+
+			list = append(list, p.parseSimplexExpr(sx_HTML))
+		default:
+			break L
+		}
+	}
+
+	return
+}
+
+func (p *parser) parseSimplexExpr(mode simplexMode) (e ast.Expr) {
+	switch mode {
+	case sx_HTML:
+		e = p.parseSimplexHtmlExpr()
+	case sx_TEXT:
+		e = p.parseSimplexTextExpr()
+	}
+
+	return
+}
+
+func (p *parser) parseSimplexHtmlExpr() (e ast.Expr) {
+	if p.trace {
+		defer un(trace(p, "SimplexExpr HTML"))
+	}
+
+	switch p.tok {
+
+	case token.SX_HTML_LITERAL:
+		e = &ast.BasicLit{p.pos, p.tok, p.lit}
+		p.next()
+
+	case token.SX_HTML_ENTITY:
+		e = &ast.BasicLit{p.pos, p.tok, p.lit}
+		p.next()
+
+	case token.SX_HTML_TAG_OPEN:
+		return p.parseSimplexHtmlTagExpr()
+
+	case token.SX_HTML_END_TAG_OPEN:
+		return p.parseSimplexHtmlTagExpr()
+
+	case token.SX_INTERP_START:
+		return p.parseSimplexInterpolation()
+
+	case token.SX_RAW_INTERP_START:
+		return p.parseSimplexRawInterpolation()
+
+	default:
+		// no statement found
+		pos := p.pos
+		p.errorExpected(pos, "html expression")
+		syncStmt(p)
+		return &ast.BadExpr{From: pos, To: p.pos}
+
+	}
+
+	return
+}
+
+func (p *parser) parseSimplexHtmlTagExpr() (e ast.Expr) {
+	if p.trace {
+		defer un(trace(p, "SimplexExpr HTML Tag"))
+	}
+
+	var (
+		open_pos = p.pos
+		open_tok = p.tok
+	)
+	p.next()
+	var (
+		name      = p.parseIdent()
+		attrs     = []ast.Expr{}
+		close_pos token.Pos
+		close_tok token.Token
+	)
+
+	p.consumeSemicolons()
+
+	if open_tok == token.SX_HTML_END_TAG_OPEN {
+		close_pos = p.pos
+		close_tok = p.tok
+		p.expect(token.SX_HTML_TAG_CLOSE)
+
+	} else {
+		if open_tok == token.SX_HTML_TAG_OPEN {
+			for p.tok == token.IDENT {
+				attrs = append(attrs, p.parseSimplexHtmlAttributeExpr())
+				p.consumeSemicolons()
+			}
+		}
+
+		switch p.tok {
+		case token.SX_HTML_EMPTY_TAG_CLOSE, token.SX_HTML_TAG_CLOSE:
+			close_pos = p.pos
+			close_tok = p.tok
+			p.next()
+
+		default:
+			pos := p.pos
+			p.errorExpected(pos, "html tag close token (>, />)")
+			syncStmt(p)
+			return &ast.BadExpr{From: pos, To: p.pos}
+		}
+	}
+
+	return &ast.SxTag{
+		OpenTok: open_tok,
+		OpenPos: open_pos,
+
+		Name:  name,
+		Attrs: attrs,
+
+		CloseTok: close_tok,
+		ClosePos: close_pos,
+	}
+}
+
+func (p *parser) parseSimplexHtmlAttributeExpr() (e ast.Expr) {
+	if p.trace {
+		defer un(trace(p, "SimplexExpr HTML Attribute"))
+	}
+
+	var (
+		name      = p.parseIdent()
+		list      []ast.Expr
+		quoted    bool
+		open_pos  token.Pos
+		close_pos token.Pos
+	)
+
+	p.expect(token.SX_HTML_ASSIGN)
+
+	switch p.tok {
+	case token.SX_HTML_QUOTE:
+		quoted = true
+		open_pos = p.pos
+		p.next()
+		list = p.parseSimplexHtmlAttributeValueExprList()
+		close_pos = p.pos
+		p.expect(token.SX_HTML_QUOTE)
+
+	case token.SX_INTERP_START:
+		list = append(list, p.parseSimplexInterpolation())
+
+	case token.SX_RAW_INTERP_START:
+		list = append(list, p.parseSimplexRawInterpolation())
+
+	default:
+		pos := p.pos
+		p.errorExpected(pos, "html tag close token (>, />)")
+		syncStmt(p)
+		return &ast.BadExpr{From: pos, To: p.pos}
+	}
+
+	return &ast.SxAttribute{
+		Name:   name,
+		Quoted: quoted,
+		List:   list,
+		Open:   open_pos,
+		Close:  close_pos,
+	}
+}
+
+func (p *parser) parseSimplexTextExpr() (e ast.Expr) {
+	if p.trace {
+		defer un(trace(p, "SimplexExpr TEXT"))
+	}
+
+	switch p.tok {
+
+	case token.SX_TEXT_LITERAL:
+		e = &ast.BasicLit{p.pos, p.tok, p.lit}
+		p.next()
+
+	case token.SX_INTERP_START:
+		return p.parseSimplexInterpolation()
+
+	case token.SX_RAW_INTERP_START:
+		return p.parseSimplexRawInterpolation()
+
+	default:
+		// no statement found
+		pos := p.pos
+		p.errorExpected(pos, "text expression")
+		syncStmt(p)
+		return &ast.BadExpr{From: pos, To: p.pos}
+
+	}
+
+	return
+}
+
+func (p *parser) parseSimplexInterpolation() ast.Expr {
+	var (
+		open_pos  = p.pos
+		close_pos token.Pos
+	)
+
+	p.expect(token.SX_INTERP_START)
+	expr := p.parseRhs()
+	close_pos = p.pos
+	p.expect(token.SX_INTERP_END)
+
+	return &ast.SxInterpolation{
+		Raw:   false,
+		Open:  open_pos,
+		Close: close_pos,
+		X:     expr,
+	}
+}
+
+func (p *parser) parseSimplexRawInterpolation() ast.Expr {
+	var (
+		open_pos  = p.pos
+		close_pos token.Pos
+	)
+
+	p.expect(token.SX_RAW_INTERP_START)
+	expr := p.parseRhs()
+	close_pos = p.pos
+	p.expect(token.SX_RAW_INTERP_END)
+
+	return &ast.SxInterpolation{
+		Raw:   true,
+		Open:  open_pos,
+		Close: close_pos,
+		X:     expr,
+	}
+}
+
+func (p *parser) parseSimplexDoctBody(scope *ast.Scope) ([]*ast.SxHeader, *ast.BlockStmt) {
+	if p.trace {
+		defer un(trace(p, "SimplexDoctBody"))
+	}
+
+	p.scanner.SetDoctMode()
+
+	lbrace := p.expect(token.LBRACE)
+	p.topScope = scope // open function scope
+	p.openLabelScope()
+
+	header_list := p.parseSimplexHeaders()
+	body_list := p.parseSimplexStatements(sx_HTML)
+
+	p.closeLabelScope()
+	p.closeScope()
+	rbrace := p.expect(token.RBRACE)
+
+	block := &ast.BlockStmt{Lbrace: lbrace, List: body_list, Rbrace: rbrace}
+	return header_list, block
+}
+
+func (p *parser) parseSimplexHeader() *ast.SxHeader {
+	if p.trace {
+		defer un(trace(p, "SimplexHeader"))
+	}
+
+	var (
+		ident = p.parseIdent()
+		list  []ast.Expr
+	)
+
+	switch p.tok {
+	case token.COLON:
+		p.next()
+		list = p.parseSimplexExprList(sx_TEXT)
+
+	case token.ASSIGN:
+		p.next()
+		list = append(list, p.parseRhs())
+
+	default:
+		// no header found
+		pos := p.pos
+		p.errorExpected(pos, "header")
+		syncStmt(p)
+		list = append(list, &ast.BadExpr{From: pos, To: p.pos})
+
+	}
+
+	p.expectSemi()
+
+	return &ast.SxHeader{ident, list}
+}
+
+func (p *parser) parseSimplexDoctDecl() ast.Decl {
+	if p.trace {
+		defer un(trace(p, "DocumentDecl"))
+	}
+
+	doc := p.leadComment
+	pos := p.expect(token.DOCT)
+	scope := ast.NewScope(p.topScope) // function scope
+
+	var recv *ast.FieldList
+	if p.tok == token.LPAREN {
+		recv = p.parseReceiver(scope)
+	}
+
+	ident := p.parseIdent()
+
+	params, results := p.parseSignature(scope)
+
+	var headers []*ast.SxHeader
+	var body *ast.BlockStmt
+	if p.tok == token.LBRACE {
+		headers, body = p.parseSimplexDoctBody(scope)
+	}
+	p.expectSemi()
+
+	decl := &ast.SxDoctDecl{
+		Doc:  doc,
+		Recv: recv,
+		Name: ident,
+		Type: &ast.FuncType{
+			Func:    pos,
+			Params:  params,
+			Results: results,
+		},
+		Headers: headers,
+		Body:    body,
+	}
+	if recv == nil {
+		// Go spec: The scope of an identifier denoting a constant, type,
+		// variable, or function (but not method) declared at top level
+		// (outside any function) is the package block.
+		//
+		// init() functions cannot be referred to and there may
+		// be more than one - don't put them in the pkgScope
+		if ident.Name == "init" {
+			pos := p.pos
+			p.errorExpected(pos, "a doct() cannot be named `init`")
+			return &ast.BadDecl{From: pos, To: p.pos}
+		}
+
+		if ident.Name == "main" {
+			pos := p.pos
+			p.errorExpected(pos, "a doct() cannot be named `main`")
+			return &ast.BadDecl{From: pos, To: p.pos}
+		}
+
+		p.declare(decl, nil, p.pkgScope, ast.Fun, ident)
+	}
+
+	return decl
+}
+
+func (p *parser) parseSimplexFragDecl() ast.Decl {
+	if p.trace {
+		defer un(trace(p, "FragmentDecl"))
+	}
+
+	doc := p.leadComment
+	pos := p.expect(token.FRAG)
+	scope := ast.NewScope(p.topScope) // function scope
+
+	var recv *ast.FieldList
+	if p.tok == token.LPAREN {
+		recv = p.parseReceiver(scope)
+	}
+
+	ident := p.parseIdent()
+
+	params, results := p.parseSignature(scope)
+
+	var body *ast.BlockStmt
+	if p.tok == token.LBRACE {
+		// TODO(fd) parse Simplebars body
+		body = p.parseBody(scope)
+	}
+	p.expectSemi()
+
+	decl := &ast.FuncDecl{
+		Doc:  doc,
+		Recv: recv,
+		Name: ident,
+		Type: &ast.FuncType{
+			Func:    pos,
+			Params:  params,
+			Results: results,
+		},
+		Body: body,
+	}
+	if recv == nil {
+		// Go spec: The scope of an identifier denoting a constant, type,
+		// variable, or function (but not method) declared at top level
+		// (outside any function) is the package block.
+		//
+		// init() functions cannot be referred to and there may
+		// be more than one - don't put them in the pkgScope
+		if ident.Name == "init" {
+			pos := p.pos
+			p.errorExpected(pos, "a frag() cannot be named `init`")
+			return &ast.BadDecl{From: pos, To: p.pos}
+		}
+
+		if ident.Name == "main" {
+			pos := p.pos
+			p.errorExpected(pos, "a frag() cannot be named `main`")
+			return &ast.BadDecl{From: pos, To: p.pos}
+		}
+
+		p.declare(decl, nil, p.pkgScope, ast.Fun, ident)
+	}
+
+	return decl
 }

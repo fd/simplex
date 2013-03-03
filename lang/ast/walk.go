@@ -370,7 +370,7 @@ func Walk(v Visitor, node Node) {
 
 	case *SxHeader:
 		Walk(v, n.Name)
-		Walk(v, n.Value)
+		walkExprList(v, n.List)
 
 	case *SxDoctDecl:
 		if n.Doc != nil {

@@ -1021,8 +1021,8 @@ type (
 	}
 
 	SxHeader struct {
-		Name  *Ident
-		Value Expr
+		Name *Ident
+		List []Expr
 	}
 
 	SxPrint struct {
@@ -1030,6 +1030,31 @@ type (
 		List      []Expr
 		LineBreak bool
 		To        token.Pos
+	}
+
+	SxTag struct {
+		OpenPos  token.Pos
+		OpenTok  token.Token
+		Name     *Ident
+		Attrs    []Expr
+		ClosePos token.Pos
+		CloseTok token.Token
+	}
+
+	SxAttribute struct {
+		Name *Ident
+
+		Quoted bool
+		Open   token.Pos
+		List   []Expr
+		Close  token.Pos
+	}
+
+	SxInterpolation struct {
+		Raw   bool
+		Open  token.Pos
+		X     Expr
+		Close token.Pos
 	}
 )
 
@@ -1041,13 +1066,24 @@ func (x *TableType) Pos() token.Pos { return x.Table }
 func (x *TableType) End() token.Pos { return x.Value.End() }
 func (*TableType) exprNode()        {}
 
-func (x *SxHeader) Pos() token.Pos { return x.Name.Pos() }
-func (x *SxHeader) End() token.Pos { return x.Value.End() }
 func (*SxHeader) stmtNode()        {}
+func (x *SxHeader) Pos() token.Pos { return x.Name.Pos() }
+func (x *SxHeader) End() token.Pos {
+	return x.List[len(x.List)-1].End()
+}
 
 func (x *SxPrint) Pos() token.Pos { return x.From }
 func (x *SxPrint) End() token.Pos { return x.To }
-func (*SxPrint) exprNode()        {}
+func (*SxPrint) stmtNode()        {}
+
+func (*SxInterpolation) exprNode()        {}
+func (x *SxInterpolation) Pos() token.Pos { return x.Open }
+func (x *SxInterpolation) End() token.Pos {
+	if x.Raw {
+		return x.Close + 3
+	}
+	return x.Close + 2
+}
 
 func (*SxDoctDecl) declNode()        {}
 func (d *SxDoctDecl) Pos() token.Pos { return d.Type.Pos() }
@@ -1056,4 +1092,17 @@ func (d *SxDoctDecl) End() token.Pos {
 		return d.Body.End()
 	}
 	return d.Type.End()
+}
+
+func (*SxTag) exprNode()        {}
+func (e *SxTag) Pos() token.Pos { return e.OpenPos }
+func (e *SxTag) End() token.Pos { return token.Pos(int(e.ClosePos) + len(e.CloseTok.String())) }
+
+func (*SxAttribute) exprNode()        {}
+func (e *SxAttribute) Pos() token.Pos { return e.Name.Pos() }
+func (e *SxAttribute) End() token.Pos {
+	if e.Quoted {
+		return e.Close + 1
+	}
+	return e.List[len(e.List)-1].End()
 }
