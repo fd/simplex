@@ -2494,6 +2494,11 @@ func (p *parser) parseSimplexHeaders() (list []*ast.SxHeader) {
 	return
 }
 
+func (p *parser) parseSimplexStatementBlock(mode simplexMode) *ast.SxBlockStmt {
+	list := p.parseSimplexStatements(mode)
+	return &ast.SxBlockStmt{List: list}
+}
+
 func (p *parser) parseSimplexStatements(mode simplexMode) (list []ast.Stmt) {
 	if p.trace {
 		defer un(trace(p, "SimplexStatements"))
@@ -2501,7 +2506,10 @@ func (p *parser) parseSimplexStatements(mode simplexMode) (list []ast.Stmt) {
 
 	p.consumeSemicolons()
 
-	for p.tok != token.RBRACE && p.tok != token.EOF {
+	for p.tok != token.RBRACE && p.tok != token.EOF &&
+		p.tok != token.SX_CONT_INTERP_START &&
+		p.tok != token.SX_END_INTERP_START {
+
 		list = append(list, p.parseSimplexStatement(mode))
 		p.consumeSemicolons()
 	}
@@ -2522,8 +2530,8 @@ func (p *parser) parseSimplexStatement(mode simplexMode) (s ast.Stmt) {
 		token.SX_TEXT_LITERAL:
 		s = p.parseSimplexPrintStmt(mode)
 
-	//case token.SX_BLOCK_INTERP_START:
-	//s = p.parseSimplexBlockInterpolation(mode)
+	case token.SX_BLOCK_INTERP_START:
+		s = p.parseSimplexBlockInterpolation(mode)
 
 	default:
 		// no statement found
@@ -2535,6 +2543,129 @@ func (p *parser) parseSimplexStatement(mode simplexMode) (s ast.Stmt) {
 	}
 
 	return
+}
+
+// TODO(fd) the default case should handle inline frag blocks
+func (p *parser) parseSimplexBlockInterpolation(mode simplexMode) (s ast.Stmt) {
+	start_pos := p.pos
+	p.expect(token.SX_BLOCK_INTERP_START)
+
+	switch p.tok {
+
+	case token.IF:
+		s = p.parseSimplexBlockInterpolation_IF(mode, start_pos)
+
+	case token.FOR:
+		s = p.parseSimplexBlockInterpolation_FOR(mode, start_pos)
+
+	case token.SWITCH:
+		s = p.parseSimplexBlockInterpolation_SWITCH(mode, start_pos)
+
+	default:
+		// no statement found
+		pos := p.pos
+		p.errorExpected(pos, "simplex statement")
+		syncStmt(p)
+		return &ast.BadStmt{From: pos, To: p.pos}
+
+	}
+
+	return
+}
+
+func (p *parser) parseSimplexBlockInterpolation_IF(mode simplexMode, pos token.Pos) ast.Stmt {
+	if p.trace {
+		defer un(trace(p, "SxIfStmt"))
+	}
+
+	p.expect(token.IF)
+	p.openScope()
+	defer p.closeScope()
+
+	var s ast.Stmt
+	var x ast.Expr
+	var pos_end token.Pos
+	{
+		prevLev := p.exprLev
+		p.exprLev = -1
+		if p.tok == token.SEMICOLON {
+			p.next()
+			x = p.parseRhs()
+		} else {
+			s, _ = p.parseSimpleStmt(basic)
+			if p.tok == token.SEMICOLON {
+				p.next()
+				x = p.parseRhs()
+			} else {
+				x = p.makeExpr(s)
+				s = nil
+			}
+		}
+		p.exprLev = prevLev
+	}
+
+	p.expect(token.SX_INTERP_END)
+	body := p.parseSimplexStatementBlock(mode)
+	var else_ ast.Stmt
+	if p.tok == token.SX_CONT_INTERP_START {
+		start_pos := p.pos
+		p.next()
+		p.expect(token.ELSE)
+
+		switch p.tok {
+		case token.IF:
+			else_ = p.parseSimplexBlockInterpolation_IF(mode, start_pos)
+		case token.SX_INTERP_END:
+			p.next()
+			else_ = p.parseSimplexStatementBlock(mode)
+			pos_end = p.parseSimplexEndInterpolation(token.IF)
+			if pos_end == token.NoPos {
+				return &ast.BadStmt{From: pos, To: p.pos}
+			}
+		default:
+			pos_end = p.pos
+			p.expect(token.SX_INTERP_END)
+		}
+	} else {
+		pos_end = p.parseSimplexEndInterpolation(token.IF)
+		if pos_end == token.NoPos {
+			return &ast.BadStmt{From: pos, To: p.pos}
+		}
+	}
+
+	return &ast.SxIfStmt{
+		Open:  pos,
+		Close: pos_end,
+		If:    pos,
+		Init:  s,
+		Cond:  x,
+		Body:  body,
+		Else:  else_,
+	}
+}
+
+func (p *parser) parseSimplexBlockInterpolation_FOR(mode simplexMode, start_pos token.Pos) ast.Stmt {
+	panic("not implemented")
+}
+
+func (p *parser) parseSimplexBlockInterpolation_SWITCH(mode simplexMode, start_pos token.Pos) ast.Stmt {
+	panic("not implemented")
+}
+
+func (p *parser) parseSimplexEndInterpolation(match_token token.Token) token.Pos {
+	p.expect(token.SX_END_INTERP_START)
+
+	if p.tok != match_token && !(p.tok == token.IDENT && p.lit == "end") {
+		pos := p.pos
+		p.errorExpected(pos, "end interpolation tag")
+		syncStmt(p)
+		return token.NoPos
+	}
+
+	p.next()
+	pos_end := p.pos
+	p.expect(token.SX_INTERP_END)
+	return pos_end
 }
 
 // A simplex print statement is list of printable simplex

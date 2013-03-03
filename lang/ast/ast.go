@@ -1025,6 +1025,20 @@ type (
 		List []Expr
 	}
 
+	SxBlockStmt struct {
+		List []Stmt
+	}
+
+	SxIfStmt struct {
+		Open  token.Pos
+		Close token.Pos
+		If    token.Pos // position of "if" keyword
+		Init  Stmt      // initialization statement; or nil
+		Cond  Expr      // condition
+		Body  *SxBlockStmt
+		Else  Stmt // else branch; or nil
+	}
+
 	SxPrint struct {
 		From      token.Pos
 		List      []Expr
@@ -1075,6 +1089,19 @@ func (x *SxHeader) End() token.Pos {
 func (x *SxPrint) Pos() token.Pos { return x.From }
 func (x *SxPrint) End() token.Pos { return x.To }
 func (*SxPrint) stmtNode()        {}
+
+func (x *SxBlockStmt) Pos() token.Pos { return x.List[0].Pos() }
+func (x *SxBlockStmt) End() token.Pos { return x.List[len(x.List)-1].End() }
+func (*SxBlockStmt) stmtNode()        {}
+
+func (*SxIfStmt) stmtNode()        {}
+func (x *SxIfStmt) Pos() token.Pos { return x.Open }
+func (x *SxIfStmt) End() token.Pos {
+	if x.Else != nil {
+		return x.Else.End()
+	}
+	return x.Close + 2
+}
 
 func (*SxInterpolation) exprNode()        {}
 func (x *SxInterpolation) Pos() token.Pos { return x.Open }

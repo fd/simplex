@@ -134,6 +134,7 @@ const (
 	SX_RAW_INTERP_START     // {{{
 	SX_BLOCK_INTERP_START   // {{#
 	SX_END_INTERP_START     // {{/
+	SX_CONT_INTERP_START    // {{/
 	SX_INTERP_END           // }}
 	SX_RAW_INTERP_END       // }}}
 	SX_HTML_TAG_OPEN        // <
@@ -261,6 +262,7 @@ var tokens = [...]string{
 	SX_RAW_INTERP_START:     "{{{",
 	SX_BLOCK_INTERP_START:   "{{#",
 	SX_END_INTERP_START:     "{{/",
+	SX_CONT_INTERP_START:    "{{:",
 	SX_INTERP_END:           "}}",
 	SX_RAW_INTERP_END:       "}}}",
 	SX_HTML_TAG_OPEN:        "<",

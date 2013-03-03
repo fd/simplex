@@ -1012,6 +1012,13 @@ scanAgain:
 			s.next()
 			break
 		}
+		if s.ch == ':' {
+			// start block {{:
+			tok = token.SX_CONT_INTERP_START
+			s.mode |= sx_INTERPOLATION
+			s.next()
+			break
+		}
 		s.mode |= sx_INTERPOLATION
 		tok = token.SX_INTERP_START
 
@@ -1101,6 +1108,13 @@ scanAgain:
 			if s.ch == '/' {
 				// start block {{/
 				tok = token.SX_END_INTERP_START
+				s.mode |= sx_INTERPOLATION
+				s.next()
+				break
+			}
+			if s.ch == ':' {
+				// start block {{:
+				tok = token.SX_CONT_INTERP_START
 				s.mode |= sx_INTERPOLATION
 				s.next()
 				break
@@ -1196,6 +1210,13 @@ func (s *Scanner) scan_simplex_html_inside_attribute() (pos token.Pos, tok token
 		if s.ch == '/' {
 			// start block {{/
 			tok = token.SX_END_INTERP_START
+			s.mode |= sx_INTERPOLATION
+			s.next()
+			break
+		}
+		if s.ch == ':' {
+			// start block {{:
+			tok = token.SX_CONT_INTERP_START
 			s.mode |= sx_INTERPOLATION
 			s.next()
 			break

@@ -51,3 +51,24 @@ doct document_with_html_body() {
 
   </ul>
 }
+
+doct document_with_if_statments() {
+  mode: html
+
+  <ul class = "a literal attribute"
+      style = "a {{ cool() }} interpolated attribute"
+      id    = {{ an_expression_attribute() }}
+      >
+
+    {{# if true }}
+    <li>Some literal text</li>
+    {{/ if }}
+
+    {{# if 4 == 5 }}
+    <li>Some {{ cool() }} interpolated text</li>
+    {{: else if 5 == 6 }}
+    <li>Some {{{ raw() }}} interpolated text</li>
+    {{/ end }}
+
+  </ul>
+}
