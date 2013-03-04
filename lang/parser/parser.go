@@ -2830,8 +2830,20 @@ func (p *parser) parseSimplexHtmlExpr() (e ast.Expr) {
 		p.next()
 
 	case token.SX_HTML_ENTITY:
-		e = &ast.BasicLit{p.pos, p.tok, p.lit}
-		p.next()
+		if strings.HasPrefix(p.lit, "&#") {
+			e = &ast.BasicLit{p.pos, p.tok, p.lit}
+			p.next()
+		} else {
+			if html.LookupEntity(p.lit) == html.ENTITY_INVALID {
+				pos := p.pos
+				p.error(pos, "Invalid HTML entity: "+p.lit)
+				p.next()
+				e = &ast.BadExpr{From: pos, To: p.pos}
+			} else {
+				e = &ast.BasicLit{p.pos, p.tok, p.lit}
+				p.next()
+			}
+		}
 
 	case token.SX_INTERP_START:
 		return p.parseSimplexInterpolation()

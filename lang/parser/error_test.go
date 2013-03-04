@@ -137,7 +137,7 @@ func checkErrors(t *testing.T, filename string, input interface{}) {
 		return
 	}
 
-	_, err = ParseFile(fset, filename, src, DeclarationErrors|SimplexExtentions|Trace)
+	_, err = ParseFile(fset, filename, src, DeclarationErrors|SimplexExtentions)
 	found, ok := err.(scanner.ErrorList)
 	if err != nil && !ok {
 		t.Error(err)
