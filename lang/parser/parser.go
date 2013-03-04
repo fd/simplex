@@ -2509,7 +2509,8 @@ func (p *parser) parseSimplexStatements(mode simplexMode) (list []ast.Stmt) {
 
 	for p.tok != token.RBRACE && p.tok != token.EOF &&
 		p.tok != token.SX_CONT_INTERP_START &&
-		p.tok != token.SX_END_INTERP_START {
+		p.tok != token.SX_END_INTERP_START &&
+		p.tok != token.SX_HTML_END_TAG_OPEN {
 
 		list = append(list, p.parseSimplexStatement(mode))
 		p.consumeSemicolons()
@@ -2527,12 +2528,14 @@ func (p *parser) parseSimplexStatement(mode simplexMode) (s ast.Stmt) {
 	case
 		token.SX_INTERP_START, token.SX_RAW_INTERP_START,
 		token.SX_HTML_LITERAL, token.SX_HTML_ENTITY,
-		token.SX_HTML_TAG_OPEN,
 		token.SX_TEXT_LITERAL:
 		s = p.parseSimplexPrintStmt(mode)
 
 	case token.SX_BLOCK_INTERP_START:
 		s = p.parseSimplexBlockInterpolation(mode)
+
+	case token.SX_HTML_TAG_OPEN:
+		s = p.parseSimplexHtmlElementExpr()
 
 	default:
 		// no statement found
@@ -2830,9 +2833,6 @@ func (p *parser) parseSimplexHtmlExpr() (e ast.Expr) {
 		e = &ast.BasicLit{p.pos, p.tok, p.lit}
 		p.next()
 
-	case token.SX_HTML_TAG_OPEN:
-		return p.parseSimplexHtmlElementExpr()
-
 	case token.SX_INTERP_START:
 		return p.parseSimplexInterpolation()
 
@@ -2851,19 +2851,22 @@ func (p *parser) parseSimplexHtmlExpr() (e ast.Expr) {
 	return
 }
 
-func (p *parser) parseSimplexHtmlElementExpr() ast.Expr {
+func (p *parser) parseSimplexHtmlElementExpr() ast.Stmt {
 	if p.trace {
 		defer un(trace(p, "SimplexExpr HTML Element"))
 	}
 
 	var (
+		pos       = p.pos
 		close_tag *ast.SxEndTag
 		list      []ast.Stmt
 	)
 
-	open_expr, open_tag := p.parseSimplexHtmlStartTagExpr()
+	open_tag := p.parseSimplexHtmlStartTagExpr()
 	if open_tag == nil {
-		return open_expr
+		p.errorExpected(pos, "valid html tag")
+		syncStmt(p)
+		return &ast.BadStmt{From: pos, To: p.pos}
 	}
 
 	if open_tag.Elt.IsVoidElement() {
@@ -2880,7 +2883,8 @@ func (p *parser) parseSimplexHtmlElementExpr() ast.Expr {
 
 	if close_tag.Elt != open_tag.Elt ||
 		close_tag.Ident.Name != open_tag.Ident.Name {
-		// error open and close tag do not match
+		p.errorExpected(pos, "expected </"+open_tag.Ident.Name+"> closing tag")
+		return &ast.BadStmt{From: pos, To: p.pos}
 	}
 
 exit:
@@ -2891,7 +2895,7 @@ exit:
 	}
 }
 
-func (p *parser) parseSimplexHtmlStartTagExpr() (ast.Expr, *ast.SxStartTag) {
+func (p *parser) parseSimplexHtmlStartTagExpr() *ast.SxStartTag {
 	if p.trace {
 		defer un(trace(p, "SimplexExpr HTML Tag"))
 	}
@@ -2925,10 +2929,8 @@ func (p *parser) parseSimplexHtmlStartTagExpr() (ast.Expr, *ast.SxStartTag) {
 
 	} else {
 		// expected close tag
-		pos := p.pos
-		p.errorExpected(pos, "html tag close token (>, />)")
 		syncStmt(p)
-		return &ast.BadExpr{From: pos, To: p.pos}, nil
+		return nil
 	}
 
 	tag := &ast.SxStartTag{
@@ -2941,7 +2943,7 @@ func (p *parser) parseSimplexHtmlStartTagExpr() (ast.Expr, *ast.SxStartTag) {
 		Attrs: attrs,
 	}
 
-	return tag, tag
+	return tag
 }
 
 func (p *parser) parseSimplexHtmlEndTagExpr() *ast.SxEndTag {

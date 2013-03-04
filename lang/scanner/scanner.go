@@ -14,6 +14,7 @@ import (
 	"path/filepath"
 	"simplex.sh/lang/token"
 	"strconv"
+	"strings"
 	"unicode"
 	"unicode/utf8"
 )
@@ -1042,7 +1043,11 @@ scanAgain:
 		return s.scan_simplex_html_entity()
 
 	default:
-		return s.scan_simplex_html_literal()
+		pos, tok, lit = s.scan_simplex_html_literal()
+		if tok == token.SX_HTML_LITERAL && strings.TrimSpace(lit) == "" {
+			goto scanAgain
+		}
+		return
 
 	}
 
