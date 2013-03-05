@@ -1,0 +1,25 @@
+package p
+
+doct a_document() html {
+	A-Header:	some header value
+	Another-Header	= cool()
+
+	<h1>{{ title }}</h1>
+	{{{ body }}}
+
+	<ul>
+		<li>A list item</li>
+		<li>A list item</li>
+		<li>A {{ item() }} item</li>
+	</ul>
+
+	<div
+		class	= "mod-post {{ post.Template }}"
+		// A comment
+		data-published	= {{ post.Published }}
+		>
+
+		<h1>{{ post.Title }}</h1>
+		{{{ post.Body }}}
+	</div>
+}

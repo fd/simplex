@@ -1273,7 +1273,7 @@ func isHtmlNameStartLetter(ch rune) bool {
 }
 
 func isHtmlNameLetter(ch rune) bool {
-	return isHtmlNameStartLetter(ch) || isDigit(ch) || ch == '_' || ch == '.'
+	return isHtmlNameStartLetter(ch) || isDigit(ch) || ch == '-' || ch == '.'
 }
 
 // scan literal html text

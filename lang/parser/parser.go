@@ -2895,7 +2895,7 @@ func (p *parser) parseSimplexHtmlElementExpr() ast.Stmt {
 
 	if close_tag.Elt != open_tag.Elt ||
 		close_tag.Ident.Name != open_tag.Ident.Name {
-		p.errorExpected(pos, "expected </"+open_tag.Ident.Name+"> closing tag")
+		p.errorExpected(pos, "expected </"+open_tag.Ident.Name+"> closing tag instead of </"+close_tag.Ident.Name+">")
 		return &ast.BadStmt{From: pos, To: p.pos}
 	}
 
@@ -3164,7 +3164,7 @@ func (p *parser) parseSimplexHeader() *ast.SxHeader {
 
 	case token.ASSIGN:
 		p.next()
-		list = append(list, p.parseRhs())
+		list = append(list, &ast.SxInterpolation{X: p.parseRhs()})
 
 	default:
 		// no header found
