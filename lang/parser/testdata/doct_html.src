@@ -1,3 +1,4 @@
+// vim: set filetype=sx :
 package p
 
 doct false_document_decl() html
