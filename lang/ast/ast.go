@@ -1177,7 +1177,7 @@ func (*SxFuncType) exprNode()        {}
 func (d *SxFuncType) Pos() token.Pos { return d.Func }
 func (d *SxFuncType) End() token.Pos { return d.Mode.End() }
 
-func (*SxElement) exprNode()        {}
+func (*SxElement) stmtNode()        {}
 func (e *SxElement) Pos() token.Pos { return e.Open.Pos() }
 func (e *SxElement) End() token.Pos {
 	if e.Close != nil {

@@ -40,7 +40,7 @@ const (
 // if any.
 func format(src []byte, mode checkMode) ([]byte, error) {
 	// parse src
-	f, err := parser.ParseFile(fset, "", src, parser.ParseComments)
+	f, err := parser.ParseFile(fset, "", src, parser.ParseComments|parser.SimplexExtentions)
 	if err != nil {
 		return nil, fmt.Errorf("parse: %s\n%s", err, src)
 	}
@@ -65,7 +65,7 @@ func format(src []byte, mode checkMode) ([]byte, error) {
 
 	// make sure formated output is syntactically correct
 	res := buf.Bytes()
-	if _, err := parser.ParseFile(fset, "", res, 0); err != nil {
+	if _, err := parser.ParseFile(fset, "", res, parser.SimplexExtentions); err != nil {
 		return nil, fmt.Errorf("re-parse: %s\n%s", err, buf.Bytes())
 	}
 
@@ -200,6 +200,7 @@ var data = []entry{
 	{"declarations.input", "declarations.golden", 0},
 	{"statements.input", "statements.golden", 0},
 	{"slow.input", "slow.golden", idempotent},
+	{"simplex.input", "simplex.golden", 0},
 }
 
 func TestFiles(t *testing.T) {
@@ -224,7 +225,7 @@ func TestLineComments(t *testing.T) {
 	`
 
 	fset := token.NewFileSet()
-	f, err := parser.ParseFile(fset, "", src, parser.ParseComments)
+	f, err := parser.ParseFile(fset, "", src, parser.ParseComments|parser.SimplexExtentions)
 	if err != nil {
 		panic(err) // error in test
 	}
@@ -265,7 +266,7 @@ func init() {
 func TestBadNodes(t *testing.T) {
 	const src = "package p\n("
 	const res = "package p\nBadDecl\n"
-	f, err := parser.ParseFile(fset, "", src, parser.ParseComments)
+	f, err := parser.ParseFile(fset, "", src, parser.ParseComments|parser.SimplexExtentions)
 	if err == nil {
 		t.Error("expected illegal program") // error in test
 	}
@@ -288,7 +289,7 @@ func testComment(t *testing.T, f *ast.File, srclen int, comment *ast.Comment) {
 		if err := Fprint(&buf, fset, f); err != nil {
 			t.Error(err)
 		}
-		if _, err := parser.ParseFile(fset, "", buf.Bytes(), 0); err != nil {
+		if _, err := parser.ParseFile(fset, "", buf.Bytes(), parser.SimplexExtentions); err != nil {
 			t.Fatalf("incorrect program for pos = %d:\n%s", comment.Slash, buf.String())
 		}
 		// Position information is just an offset.
@@ -318,7 +319,7 @@ func fibo(n int) {
 }
 `
 
-	f, err := parser.ParseFile(fset, "", src, parser.ParseComments)
+	f, err := parser.ParseFile(fset, "", src, parser.ParseComments|parser.SimplexExtentions)
 	if err != nil {
 		t.Error(err) // error in test
 	}
@@ -381,7 +382,7 @@ func (t *t) foo(a, b, c int) int {
 `
 
 	// parse original
-	f1, err := parser.ParseFile(fset, "src", src, parser.ParseComments)
+	f1, err := parser.ParseFile(fset, "src", src, parser.ParseComments|parser.SimplexExtentions)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -395,7 +396,7 @@ func (t *t) foo(a, b, c int) int {
 
 	// parse pretty printed original
 	// (//line comments must be interpreted even w/o parser.ParseComments set)
-	f2, err := parser.ParseFile(fset, "", buf.Bytes(), 0)
+	f2, err := parser.ParseFile(fset, "", buf.Bytes(), parser.SimplexExtentions)
 	if err != nil {
 		t.Fatalf("%s\n%s", err, buf.Bytes())
 	}
@@ -442,7 +443,7 @@ var decls = []string{
 
 func TestDeclLists(t *testing.T) {
 	for _, src := range decls {
-		file, err := parser.ParseFile(fset, "", "package p;"+src, parser.ParseComments)
+		file, err := parser.ParseFile(fset, "", "package p;"+src, parser.ParseComments|parser.SimplexExtentions)
 		if err != nil {
 			panic(err) // error in test
 		}
@@ -468,7 +469,7 @@ var stmts = []string{
 
 func TestStmtLists(t *testing.T) {
 	for _, src := range stmts {
-		file, err := parser.ParseFile(fset, "", "package p; func _() {"+src+"}", parser.ParseComments)
+		file, err := parser.ParseFile(fset, "", "package p; func _() {"+src+"}", parser.ParseComments|parser.SimplexExtentions)
 		if err != nil {
 			panic(err) // error in test
 		}
@@ -496,7 +497,7 @@ func TestBaseIndent(t *testing.T) {
 		panic(err) // error in test
 	}
 
-	file, err := parser.ParseFile(fset, filename, src, 0)
+	file, err := parser.ParseFile(fset, filename, src, parser.SimplexExtentions)
 	if err != nil {
 		panic(err) // error in test
 	}
