@@ -1,3 +1,4 @@
+// vim: set ft=sx :
 package p
 
 doct a_document() html {
@@ -14,8 +15,9 @@ doct a_document() html {
   </ul>
 
   <div class="mod-post {{ post.Template }}"
-		// A comment
-    data-published={{post.Published}}>
+    // some metadata
+    data-author={{post.Author}} // the author
+    data-published={{post.Published}}> // the date
     <h1>{{ post.Title }}</h1>
     {{{ post.Body }}}
   </div>

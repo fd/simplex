@@ -891,8 +891,11 @@ func (p *printer) expr1(expr ast.Expr, prec1, depth int) {
 			p.print(x.EndTok)
 		} else if len(x.Attrs) > 1 {
 			p.print(indent)
-			for _, x := range x.Attrs {
-				p.linebreak(0, 1, ignore, true)
+			p.print(formfeed)
+			for i, x := range x.Attrs {
+				if i > 0 {
+					p.linebreak(0, 1, ignore, false)
+				}
 				if attr, ok := x.(*ast.SxAttribute); ok {
 					p.sxAttribute(attr, true)
 				} else {
@@ -1002,13 +1005,16 @@ func (p *printer) block(b *ast.BlockStmt, nindent int) {
 // block prints an *ast.BlockStmt; it always spans at least two lines.
 func (p *printer) sxDoctBlock(h []*ast.SxHeader, b *ast.BlockStmt, nindent int) {
 	p.print(b.Lbrace, token.LBRACE)
-
+	p.print(formfeed)
 	p.print(indent)
-	for _, i := range h {
-		p.linebreak(0, 1, ignore, true)
-		p.stmt(i, false)
+	for i, m := range h {
+		if i > 0 {
+			p.linebreak(0, 1, ignore, false)
+		}
+		p.stmt(m, true)
 	}
 	p.print(unindent)
+	p.print(formfeed)
 
 	p.stmtList(b.List, nindent, true)
 	p.linebreak(p.lineFor(b.Rbrace), 1, ignore, true)

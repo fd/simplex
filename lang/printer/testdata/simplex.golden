@@ -1,8 +1,10 @@
+// vim: set ft=sx :
 package p
 
 doct a_document() html {
 	A-Header:	some header value
 	Another-Header	= cool()
+
 
 	<h1>{{ title }}</h1>
 	{{{ body }}}
@@ -14,8 +16,7 @@ doct a_document() html {
 	</ul>
 
 	<div
-		class	= "mod-post {{ post.Template }}"
-		// A comment
+		class		= "mod-post {{ post.Template }}"
 		data-published	= {{ post.Published }}
 		>
 
