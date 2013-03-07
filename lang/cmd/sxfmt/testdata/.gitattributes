@@ -1,3 +1,5 @@
+*.go     -filter
+*.sx     -filter
 *.golden !crlf !text
 *.golden.gofmt !crlf !text
 *.input !crlf !text

@@ -233,7 +233,7 @@ func TestScan(t *testing.T) {
 
 	// verify scan
 	var s Scanner
-	s.Init(fset.AddFile("", fset.Base(), len(source)), source, eh, ScanComments|dontInsertSemis)
+	s.Init(fset.AddFile("", fset.Base(), len(source)), source, eh, ScanComments|dontInsertSemis|SimplexExtentions)
 
 	// set up expected position
 	epos := token.Position{
@@ -478,14 +478,14 @@ var lines = []string{
 
 func TestSemis(t *testing.T) {
 	for _, line := range lines {
-		checkSemi(t, line, 0)
-		checkSemi(t, line, ScanComments)
+		checkSemi(t, line, 0|SimplexExtentions)
+		checkSemi(t, line, ScanComments|SimplexExtentions)
 
 		// if the input ended in newlines, the input must tokenize the
 		// same with or without those newlines
 		for i := len(line) - 1; i >= 0 && line[i] == '\n'; i-- {
-			checkSemi(t, line[0:i], 0)
-			checkSemi(t, line[0:i], ScanComments)
+			checkSemi(t, line[0:i], 0|SimplexExtentions)
+			checkSemi(t, line[0:i], ScanComments|SimplexExtentions)
 		}
 	}
 }

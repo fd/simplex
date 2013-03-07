@@ -9,6 +9,7 @@ package ast
 
 import (
 	"simplex.sh/lang/token"
+	"simplex.sh/lang/token/html"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -993,7 +994,7 @@ func (p *Package) Pos() token.Pos { return token.NoPos }
 func (p *Package) End() token.Pos { return token.NoPos }
 
 // ----------------------------------------------------------------------------
-// Simplex Views and Tables
+// Simplex nodes
 
 type (
 
@@ -1010,6 +1011,109 @@ type (
 		Key   Expr      // primary key type
 		Value Expr
 	}
+
+	SxFuncDecl struct {
+		Doc     *CommentGroup // associated documentation; or nil
+		Name    *Ident        // function/method name
+		Type    *SxFuncType   // position of Func keyword, parameters and results
+		Headers []*SxHeader   // document headers; or nil
+		Body    *BlockStmt    // function body; or nil (forward declaration)
+	}
+
+	SxFuncType struct {
+		Kind   token.Token
+		Func   token.Pos  // position of "frag" or "doct" keyword
+		Params *FieldList // (incoming) parameters; or nil
+		Mode   *Ident     // The result mode
+	}
+
+	SxHeader struct {
+		Name *Ident
+		List []Expr
+	}
+
+	SxBlockStmt struct {
+		List []Stmt
+	}
+
+	SxIfStmt struct {
+		Open  token.Pos
+		Close token.Pos
+		If    token.Pos // position of "if" keyword
+		Init  Stmt      // initialization statement; or nil
+		Cond  Expr      // condition
+		Body  *SxBlockStmt
+		Else  Stmt // else branch; or nil
+	}
+
+	SxForStmt struct {
+		Open  token.Pos
+		Close token.Pos
+		For   token.Pos // position of "for" keyword
+		Init  Stmt      // initialization statement; or nil
+		Cond  Expr      // condition; or nil
+		Post  Stmt      // post iteration statement; or nil
+		Body  *SxBlockStmt
+	}
+
+	SxRangeStmt struct {
+		Open       token.Pos
+		Close      token.Pos
+		For        token.Pos   // position of "for" keyword
+		Key, Value Expr        // Value may be nil
+		TokPos     token.Pos   // position of Tok
+		Tok        token.Token // ASSIGN, DEFINE
+		X          Expr        // value to range over
+		Body       *SxBlockStmt
+	}
+
+	SxPrint struct {
+		From      token.Pos
+		List      []Expr
+		LineBreak bool
+		To        token.Pos
+	}
+
+	SxStartTag struct {
+		BegPos token.Pos
+		EndPos token.Pos
+		EndTok token.Token
+
+		Elt   html.Element
+		Ident *Ident
+
+		Attrs []Expr
+	}
+
+	SxEndTag struct {
+		BegPos token.Pos
+		EndPos token.Pos
+
+		Elt   html.Element
+		Ident *Ident
+	}
+
+	SxElement struct {
+		Open  *SxStartTag
+		List  []Stmt
+		Close *SxEndTag
+	}
+
+	SxAttribute struct {
+		Name *Ident
+
+		Quoted bool
+		Open   token.Pos
+		List   []Expr
+		Close  token.Pos
+	}
+
+	SxInterpolation struct {
+		Raw   bool
+		Open  token.Pos
+		X     Expr
+		Close token.Pos
+	}
 )
 
 func (x *ViewType) Pos() token.Pos { return x.View }
@@ -1019,3 +1123,84 @@ func (*ViewType) exprNode()        {}
 func (x *TableType) Pos() token.Pos { return x.Table }
 func (x *TableType) End() token.Pos { return x.Value.End() }
 func (*TableType) exprNode()        {}
+
+func (*SxHeader) stmtNode()        {}
+func (x *SxHeader) Pos() token.Pos { return x.Name.Pos() }
+func (x *SxHeader) End() token.Pos {
+	return x.List[len(x.List)-1].End()
+}
+
+func (x *SxPrint) Pos() token.Pos { return x.From }
+func (x *SxPrint) End() token.Pos { return x.To }
+func (*SxPrint) stmtNode()        {}
+
+func (x *SxBlockStmt) Pos() token.Pos { return x.List[0].Pos() }
+func (x *SxBlockStmt) End() token.Pos { return x.List[len(x.List)-1].End() }
+func (*SxBlockStmt) stmtNode()        {}
+
+func (*SxIfStmt) stmtNode()        {}
+func (x *SxIfStmt) Pos() token.Pos { return x.Open }
+func (x *SxIfStmt) End() token.Pos {
+	if x.Else != nil {
+		return x.Else.End()
+	}
+	return x.Close + 2
+}
+
+func (*SxForStmt) stmtNode()        {}
+func (x *SxForStmt) Pos() token.Pos { return x.Open }
+func (x *SxForStmt) End() token.Pos { return x.Close + 2 }
+
+func (*SxRangeStmt) stmtNode()        {}
+func (x *SxRangeStmt) Pos() token.Pos { return x.Open }
+func (x *SxRangeStmt) End() token.Pos { return x.Close + 2 }
+
+func (*SxInterpolation) exprNode()        {}
+func (x *SxInterpolation) Pos() token.Pos { return x.Open }
+func (x *SxInterpolation) End() token.Pos {
+	if x.Raw {
+		return x.Close + 3
+	}
+	return x.Close + 2
+}
+
+func (*SxFuncDecl) declNode()        {}
+func (d *SxFuncDecl) Pos() token.Pos { return d.Type.Pos() }
+func (d *SxFuncDecl) End() token.Pos {
+	if d.Body != nil {
+		return d.Body.End()
+	}
+	return d.Type.End()
+}
+
+func (*SxFuncType) exprNode()        {}
+func (d *SxFuncType) Pos() token.Pos { return d.Func }
+func (d *SxFuncType) End() token.Pos { return d.Mode.End() }
+
+func (*SxElement) stmtNode()        {}
+func (e *SxElement) Pos() token.Pos { return e.Open.Pos() }
+func (e *SxElement) End() token.Pos {
+	if e.Close != nil {
+		return e.Close.End()
+	}
+	return e.Open.End()
+}
+
+func (*SxStartTag) exprNode()        {}
+func (e *SxStartTag) Pos() token.Pos { return e.BegPos }
+func (e *SxStartTag) End() token.Pos {
+	return token.Pos(int(e.EndPos) + len(e.EndTok.String()))
+}
+
+func (*SxEndTag) exprNode()        {}
+func (e *SxEndTag) Pos() token.Pos { return e.BegPos }
+func (e *SxEndTag) End() token.Pos { return e.EndPos + 1 }
+
+func (*SxAttribute) exprNode()        {}
+func (e *SxAttribute) Pos() token.Pos { return e.Name.Pos() }
+func (e *SxAttribute) End() token.Pos {
+	if e.Quoted {
+		return e.Close + 1
+	}
+	return e.List[len(e.List)-1].End()
+}

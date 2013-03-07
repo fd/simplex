@@ -1,0 +1,53 @@
+// vim: set ft=sx :
+package p
+
+doct a_document() html {
+	A-Header:	some header value
+	Another-Header	= cool()
+
+	<h1>{{ title }}</h1>
+	{{{ body }}}
+
+	<ul>
+		<li>A list item</li>
+		<li>A list item</li>
+		<li>A {{ item() }} item</li>
+	</ul>
+
+	<div
+		class	= "mod-post {{ post.Template }}"
+		// some metadata
+		data-author	= {{ post.Author }}	// the author
+		data-published	= {{ post.Published }}
+		>	// the date
+		<h1>{{ post.Title }}</h1>
+		{{{ post.Body }}}
+	</div>
+
+	{{# if cool() }}
+		<a href="/secret">Cool link </a>
+	{{/ if }}
+
+	{{# if cool() }}
+		<a href="/secret">Cool link </a>
+	{{: else }}
+		<a href="/secret">Normal link </a>
+	{{/ if }}
+
+	{{# if cool() }}
+		<a href="/secret">Cool link </a>
+	{{: else if hot() }}
+		<a href="/secret">Hot link </a>
+	{{: else }}
+		<a href="/secret">Normal link </a>
+	{{/ if }}
+
+	{{# for i, n := range items }}
+		<li>      Index {{ i }}&mdash; Element {{ n }}</li>
+	{{/ for }}
+
+	{{# for i := 0; i < 5; i++ }}
+		<li>      Index {{ i }}</li>
+	{{/ for }}
+
+}

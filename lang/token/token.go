@@ -120,12 +120,38 @@ const (
 	SWITCH
 	TYPE
 	VAR
+	keyword_end
 
 	//=== start custom
+	sx_literal_beg
+	SX_HTML_LITERAL
+	SX_HTML_ENTITY
+	SX_TEXT_LITERAL
+	sx_literal_end
+
+	sx_operator_beg
+	SX_INTERP_START         // {{
+	SX_RAW_INTERP_START     // {{{
+	SX_BLOCK_INTERP_START   // {{#
+	SX_END_INTERP_START     // {{/
+	SX_CONT_INTERP_START    // {{/
+	SX_INTERP_END           // }}
+	SX_RAW_INTERP_END       // }}}
+	SX_HTML_TAG_OPEN        // <
+	SX_HTML_TAG_CLOSE       // >
+	SX_HTML_END_TAG_OPEN    // </
+	SX_HTML_EMPTY_TAG_CLOSE // />
+	SX_HTML_QUOTE           // "
+	SX_HTML_ASSIGN          // =
+	sx_operator_end
+
+	sx_keyword_beg
+	DOCT
+	FRAG
 	VIEW
 	TABLE
+	sx_keyword_end
 	//=== end custom
-	keyword_end
 )
 
 var tokens = [...]string{
@@ -228,6 +254,26 @@ var tokens = [...]string{
 	VAR:    "var",
 
 	//=== start custom
+	SX_HTML_LITERAL: "HTML LITERAL",
+	SX_HTML_ENTITY:  "HTML ENTITY",
+	SX_TEXT_LITERAL: "TEXT LITERAL",
+
+	SX_INTERP_START:         "{{",
+	SX_RAW_INTERP_START:     "{{{",
+	SX_BLOCK_INTERP_START:   "{{#",
+	SX_END_INTERP_START:     "{{/",
+	SX_CONT_INTERP_START:    "{{:",
+	SX_INTERP_END:           "}}",
+	SX_RAW_INTERP_END:       "}}}",
+	SX_HTML_TAG_OPEN:        "<",
+	SX_HTML_TAG_CLOSE:       ">",
+	SX_HTML_END_TAG_OPEN:    "</",
+	SX_HTML_EMPTY_TAG_CLOSE: "/>",
+	SX_HTML_QUOTE:           "\"",
+	SX_HTML_ASSIGN:          "=",
+
+	DOCT:  "doct",
+	FRAG:  "frag",
 	VIEW:  "view",
 	TABLE: "table",
 	//=== end custom
@@ -282,12 +328,21 @@ func (op Token) Precedence() int {
 	return LowestPrec
 }
 
-var keywords map[string]Token
+var (
+	keywords    map[string]Token
+	sx_keywords map[string]Token
+)
 
 func init() {
 	keywords = make(map[string]Token)
+	sx_keywords = make(map[string]Token)
+
 	for i := keyword_beg + 1; i < keyword_end; i++ {
 		keywords[tokens[i]] = i
+	}
+
+	for i := sx_keyword_beg + 1; i < sx_keyword_end; i++ {
+		sx_keywords[tokens[i]] = i
 	}
 }
 
@@ -300,19 +355,53 @@ func Lookup(ident string) Token {
 	return IDENT
 }
 
+func LookupWithSimplex(ident string) Token {
+	if tok, is_keyword := keywords[ident]; is_keyword {
+		return tok
+	}
+	if tok, is_keyword := sx_keywords[ident]; is_keyword {
+		return tok
+	}
+	return IDENT
+}
+
 // Predicates
 
 // IsLiteral returns true for tokens corresponding to identifiers
 // and basic type literals; it returns false otherwise.
 //
-func (tok Token) IsLiteral() bool { return literal_beg < tok && tok < literal_end }
+func (tok Token) IsLiteral() bool {
+	if literal_beg < tok && tok < literal_end {
+		return true
+	}
+	if sx_literal_beg < tok && tok < sx_literal_end {
+		return true
+	}
+	return false
+}
 
 // IsOperator returns true for tokens corresponding to operators and
 // delimiters; it returns false otherwise.
 //
-func (tok Token) IsOperator() bool { return operator_beg < tok && tok < operator_end }
+func (tok Token) IsOperator() bool {
+	if operator_beg < tok && tok < operator_end {
+		return true
+	}
+	if sx_operator_beg < tok && tok < sx_operator_end {
+		return true
+	}
+	return false
+}
 
 // IsKeyword returns true for tokens corresponding to keywords;
 // it returns false otherwise.
 //
-func (tok Token) IsKeyword() bool { return keyword_beg < tok && tok < keyword_end }
+func (tok Token) IsKeyword() bool {
+	if keyword_beg < tok && tok < keyword_end {
+		return true
+	}
+	if sx_keyword_beg < tok && tok < sx_keyword_end {
+		return true
+	}
+	return false
+}

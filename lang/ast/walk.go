@@ -365,6 +365,86 @@ func Walk(v Visitor, node Node) {
 		Walk(v, n.Key)
 		Walk(v, n.Value)
 
+	case *SxFuncDecl:
+		if n.Doc != nil {
+			Walk(v, n.Doc)
+		}
+		Walk(v, n.Name)
+		Walk(v, n.Type)
+		for _, h := range n.Headers {
+			Walk(v, h)
+		}
+		if n.Body != nil {
+			Walk(v, n.Body)
+		}
+
+	case *SxFuncType:
+		if n.Params != nil {
+			Walk(v, n.Params)
+		}
+		Walk(v, n.Mode)
+
+	case *SxHeader:
+		Walk(v, n.Name)
+		walkExprList(v, n.List)
+
+	case *SxBlockStmt:
+		walkStmtList(v, n.List)
+
+	case *SxIfStmt:
+		if n.Init != nil {
+			Walk(v, n.Init)
+		}
+		Walk(v, n.Cond)
+		Walk(v, n.Body)
+		if n.Else != nil {
+			Walk(v, n.Else)
+		}
+
+	case *SxForStmt:
+		if n.Init != nil {
+			Walk(v, n.Init)
+		}
+		if n.Cond != nil {
+			Walk(v, n.Cond)
+		}
+		if n.Post != nil {
+			Walk(v, n.Post)
+		}
+		Walk(v, n.Body)
+
+	case *SxRangeStmt:
+		Walk(v, n.Key)
+		if n.Value != nil {
+			Walk(v, n.Value)
+		}
+		Walk(v, n.X)
+		Walk(v, n.Body)
+
+	case *SxPrint:
+		walkExprList(v, n.List)
+
+	case *SxElement:
+		Walk(v, n.Open)
+		walkStmtList(v, n.List)
+		if n.Close != nil {
+			Walk(v, n.Close)
+		}
+
+	case *SxStartTag:
+		Walk(v, n.Ident)
+		walkExprList(v, n.Attrs)
+
+	case *SxEndTag:
+		Walk(v, n.Ident)
+
+	case *SxAttribute:
+		Walk(v, n.Name)
+		walkExprList(v, n.List)
+
+	case *SxInterpolation:
+		Walk(v, n.X)
+
 	default:
 		fmt.Printf("ast.Walk: unexpected node type %T", n)
 		panic("ast.Walk")

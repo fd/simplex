@@ -10,6 +10,7 @@ package printer
 
 import (
 	"bytes"
+	"fmt"
 	"simplex.sh/lang/ast"
 	"simplex.sh/lang/token"
 	"unicode/utf8"
@@ -883,11 +884,74 @@ func (p *printer) expr1(expr ast.Expr, prec1, depth int) {
 		p.print(token.RBRACK)
 		p.print(x.Value)
 
+	case *ast.SxStartTag:
+		p.print(x.BegPos, token.SX_HTML_TAG_OPEN, x.Ident)
+		if len(x.Attrs) == 1 {
+			p.print(blank)
+			p.expr(x.Attrs[0])
+			p.print(x.EndTok)
+		} else if len(x.Attrs) > 1 {
+			p.print(indent)
+			p.print(formfeed)
+			for i, x := range x.Attrs {
+				if i > 0 {
+					p.linebreak(0, 1, ignore, false)
+				}
+				if attr, ok := x.(*ast.SxAttribute); ok {
+					p.sxAttribute(attr, true)
+				} else {
+					p.expr(x)
+				}
+			}
+			p.linebreak(0, 1, ignore, true)
+			p.print(x.EndTok, unindent)
+			p.linebreak(0, 1, ignore, true)
+		} else {
+			p.print(x.EndTok)
+		}
+
+	case *ast.SxEndTag:
+		p.print(x.BegPos, token.SX_HTML_END_TAG_OPEN,
+			x.Ident, x.EndPos, token.SX_HTML_TAG_CLOSE)
+
+	case *ast.SxAttribute:
+		p.sxAttribute(x, false)
+
+	case *ast.SxInterpolation:
+		if x.Raw {
+			p.print(x.Open, token.SX_RAW_INTERP_START, blank)
+		} else {
+			p.print(x.Open, token.SX_INTERP_START, blank)
+		}
+		p.expr(x.X)
+		if x.Raw {
+			p.print(blank, x.Close-3, token.SX_RAW_INTERP_END)
+		} else {
+			p.print(blank, x.Close-2, token.SX_INTERP_END)
+		}
+
 	default:
 		panic("unreachable")
 	}
 
 	return
+}
+
+func (p *printer) sxAttribute(x *ast.SxAttribute, spacy bool) {
+	if spacy {
+		p.print(x.Pos(), x.Name, vtab, token.SX_HTML_ASSIGN, blank)
+	} else {
+		p.print(x.Pos(), x.Name, token.SX_HTML_ASSIGN)
+	}
+	if x.Quoted {
+		p.print(token.SX_HTML_QUOTE)
+	}
+	for _, x := range x.List {
+		p.expr(x)
+	}
+	if x.Quoted {
+		p.print(token.SX_HTML_QUOTE)
+	}
 }
 
 func (p *printer) expr0(x ast.Expr, depth int) {
@@ -936,6 +1000,29 @@ func (p *printer) block(b *ast.BlockStmt, nindent int) {
 	p.print(b.Lbrace, token.LBRACE)
 	p.stmtList(b.List, nindent, true)
 	p.linebreak(p.lineFor(b.Rbrace), 1, ignore, true)
+	p.print(b.Rbrace, token.RBRACE)
+}
+
+// block prints an *ast.BlockStmt; it always spans at least two lines.
+func (p *printer) sxDoctBlock(h []*ast.SxHeader, b *ast.BlockStmt, nindent int) {
+	p.print(b.Lbrace, token.LBRACE)
+	p.print(formfeed)
+	p.print(indent)
+	for i, m := range h {
+		if i > 0 {
+			p.linebreak(0, 1, ignore, false)
+		}
+		p.stmt(m, true)
+	}
+	p.print(unindent)
+	p.print(formfeed)
+
+	if len(b.List) > 0 {
+		p.pos = p.fset.Position(b.List[0].Pos())
+		p.stmtList(b.List, nindent, true)
+		p.linebreak(p.lineFor(b.Rbrace), 1, ignore, true)
+	}
+
 	p.print(b.Rbrace, token.RBRACE)
 }
 
@@ -1223,11 +1310,156 @@ func (p *printer) stmt(stmt ast.Stmt, nextIsRBrace bool) {
 		p.print(blank)
 		p.block(s.Body, 1)
 
+	case *ast.SxBlockStmt:
+		p.stmtList(s.List, 0, true)
+		p.linebreak(0, 1, ignore, true)
+
+	case *ast.SxIfStmt:
+		p.sxIfStmt(s)
+
+	case *ast.SxForStmt:
+		p.print(token.SX_BLOCK_INTERP_START, blank)
+		p.print(token.FOR)
+		p.controlClause(true, s.Init, s.Cond, s.Post)
+		p.print(token.SX_INTERP_END, indent)
+		p.stmt(s.Body, true)
+		p.print(
+			unindent,
+			token.SX_END_INTERP_START,
+			blank,
+			token.FOR,
+			blank,
+			token.SX_INTERP_END,
+		)
+
+	case *ast.SxRangeStmt:
+		p.print(token.SX_BLOCK_INTERP_START, blank)
+
+		p.print(token.FOR, blank)
+		p.expr(s.Key)
+		if s.Value != nil {
+			// use position of value following the comma as
+			// comma position for correct comment placement
+			p.print(s.Value.Pos(), token.COMMA, blank)
+			p.expr(s.Value)
+		}
+		p.print(blank, s.TokPos, s.Tok, blank, token.RANGE, blank)
+		p.expr(stripParens(s.X))
+		p.print(blank)
+		p.print(token.SX_INTERP_END, indent)
+		p.stmt(s.Body, true)
+		p.print(
+			unindent,
+			token.SX_END_INTERP_START,
+			blank,
+			token.FOR,
+			blank,
+			token.SX_INTERP_END,
+		)
+
+	case *ast.SxHeader:
+		p.print(s.Name)
+		if sxHeaderIsSingleSimplexExpression(s) {
+			p.print(vtab, token.ASSIGN, blank)
+			p.expr(s.List[0].(*ast.SxInterpolation).X)
+		} else {
+			p.print(token.COLON, vtab)
+			for _, x := range s.List {
+				p.expr(x)
+			}
+		}
+
+	case *ast.SxPrint:
+		for _, x := range s.List {
+			p.expr(x)
+		}
+
+	case *ast.SxElement:
+		p.expr(s.Open)
+		if s.Close != nil {
+			complex_el := len(s.List) > 1
+
+			if complex_el {
+				p.print(indent)
+			}
+
+			for _, i := range s.List {
+				if complex_el {
+					p.linebreak(0, 1, ignore, true)
+				}
+				p.stmt(i, false)
+			}
+
+			if complex_el {
+				p.linebreak(0, 1, ignore, true)
+				p.print(unindent)
+			}
+			p.expr(s.Close)
+		}
+
 	default:
-		panic("unreachable")
+		panic(fmt.Sprintf("unreachable %T", s))
 	}
 
 	return
+}
+
+func sxHeaderIsSingleSimplexExpression(h *ast.SxHeader) bool {
+	if len(h.List) != 1 {
+		return false
+	}
+	_, ok := h.List[0].(*ast.SxInterpolation)
+	return ok
+}
+
+func (p *printer) sxIfStmt(s *ast.SxIfStmt) {
+	p.print(token.SX_BLOCK_INTERP_START, blank, s.If)
+
+	p.sxIfStmtInner(s)
+
+	p.print(
+		s.Close,
+		token.SX_END_INTERP_START,
+		blank,
+		"if",
+		blank,
+		token.SX_INTERP_END,
+	)
+}
+
+func (p *printer) sxIfStmtInner(s *ast.SxIfStmt) {
+	p.print(token.IF)
+	p.controlClause(false, s.Init, s.Cond, nil)
+	p.print(token.SX_INTERP_END)
+
+	p.stmtList(s.Body.List, 1, true)
+	p.print(formfeed)
+
+	if s.Else == nil {
+		return
+	}
+
+	p.print(
+		token.SX_CONT_INTERP_START,
+		blank,
+		token.ELSE,
+		blank,
+	)
+
+	switch e := s.Else.(type) {
+	case *ast.SxIfStmt:
+		p.sxIfStmtInner(e)
+	case *ast.SxBlockStmt:
+		p.print(token.SX_INTERP_END, indent)
+		p.pos = p.fset.Position(s.Else.Pos())
+		p.stmt(s.Else, true)
+		p.print(unindent)
+	default:
+		p.print(token.SX_INTERP_END)
+		p.print(indent, formfeed)
+		p.stmt(s.Else, true)
+		p.print(unindent, formfeed)
+	}
 }
 
 // ----------------------------------------------------------------------------
@@ -1530,6 +1762,21 @@ func (p *printer) funcDecl(d *ast.FuncDecl) {
 	p.adjBlock(p.distanceFrom(d.Pos()), vtab, d.Body)
 }
 
+func (p *printer) sxFuncDecl(d *ast.SxFuncDecl) {
+	p.setComment(d.Doc)
+	if d.Type.Kind == token.DOCT {
+		p.print(d.Pos(), token.DOCT, blank)
+	} else {
+		p.print(d.Pos(), token.FRAG, blank)
+	}
+	p.expr(d.Name)
+	p.signature(d.Type.Params, nil)
+	p.print(blank, d.Type.Mode, blank)
+	if d.Body != nil {
+		p.sxDoctBlock(d.Headers, d.Body, 1)
+	}
+}
+
 func (p *printer) decl(decl ast.Decl) {
 	switch d := decl.(type) {
 	case *ast.BadDecl:
@@ -1538,6 +1785,8 @@ func (p *printer) decl(decl ast.Decl) {
 		p.genDecl(d)
 	case *ast.FuncDecl:
 		p.funcDecl(d)
+	case *ast.SxFuncDecl:
+		p.sxFuncDecl(d)
 	default:
 		panic("unreachable")
 	}
