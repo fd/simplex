@@ -912,7 +912,7 @@ func (p *printer) expr1(expr ast.Expr, prec1, depth int) {
 
 	case *ast.SxEndTag:
 		p.print(x.BegPos, token.SX_HTML_END_TAG_OPEN,
-			x.Ident, x.EndPos-1, token.SX_HTML_TAG_CLOSE)
+			x.Ident, x.EndPos, token.SX_HTML_TAG_CLOSE)
 
 	case *ast.SxAttribute:
 		p.sxAttribute(x, false)
@@ -1017,8 +1017,12 @@ func (p *printer) sxDoctBlock(h []*ast.SxHeader, b *ast.BlockStmt, nindent int) 
 	p.print(unindent)
 	p.print(formfeed)
 
-	p.stmtList(b.List, nindent, true)
-	p.linebreak(p.lineFor(b.Rbrace), 1, ignore, true)
+	if len(b.List) > 0 {
+		p.pos = p.fset.Position(b.List[0].Pos())
+		p.stmtList(b.List, nindent, true)
+		p.linebreak(p.lineFor(b.Rbrace), 1, ignore, true)
+	}
+
 	p.print(b.Rbrace, token.RBRACE)
 }
 
@@ -1308,6 +1312,7 @@ func (p *printer) stmt(stmt ast.Stmt, nextIsRBrace bool) {
 
 	case *ast.SxBlockStmt:
 		p.stmtList(s.List, 0, true)
+		p.linebreak(0, 1, ignore, true)
 
 	case *ast.SxIfStmt:
 		p.sxIfStmt(s)
@@ -1373,9 +1378,10 @@ func (p *printer) sxIfStmt(s *ast.SxIfStmt) {
 	p.sxIfStmtInner(s)
 
 	p.print(
+		s.Close,
 		token.SX_END_INTERP_START,
 		blank,
-		"end",
+		"if",
 		blank,
 		token.SX_INTERP_END,
 	)
@@ -1404,9 +1410,9 @@ func (p *printer) sxIfStmtInner(s *ast.SxIfStmt) {
 	case *ast.SxIfStmt:
 		p.sxIfStmtInner(e)
 	case *ast.SxBlockStmt:
-		p.print(token.SX_INTERP_END, indent, formfeed)
+		p.print(token.SX_INTERP_END, indent)
 		p.pos = p.fset.Position(s.Else.Pos())
-		p.stmt(s.Else, false)
+		p.stmt(s.Else, true)
 		p.print(unindent)
 	default:
 		p.print(token.SX_INTERP_END)

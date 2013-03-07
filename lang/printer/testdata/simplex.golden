@@ -5,7 +5,6 @@ doct a_document() html {
 	A-Header:	some header value
 	Another-Header	= cool()
 
-
 	<h1>{{ title }}</h1>
 	{{{ body }}}
 
@@ -27,10 +26,20 @@ doct a_document() html {
 
 	{{# if cool() }}
 		<a href="/secret">Cool link </a>
+	{{/ if }}
+
+	{{# if cool() }}
+		<a href="/secret">Cool link </a>
+	{{: else }}
+		<a href="/secret">Normal link </a>
+	{{/ if }}
+
+	{{# if cool() }}
+		<a href="/secret">Cool link </a>
 	{{: else if hot() }}
 		<a href="/secret">Hot link </a>
 	{{: else }}
-
-		<a href="/secret">Normal link </a>{{/ end }}
+		<a href="/secret">Normal link </a>
+	{{/ if }}
 
 }
