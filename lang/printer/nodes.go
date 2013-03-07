@@ -10,6 +10,7 @@ package printer
 
 import (
 	"bytes"
+	"fmt"
 	"simplex.sh/lang/ast"
 	"simplex.sh/lang/token"
 	"unicode/utf8"
@@ -1305,6 +1306,12 @@ func (p *printer) stmt(stmt ast.Stmt, nextIsRBrace bool) {
 		p.print(blank)
 		p.block(s.Body, 1)
 
+	case *ast.SxBlockStmt:
+		p.stmtList(s.List, 0, true)
+
+	case *ast.SxIfStmt:
+		p.sxIfStmt(s)
+
 	case *ast.SxHeader:
 		p.print(s.Name)
 		if sxHeaderIsSingleSimplexExpression(s) {
@@ -1346,7 +1353,7 @@ func (p *printer) stmt(stmt ast.Stmt, nextIsRBrace bool) {
 		}
 
 	default:
-		panic("unreachable")
+		panic(fmt.Sprintf("unreachable %T", s))
 	}
 
 	return
@@ -1358,6 +1365,55 @@ func sxHeaderIsSingleSimplexExpression(h *ast.SxHeader) bool {
 	}
 	_, ok := h.List[0].(*ast.SxInterpolation)
 	return ok
+}
+
+func (p *printer) sxIfStmt(s *ast.SxIfStmt) {
+	p.print(token.SX_BLOCK_INTERP_START, blank, s.If)
+
+	p.sxIfStmtInner(s)
+
+	p.print(
+		token.SX_END_INTERP_START,
+		blank,
+		"end",
+		blank,
+		token.SX_INTERP_END,
+	)
+}
+
+func (p *printer) sxIfStmtInner(s *ast.SxIfStmt) {
+	p.print(token.IF)
+	p.controlClause(false, s.Init, s.Cond, nil)
+	p.print(token.SX_INTERP_END)
+
+	p.stmtList(s.Body.List, 1, true)
+	p.print(formfeed)
+
+	if s.Else == nil {
+		return
+	}
+
+	p.print(
+		token.SX_CONT_INTERP_START,
+		blank,
+		token.ELSE,
+		blank,
+	)
+
+	switch e := s.Else.(type) {
+	case *ast.SxIfStmt:
+		p.sxIfStmtInner(e)
+	case *ast.SxBlockStmt:
+		p.print(token.SX_INTERP_END, indent, formfeed)
+		p.pos = p.fset.Position(s.Else.Pos())
+		p.stmt(s.Else, false)
+		p.print(unindent)
+	default:
+		p.print(token.SX_INTERP_END)
+		p.print(indent, formfeed)
+		p.stmt(s.Else, true)
+		p.print(unindent, formfeed)
+	}
 }
 
 // ----------------------------------------------------------------------------

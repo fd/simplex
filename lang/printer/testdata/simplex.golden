@@ -16,11 +16,21 @@ doct a_document() html {
 	</ul>
 
 	<div
-		class		= "mod-post {{ post.Template }}"
+		class	= "mod-post {{ post.Template }}"
+		// some metadata
+		data-author	= {{ post.Author }}	// the author
 		data-published	= {{ post.Published }}
-		>
-
+		>	// the date
 		<h1>{{ post.Title }}</h1>
 		{{{ post.Body }}}
 	</div>
+
+	{{# if cool() }}
+		<a href="/secret">Cool link </a>
+	{{: else if hot() }}
+		<a href="/secret">Hot link </a>
+	{{: else }}
+
+		<a href="/secret">Normal link </a>{{/ end }}
+
 }

@@ -21,4 +21,12 @@ doct a_document() html {
     <h1>{{ post.Title }}</h1>
     {{{ post.Body }}}
   </div>
+
+  {{# if cool() }}
+    <a href="/secret">Cool link </a>
+  {{: else if hot() }}
+    <a href="/secret">Hot link </a>
+  {{: else }}
+    <a href="/secret">Normal link </a>
+  {{/ if }}
 }
