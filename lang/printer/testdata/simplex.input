@@ -32,7 +32,6 @@ doct a_document() html {
 		<a href="/secret">Cool link </a>
 	{{: else }}
 		<a href="/secret">Normal link </a>
-
 	{{/ if }}
 
   {{# if cool() }}
@@ -42,4 +41,16 @@ doct a_document() html {
   {{: else }}
     <a href="/secret">Normal link </a>
   {{/ if }}
+
+  {{# for i, n := range items }}
+    <li>
+      Index {{ i }} &mdash; Element {{ n }}
+    </li>
+  {{/ for }}
+
+  {{# for i := 0; i < 5; i++ }}
+    <li>
+      Index {{ i }}
+    </li>
+  {{/ for }}
 }

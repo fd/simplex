@@ -1317,6 +1317,46 @@ func (p *printer) stmt(stmt ast.Stmt, nextIsRBrace bool) {
 	case *ast.SxIfStmt:
 		p.sxIfStmt(s)
 
+	case *ast.SxForStmt:
+		p.print(token.SX_BLOCK_INTERP_START, blank)
+		p.print(token.FOR)
+		p.controlClause(true, s.Init, s.Cond, s.Post)
+		p.print(token.SX_INTERP_END, indent)
+		p.stmt(s.Body, true)
+		p.print(
+			unindent,
+			token.SX_END_INTERP_START,
+			blank,
+			token.FOR,
+			blank,
+			token.SX_INTERP_END,
+		)
+
+	case *ast.SxRangeStmt:
+		p.print(token.SX_BLOCK_INTERP_START, blank)
+
+		p.print(token.FOR, blank)
+		p.expr(s.Key)
+		if s.Value != nil {
+			// use position of value following the comma as
+			// comma position for correct comment placement
+			p.print(s.Value.Pos(), token.COMMA, blank)
+			p.expr(s.Value)
+		}
+		p.print(blank, s.TokPos, s.Tok, blank, token.RANGE, blank)
+		p.expr(stripParens(s.X))
+		p.print(blank)
+		p.print(token.SX_INTERP_END, indent)
+		p.stmt(s.Body, true)
+		p.print(
+			unindent,
+			token.SX_END_INTERP_START,
+			blank,
+			token.FOR,
+			blank,
+			token.SX_INTERP_END,
+		)
+
 	case *ast.SxHeader:
 		p.print(s.Name)
 		if sxHeaderIsSingleSimplexExpression(s) {
