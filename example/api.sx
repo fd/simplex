@@ -1,0 +1,16 @@
+package main
+
+import (
+	"simplex.sh/net/http/api"
+	"simplex.sh/runtime"
+)
+
+// API Endpoints:
+//   GET blog/posts
+var API *api.API
+
+func init() {
+	API = api.New(runtime.Env, "blog")
+	API.RegisterTable(Posts)
+	API.RegisterView(ByDate, "posts")
+}

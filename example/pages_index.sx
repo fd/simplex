@@ -1,0 +1,36 @@
+package main
+
+var (
+	IndexPages = Posts.
+		select(where_published).
+		sort(by_publish_date).
+		paginate(15).
+    collect(index_page)
+)
+
+doct index_page(page int, posts view[]Post) html {
+  route         : /posts/{{page}}
+  layout        = layout
+  Last-Modified = posts[0].PublishedAt
+
+  // list the posts on this page
+  <ul>
+    {{#for _, post := range posts }}
+      <li>
+        <time datetime={{ post.PublishedAt }}>{{ post.PublishedAt }}</time>
+        &mdash;
+        <a href="/post/{{ post.url_slug() }}">{{ post.Title }}</a>
+        <em>by {{ post.Author }}</em>
+      </li>
+    {{/for}}
+  </ul>
+
+  <nav>
+    {{# if page > 1 }}
+      <a href="/posts/{{ page - 1 }}">Newer</a>
+    {{/ if }}
+    {{# if page <= len(IndexPages) }}
+      <a href="/posts/{{ page + 1 }}">Older</a>
+    {{/ if }}
+  </nav>
+}
