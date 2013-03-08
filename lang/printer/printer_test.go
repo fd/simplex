@@ -201,6 +201,7 @@ var data = []entry{
 	{"statements.input", "statements.golden", 0},
 	{"slow.input", "slow.golden", idempotent},
 	{"simplex.input", "simplex.golden", 0},
+	{"sx_001.input", "sx_001.golden", 0},
 }
 
 func TestFiles(t *testing.T) {

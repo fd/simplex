@@ -1377,7 +1377,7 @@ func (p *printer) stmt(stmt ast.Stmt, nextIsRBrace bool) {
 	case *ast.SxElement:
 		p.expr(s.Open)
 		if s.Close != nil {
-			complex_el := len(s.List) > 1
+			complex_el := sxComplexElement(s)
 
 			if complex_el {
 				p.print(indent)
@@ -1410,6 +1410,29 @@ func sxHeaderIsSingleSimplexExpression(h *ast.SxHeader) bool {
 	}
 	_, ok := h.List[0].(*ast.SxInterpolation)
 	return ok
+}
+
+func sxComplexElement(e *ast.SxElement) bool {
+	if len(e.List) > 1 {
+		return true
+	}
+
+	if len(e.List) == 0 {
+		return false
+	}
+
+	c := e.List[0]
+
+	switch n := c.(type) {
+	case *ast.SxPrint:
+		return false
+
+	case *ast.SxElement:
+		return sxComplexElement(n)
+
+	}
+
+	return true
 }
 
 func (p *printer) sxIfStmt(s *ast.SxIfStmt) {
