@@ -1410,6 +1410,11 @@ scanAgain:
 			}
 			tok = token.COMMENT
 			break
+		} else {
+			s.ch = '/'
+			s.offset = s.file.Offset(pos)
+			s.rdOffset = s.offset + 1
+			return s.scan_simplex_text_literal()
 		}
 
 	case '{':
@@ -1480,21 +1485,21 @@ L:
 		s.next()
 	}
 
-	{ // handle a single /
+	// handle a single /
+	if s.ch == '/' {
 		offs := s.offset
 		pos := s.file.Pos(offs)
-		if s.ch == '/' {
-			s.next()
-			if s.ch != '*' && s.ch != '/' {
-				goto L
-			}
 
-			// backup 1 position
-			s.ch = '/'
-			s.offset = s.file.Offset(pos)
-			s.rdOffset = s.offset + 1
-			s.insertSemi = false // newline consumed
+		s.next()
+		if s.ch != '*' && s.ch != '/' {
+			goto L
 		}
+
+		// backup 1 position
+		s.ch = '/'
+		s.offset = s.file.Offset(pos)
+		s.rdOffset = s.offset + 1
+		s.insertSemi = false // newline consumed
 	}
 
 	tok = token.SX_TEXT_LITERAL
