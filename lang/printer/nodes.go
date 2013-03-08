@@ -1014,15 +1014,15 @@ func (p *printer) sxDoctBlock(h []*ast.SxHeader, b *ast.BlockStmt, nindent int) 
 		}
 		p.stmt(m, true)
 	}
-	p.print(unindent)
 	p.print(formfeed)
 
 	if len(b.List) > 0 {
 		p.pos = p.fset.Position(b.List[0].Pos())
-		p.stmtList(b.List, nindent, true)
+		p.stmtList(b.List, 0, true)
 		p.linebreak(p.lineFor(b.Rbrace), 1, ignore, true)
 	}
 
+	p.print(unindent)
 	p.print(b.Rbrace, token.RBRACE)
 }
 
@@ -1363,7 +1363,7 @@ func (p *printer) stmt(stmt ast.Stmt, nextIsRBrace bool) {
 			p.print(vtab, token.ASSIGN, blank)
 			p.expr(s.List[0].(*ast.SxInterpolation).X)
 		} else {
-			p.print(token.COLON, vtab)
+			p.print(vtab, token.COLON, blank)
 			for _, x := range s.List {
 				p.expr(x)
 			}
