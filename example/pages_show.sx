@@ -2,26 +2,24 @@ package main
 
 var (
 	ShowPages = Posts.
-		select(where_published).
-    collect(show_page)
+			select(where_published).
+			collect(show_page)
 
 	DateRedirects = Posts.
-		select(where_published).
-    collect(date_redirect)
+			select(where_published).
+			collect(date_redirect)
 )
 
 doct show_page(post Post) html {
-  route         : /post/{{ post.url_slug() }}
-  layout        = layout
-  Last-Modified = post.PublishedAt
+	route:        /post/{{ post.url_slug() }}
+	layout        = layout
+	Last-Modified = post.PublishedAt
 
-  <article>
-    <h2>{{ post.Title }}</h2>
-    <em>by {{ post.Author }}</em>
-    <div class="body">
-      {{ post.Body }}
-    </div>
-  </article>
+	<article>
+		<h2>{{ post.Title }}</h2>
+		<em>by {{ post.Author }}</em>
+		<div class="body">{{ post.Body }}</div>
+	</article>
 }
 
 /*
@@ -31,7 +29,7 @@ doct show_page(post Post) html {
   NEW: /post/:slug
 */
 doct date_redirect(post.Post) text {
-  status   : 301
-  route    : /post/{{ post.PublishedAt }}/{{ post.url_slug() }} // OLD url
-  Location : /post/{{ post.url_slug() }}                        // NEW url
+	status:   301
+	route:    /post/{{ post.PublishedAt }}/{{ post.url_slug() }}
+	Location: /post/{{ post.url_slug() }}
 }
