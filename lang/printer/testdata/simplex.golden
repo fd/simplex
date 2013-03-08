@@ -2,7 +2,7 @@
 package p
 
 doct a_document() html {
-	A-Header:	some header value
+	A-Header	: some header value
 	Another-Header	= cool()
 
 	<h1>{{ title }}</h1>
