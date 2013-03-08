@@ -11,7 +11,7 @@ var (
 )
 
 doct show_page(post Post) html {
-	route:        /post/{{ post.url_slug() }}
+	route         : /post/{{ post.url_slug() }}
 	layout        = layout
 	Last-Modified = post.PublishedAt
 
@@ -29,7 +29,7 @@ doct show_page(post Post) html {
   NEW: /post/:slug
 */
 doct date_redirect(post.Post) text {
-	status:   301
-	route:    /post/{{ post.PublishedAt }}/{{ post.url_slug() }}
-	Location: /post/{{ post.url_slug() }}
+	status   : 301
+	route    : /post/{{ post.PublishedAt }}/{{ post.url_slug() }}
+	Location : /post/{{ post.url_slug() }}
 }

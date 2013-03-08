@@ -9,7 +9,7 @@ var (
 )
 
 doct index_page(page int, posts view[]Post) html {
-	route:        /posts/{{ page }}
+	route         : /posts/{{ page }}
 	layout        = layout
 	Last-Modified = posts[0].PublishedAt
 

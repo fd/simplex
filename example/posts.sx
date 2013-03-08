@@ -1,0 +1,42 @@
+package main
+
+import (
+	"time"
+)
+
+var (
+	Posts = make(table[int]Post)
+)
+
+type (
+	Post struct {
+		Title       string
+		Body        string
+		Author      string
+		Approved    bool
+		PublishedAt time.Time
+	}
+)
+
+// Blog posts are published when they:
+// - are approved
+// - have a PublishedAt which is in the past
+func where_published(m Post) bool {
+	return m.Approved && m.PublishedAt.Before(time.Now())
+}
+
+func by_publish_date(m Post) uint64 {
+	// This is not the way a time.Time would normaly be callated
+	//
+
+	// take unix time since epoch (int64)
+	i := m.PublishedAt.Unix()
+
+	// turn it into a uint64
+	c := uint64(9223372036854775808) + uint64(i)
+
+	// reverse the order
+	r := 18446744073709551615 - c
+
+	return r
+}
