@@ -44,9 +44,11 @@ func FindPkg(path, srcDir string) (filename, id string) {
 		if bp.PkgObj == "" {
 			return
 		}
-		noext = bp.PkgObj
-		if strings.HasSuffix(noext, ".a") {
-			noext = noext[:len(noext)-len(".a")]
+		// noext = strings.TrimSuffix(bp.PkgObj, ".a")
+		if strings.HasSuffix(bp.PkgObj, ".a") {
+			noext = bp.PkgObj[:len(bp.PkgObj)-2]
+		} else {
+			noext = bp.PkgObj
 		}
 
 	case build.IsLocalImport(path):
@@ -111,10 +113,14 @@ func GcImport(imports map[string]*Package, path string) (pkg *Package, err error
 		return Unsafe, nil
 	}
 
-	srcDir, err := os.Getwd()
-	if err != nil {
-		return
+	srcDir := "."
+	if build.IsLocalImport(path) {
+		srcDir, err = os.Getwd()
+		if err != nil {
+			return
+		}
 	}
+
 	filename, id := FindPkg(path, srcDir)
 	if filename == "" {
 		err = errors.New("can't find import: " + id)
@@ -134,7 +140,7 @@ func GcImport(imports map[string]*Package, path string) (pkg *Package, err error
 	defer func() {
 		f.Close()
 		if err != nil {
-			// Add file name to error.
+			// add file name to error
 			err = fmt.Errorf("reading export data: %s: %v", filename, err)
 		}
 	}()
@@ -171,6 +177,15 @@ func (p *gcParser) init(filename, id string, src io.Reader, imports map[string]*
 	p.next()
 	p.id = id
 	p.imports = imports
+	// leave for debugging
+	if false {
+		// check consistency of imports map
+		for _, pkg := range imports {
+			if pkg.Name == "" {
+				fmt.Printf("no package name for %s\n", pkg.Path)
+			}
+		}
+	}
 }
 
 func (p *gcParser) next() {
@@ -187,23 +202,25 @@ func (p *gcParser) next() {
 	}
 }
 
-func declConst(scope *Scope, name string) *Const {
+func declConst(pkg *Package, name string) *Const {
 	// the constant may have been imported before - if it exists
 	// already in the respective scope, return that constant
+	scope := pkg.Scope
 	if obj := scope.Lookup(name); obj != nil {
 		return obj.(*Const)
 	}
 	// otherwise create a new constant and insert it into the scope
-	obj := &Const{Name: name}
+	obj := &Const{Pkg: pkg, Name: name}
 	scope.Insert(obj)
 	return obj
 }
 
-func declTypeName(scope *Scope, name string) *TypeName {
+func declTypeName(pkg *Package, name string) *TypeName {
+	scope := pkg.Scope
 	if obj := scope.Lookup(name); obj != nil {
 		return obj.(*TypeName)
 	}
-	obj := &TypeName{Name: name}
+	obj := &TypeName{Pkg: pkg, Name: name}
 	// a named type may be referred to before the underlying type
 	// is known - set it up
 	obj.Type = &NamedType{Obj: obj}
@@ -211,20 +228,22 @@ func declTypeName(scope *Scope, name string) *TypeName {
 	return obj
 }
 
-func declVar(scope *Scope, name string) *Var {
+func declVar(pkg *Package, name string) *Var {
+	scope := pkg.Scope
 	if obj := scope.Lookup(name); obj != nil {
 		return obj.(*Var)
 	}
-	obj := &Var{Name: name}
+	obj := &Var{Pkg: pkg, Name: name}
 	scope.Insert(obj)
 	return obj
 }
 
-func declFunc(scope *Scope, name string) *Func {
+func declFunc(pkg *Package, name string) *Func {
+	scope := pkg.Scope
 	if obj := scope.Lookup(name); obj != nil {
 		return obj.(*Func)
 	}
-	obj := &Func{Name: name}
+	obj := &Func{Pkg: pkg, Name: name}
 	scope.Insert(obj)
 	return obj
 }
@@ -284,33 +303,27 @@ func (p *gcParser) expectKeyword(keyword string) {
 }
 
 // ----------------------------------------------------------------------------
-// Import declarations
+// Qualified and unqualified names
 
-// ImportPath = string_lit .
+// PackageId = string_lit .
 //
-func (p *gcParser) parsePkgId() *Package {
+func (p *gcParser) parsePackageId() string {
 	id, err := strconv.Unquote(p.expect(scanner.String))
 	if err != nil {
 		p.error(err)
 	}
-
-	switch id {
-	case "":
-		// id == "" stands for the imported package id
-		// (only known at time of package installation)
+	// id == "" stands for the imported package id
+	// (only known at time of package installation)
+	if id == "" {
 		id = p.id
-	case "unsafe":
-		// package unsafe is not in the imports map - handle explicitly
-		return Unsafe
 	}
+	return id
+}
 
-	pkg := p.imports[id]
-	if pkg == nil {
-		pkg = &Package{Scope: new(Scope)}
-		p.imports[id] = pkg
-	}
-
-	return pkg
+// PackageName = ident .
+//
+func (p *gcParser) parsePackageName() string {
+	return p.expect(scanner.Ident)
 }
 
 // dotIdentifier = ( ident | '·' ) { ident | int | '·' } .
@@ -330,14 +343,43 @@ func (p *gcParser) parseDotIdent() string {
 	return ident
 }
 
-// ExportedName = "@" ImportPath "." dotIdentifier .
+// QualifiedName = "@" PackageId "." dotIdentifier .
 //
-func (p *gcParser) parseExportedName() (*Package, string) {
+func (p *gcParser) parseQualifiedName() (id, name string) {
 	p.expect('@')
-	pkg := p.parsePkgId()
+	id = p.parsePackageId()
 	p.expect('.')
-	name := p.parseDotIdent()
-	return pkg, name
+	name = p.parseDotIdent()
+	return
+}
+
+// getPkg returns the package for a given id. If the package is
+// not found but we have a package name, create the package and
+// add it to the p.imports map.
+//
+func (p *gcParser) getPkg(id, name string) *Package {
+	// package unsafe is not in the imports map - handle explicitly
+	if id == "unsafe" {
+		return Unsafe
+	}
+	pkg := p.imports[id]
+	if pkg == nil && name != "" {
+		pkg = &Package{Name: name, Path: id, Scope: new(Scope)}
+		p.imports[id] = pkg
+	}
+	return pkg
+}
+
+// parseExportedName is like parseQualifiedName, but
+// the package id is resolved to an imported *Package.
+//
+func (p *gcParser) parseExportedName() (pkg *Package, name string) {
+	id, name := p.parseQualifiedName()
+	pkg = p.getPkg(id, "")
+	if pkg == nil {
+		p.errorf("%s package not found", id)
+	}
+	return
 }
 
 // ----------------------------------------------------------------------------
@@ -380,9 +422,19 @@ func (p *gcParser) parseMapType() Type {
 	return &Map{Key: key, Elt: elt}
 }
 
-// Name = identifier | "?" | ExportedName  .
+// Name = identifier | "?" | QualifiedName .
 //
-func (p *gcParser) parseName() (pkg *Package, name string) {
+// If materializePkg is set, a package is returned for fully qualified names.
+// That package may be a fake package (without name, scope, and not in the
+// p.imports map), created for the sole purpose of providing a package path
+// for QualifiedNames. Fake packages are created when the package id is not
+// found in the p.imports map; we cannot create a real package in that case
+// because we don't have a package name.
+//
+// TODO(gri): consider changing QualifiedIdents to (path, name) pairs to
+// simplify this code.
+//
+func (p *gcParser) parseName(materializePkg bool) (pkg *Package, name string) {
 	switch p.tok {
 	case scanner.Ident:
 		name = p.lit
@@ -392,7 +444,16 @@ func (p *gcParser) parseName() (pkg *Package, name string) {
 		p.next()
 	case '@':
 		// exported name prefixed with package path
-		pkg, name = p.parseExportedName()
+		var id string
+		id, name = p.parseQualifiedName()
+		if materializePkg {
+			// we don't have a package name - if the package
+			// doesn't exist yet, create a fake package instead
+			pkg = p.getPkg(id, "")
+			if pkg == nil {
+				pkg = &Package{Path: id}
+			}
+		}
 	default:
 		p.error("name expected")
 	}
@@ -403,7 +464,7 @@ func (p *gcParser) parseName() (pkg *Package, name string) {
 //
 func (p *gcParser) parseField() *Field {
 	var f Field
-	f.Pkg, f.Name = p.parseName()
+	f.Pkg, f.Name = p.parseName(true)
 	f.Type = p.parseType()
 	if p.tok == scanner.String {
 		f.Tag = p.expect(scanner.String)
@@ -442,7 +503,7 @@ func (p *gcParser) parseStructType() Type {
 // Parameter = ( identifier | "?" ) [ "..." ] Type [ string_lit ] .
 //
 func (p *gcParser) parseParameter() (par *Var, isVariadic bool) {
-	_, name := p.parseName()
+	_, name := p.parseName(false)
 	if name == "" {
 		name = "_" // cannot access unnamed identifiers
 	}
@@ -455,7 +516,7 @@ func (p *gcParser) parseParameter() (par *Var, isVariadic bool) {
 	if p.tok == scanner.String {
 		p.next()
 	}
-	par = &Var{Name: name, Type: typ}
+	par = &Var{Name: name, Type: typ} // Pkg == nil
 	return
 }
 
@@ -490,12 +551,7 @@ func (p *gcParser) parseSignature() *Signature {
 
 	// optional result type
 	var results []*Var
-	switch p.tok {
-	case scanner.Ident, '[', '*', '<', '@':
-		// single, unnamed result
-		results = []*Var{{Type: p.parseType()}}
-	case '(':
-		// named or multiple result(s)
+	if p.tok == '(' {
 		var variadic bool
 		results, variadic = p.parseParameters()
 		if variadic {
@@ -523,7 +579,7 @@ func (p *gcParser) parseInterfaceType() Type {
 		if len(methods) > 0 {
 			p.expect(';')
 		}
-		pkg, name := p.parseName()
+		pkg, name := p.parseName(true)
 		typ := p.parseSignature()
 		methods = append(methods, &Method{QualifiedName{pkg, name}, typ})
 	}
@@ -584,7 +640,7 @@ func (p *gcParser) parseType() Type {
 	case '@':
 		// TypeName
 		pkg, name := p.parseExportedName()
-		return declTypeName(pkg.Scope, name).Type
+		return declTypeName(pkg, name).Type
 	case '[':
 		p.next() // look ahead
 		if p.tok == ']' {
@@ -613,17 +669,12 @@ func (p *gcParser) parseType() Type {
 // ----------------------------------------------------------------------------
 // Declarations
 
-// ImportDecl = "import" identifier string_lit .
+// ImportDecl = "import" PackageName PackageId .
 //
 func (p *gcParser) parseImportDecl() {
 	p.expectKeyword("import")
-	// The identifier has no semantic meaning in the import data.
-	// It exists so that error messages can print the real package
-	// name: binary.ByteOrder instead of "encoding/binary".ByteOrder.
-	name := p.expect(scanner.Ident)
-	pkg := p.parsePkgId()
-	assert(pkg.Name == "" || pkg.Name == name)
-	pkg.Name = name
+	name := p.parsePackageName()
+	p.getPkg(p.parsePackageId(), name)
 }
 
 // int_lit = [ "+" | "-" ] { "0" ... "9" } .
@@ -692,7 +743,7 @@ func (p *gcParser) parseNumber() (x operand) {
 func (p *gcParser) parseConstDecl() {
 	p.expectKeyword("const")
 	pkg, name := p.parseExportedName()
-	obj := declConst(pkg.Scope, name)
+	obj := declConst(pkg, name)
 	var x operand
 	if p.tok != '=' {
 		obj.Type = p.parseType()
@@ -758,7 +809,7 @@ func (p *gcParser) parseConstDecl() {
 func (p *gcParser) parseTypeDecl() {
 	p.expectKeyword("type")
 	pkg, name := p.parseExportedName()
-	obj := declTypeName(pkg.Scope, name)
+	obj := declTypeName(pkg, name)
 
 	// The type object may have been imported before and thus already
 	// have a type associated with it. We still need to parse the type
@@ -777,7 +828,7 @@ func (p *gcParser) parseTypeDecl() {
 func (p *gcParser) parseVarDecl() {
 	p.expectKeyword("var")
 	pkg, name := p.parseExportedName()
-	obj := declVar(pkg.Scope, name)
+	obj := declVar(pkg, name)
 	obj.Type = p.parseType()
 }
 
@@ -817,7 +868,7 @@ func (p *gcParser) parseMethodDecl() {
 	base := typ.(*NamedType)
 
 	// parse method name, signature, and possibly inlined body
-	pkg, name := p.parseName() // unexported method names in imports are qualified with their package.
+	pkg, name := p.parseName(true) // unexported method names in imports are qualified with their package.
 	sig := p.parseFunc()
 	sig.Recv = recv
 
@@ -838,7 +889,7 @@ func (p *gcParser) parseFuncDecl() {
 	// "func" already consumed
 	pkg, name := p.parseExportedName()
 	typ := p.parseFunc()
-	declFunc(pkg.Scope, name).Type = typ
+	declFunc(pkg, name).Type = typ
 }
 
 // Decl = [ ImportDecl | ConstDecl | TypeDecl | VarDecl | FuncDecl | MethodDecl ] "\n" .
@@ -868,11 +919,11 @@ func (p *gcParser) parseDecl() {
 // Export
 
 // Export        = "PackageClause { Decl } "$$" .
-// PackageClause = "package" identifier [ "safe" ] "\n" .
+// PackageClause = "package" PackageName [ "safe" ] "\n" .
 //
 func (p *gcParser) parseExport() *Package {
 	p.expectKeyword("package")
-	name := p.expect(scanner.Ident)
+	name := p.parsePackageName()
 	if p.tok != '\n' {
 		// A package is safe if it was compiled with the -u flag,
 		// which disables the unsafe package.
@@ -881,11 +932,7 @@ func (p *gcParser) parseExport() *Package {
 	}
 	p.expect('\n')
 
-	pkg := p.imports[p.id]
-	if pkg == nil {
-		pkg = &Package{Name: name, Scope: new(Scope)}
-		p.imports[p.id] = pkg
-	}
+	pkg := p.getPkg(p.id, name)
 
 	for p.tok != '$' && p.tok != scanner.EOF {
 		p.parseDecl()

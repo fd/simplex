@@ -98,8 +98,8 @@ func hasNil(typ Type) bool {
 	return false
 }
 
-// identical returns true if x and y are identical.
-func isIdentical(x, y Type) bool {
+// IsIdentical returns true if x and y are identical.
+func IsIdentical(x, y Type) bool {
 	if x == y {
 		return true
 	}
@@ -117,13 +117,13 @@ func isIdentical(x, y Type) bool {
 		// Two array types are identical if they have identical element types
 		// and the same array length.
 		if y, ok := y.(*Array); ok {
-			return x.Len == y.Len && isIdentical(x.Elt, y.Elt)
+			return x.Len == y.Len && IsIdentical(x.Elt, y.Elt)
 		}
 
 	case *Slice:
 		// Two slice types are identical if they have identical element types.
 		if y, ok := y.(*Slice); ok {
-			return isIdentical(x.Elt, y.Elt)
+			return IsIdentical(x.Elt, y.Elt)
 		}
 
 	case *Struct:
@@ -136,7 +136,7 @@ func isIdentical(x, y Type) bool {
 				for i, f := range x.Fields {
 					g := y.Fields[i]
 					if !f.QualifiedName.IsSame(g.QualifiedName) ||
-						!isIdentical(f.Type, g.Type) ||
+						!IsIdentical(f.Type, g.Type) ||
 						f.Tag != g.Tag ||
 						f.IsAnonymous != g.IsAnonymous {
 						return false
@@ -149,7 +149,7 @@ func isIdentical(x, y Type) bool {
 	case *Pointer:
 		// Two pointer types are identical if they have identical base types.
 		if y, ok := y.(*Pointer); ok {
-			return isIdentical(x.Base, y.Base)
+			return IsIdentical(x.Base, y.Base)
 		}
 
 	case *Signature:
@@ -174,14 +174,14 @@ func isIdentical(x, y Type) bool {
 	case *Map:
 		// Two map types are identical if they have identical key and value types.
 		if y, ok := y.(*Map); ok {
-			return isIdentical(x.Key, y.Key) && isIdentical(x.Elt, y.Elt)
+			return IsIdentical(x.Key, y.Key) && IsIdentical(x.Elt, y.Elt)
 		}
 
 	case *Chan:
 		// Two channel types are identical if they have identical value types
 		// and the same direction.
 		if y, ok := y.(*Chan); ok {
-			return x.Dir == y.Dir && isIdentical(x.Elt, y.Elt)
+			return x.Dir == y.Dir && IsIdentical(x.Elt, y.Elt)
 		}
 
 	case *NamedType:
@@ -195,13 +195,13 @@ func isIdentical(x, y Type) bool {
 	case *View:
 		// Two map types are identical if they have identical key and value types.
 		if y, ok := y.(*View); ok {
-			return isIdentical(x.Key, y.Key) && isIdentical(x.Elt, y.Elt)
+			return IsIdentical(x.Key, y.Key) && IsIdentical(x.Elt, y.Elt)
 		}
 
 	case *Table:
 		// Two map types are identical if they have identical key and value types.
 		if y, ok := y.(*Table); ok {
-			return isIdentical(x.Key, y.Key) && isIdentical(x.Elt, y.Elt)
+			return IsIdentical(x.Key, y.Key) && IsIdentical(x.Elt, y.Elt)
 		}
 		//=== end custom
 
@@ -218,7 +218,7 @@ func identicalTypes(a, b []*Var) bool {
 	}
 	for i, x := range a {
 		y := b[i]
-		if !isIdentical(x.Type, y.Type) {
+		if !IsIdentical(x.Type, y.Type) {
 			return false
 		}
 	}
@@ -238,7 +238,7 @@ func identicalMethods(a, b []*Method) bool {
 		m[x.QualifiedName] = x
 	}
 	for _, y := range b {
-		if x := m[y.QualifiedName]; x == nil || !isIdentical(x.Type, y.Type) {
+		if x := m[y.QualifiedName]; x == nil || !IsIdentical(x.Type, y.Type) {
 			return false
 		}
 	}
@@ -302,8 +302,8 @@ func missingMethod(typ Type, T *Interface) (method *Method, wrongType bool) {
 	// Note: This is stronger than the current spec. Should the spec require this?
 	if ityp, _ := underlying(typ).(*Interface); ityp != nil {
 		for _, m := range T.Methods {
-			mode, sig := lookupField(ityp, m.QualifiedName) // TODO(gri) no need to go via lookupField
-			if mode != invalid && !isIdentical(sig, m.Type) {
+			res := lookupField(ityp, m.QualifiedName) // TODO(gri) no need to go via lookupField
+			if res.mode != invalid && !IsIdentical(res.typ, m.Type) {
 				return m, true
 			}
 		}
@@ -312,11 +312,11 @@ func missingMethod(typ Type, T *Interface) (method *Method, wrongType bool) {
 
 	// a concrete type implements T if it implements all methods of T.
 	for _, m := range T.Methods {
-		mode, sig := lookupField(typ, m.QualifiedName)
-		if mode == invalid {
+		res := lookupField(typ, m.QualifiedName)
+		if res.mode == invalid {
 			return m, false
 		}
-		if !isIdentical(sig, m.Type) {
+		if !IsIdentical(res.typ, m.Type) {
 			return m, true
 		}
 	}

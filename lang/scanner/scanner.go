@@ -602,6 +602,33 @@ func (s *Scanner) switch4(tok0, tok1 token.Token, ch2 rune, tok2, tok3 token.Tok
 // and thus relative to the file set.
 //
 func (s *Scanner) Scan() (pos token.Pos, tok token.Token, lit string) {
+	if s.mode&SimplexExtentions == 0 {
+		pos, tok, lit := s.scan_go()
+		insertSemi := s.insertSemi
+		switch tok {
+		case token.DOCT:
+			tok = token.IDENT
+			lit = "doct"
+			insertSemi = true
+		case token.FRAG:
+			tok = token.IDENT
+			lit = "frag"
+			insertSemi = true
+		case token.VIEW:
+			tok = token.IDENT
+			lit = "view"
+			insertSemi = true
+		case token.TABLE:
+			tok = token.IDENT
+			lit = "table"
+			insertSemi = true
+		}
+		if s.mode&dontInsertSemis == 0 {
+			s.insertSemi = insertSemi
+		}
+		return pos, tok, lit
+	}
+
 	if s.mode&sx_INTERPOLATION > 0 {
 		return s.scan_simplex_interpolation()
 	}
@@ -636,11 +663,7 @@ scanAgain:
 		lit = s.scanIdentifier()
 		if len(lit) > 1 {
 			// keywords are longer than one letter - avoid lookup otherwise
-			if s.mode&SimplexExtentions == 0 {
-				tok = token.Lookup(lit)
-			} else {
-				tok = token.LookupWithSimplex(lit)
-			}
+			tok = token.Lookup(lit)
 			switch tok {
 			case token.IDENT, token.BREAK, token.CONTINUE, token.FALLTHROUGH, token.RETURN:
 				insertSemi = true

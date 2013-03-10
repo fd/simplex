@@ -61,6 +61,7 @@ var tests = []struct {
 	{"conversions", []string{"testdata/conversions.src"}},
 	{"conversions_sx", []string{"testdata/conversions_sx.src"}},
 	{"stmt0", []string{"testdata/stmt0.src"}},
+	{"stmt1", []string{"testdata/stmt1.src"}},
 }
 
 var fset = token.NewFileSet()
@@ -96,9 +97,9 @@ func parseFiles(t *testing.T, testname string, filenames []string) ([]*ast.File,
 	var files []*ast.File
 	var errlist []error
 	for _, filename := range filenames {
-		mod := parser.DeclarationErrors
+		mod := parser.DeclarationErrors | parser.AllErrors
 		if strings.Index(filename, "_sx") >= 0 {
-			mod = parser.DeclarationErrors | parser.SimplexExtentions
+			mod |= parser.SimplexExtentions
 		}
 		file, err := parser.ParseFile(fset, filename, nil, mod)
 		if file == nil {
@@ -208,7 +209,7 @@ func checkFiles(t *testing.T, testname string, testfiles []string) {
 	files, errlist := parseFiles(t, testname, testfiles)
 
 	// typecheck and collect typechecker errors
-	ctxt := Default
+	var ctxt Context
 	ctxt.Error = func(err error) { errlist = append(errlist, err) }
 	ctxt.Check(fset, files)
 
@@ -238,12 +239,18 @@ func checkFiles(t *testing.T, testname string, testfiles []string) {
 	}
 }
 
+var testBuiltinsDeclared = false
+
 func TestCheck(t *testing.T) {
 	// Declare builtins for testing.
 	// Not done in an init func to avoid an init race with
 	// the construction of the Universe var.
-	def(&Func{Name: "assert", Type: &builtin{_Assert, "assert", 1, false, true}})
-	def(&Func{Name: "trace", Type: &builtin{_Trace, "trace", 0, true, true}})
+	if !testBuiltinsDeclared {
+		testBuiltinsDeclared = true
+		// Pkg == nil for Universe objects
+		def(&Func{Name: "assert", Type: &builtin{_Assert, "assert", 1, false, true}})
+		def(&Func{Name: "trace", Type: &builtin{_Trace, "trace", 0, true, true}})
+	}
 
 	// For easy debugging w/o changing the testing code,
 	// if there is a local test file, only test that file.

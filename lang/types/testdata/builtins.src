@@ -33,6 +33,10 @@ func _cap() {
 	assert(_4 == 20)
 	_5 := cap(c)
 	cap /* ERROR "not used" */ (c)
+
+	// issue 4744
+	type T struct{ a [10]int }
+	const _ = cap(((*T)(nil)).a)
 }
 
 func _close() {
@@ -150,7 +154,10 @@ func _len() {
 	assert /* ERROR "failed" */ (n == 10)
 	var ch <-chan int
 	const nn = len /* ERROR "not constant" */ (hash[<-ch][len(t)])
-	_ = nn // TODO(gri) remove this once unused constants get type-checked
+
+	// issue 4744
+	type T struct{ a [10]int }
+	const _ = len(((*T)(nil)).a)
 }
 
 func _make() {
@@ -206,6 +213,32 @@ func _new() {
 	new /* ERROR "not used" */ (int)
 }
 
+func _panic() {
+	panic /* ERROR "arguments" */ ()
+	panic /* ERROR "arguments" */ (1, 2)
+	panic(0)
+	panic("foo")
+	panic(false)
+}
+
+func _print() {
+	print()
+	print(1)
+	print(1, 2)
+	print("foo")
+	print(2.718281828)
+	print(false)
+}
+
+func _println() {
+	println()
+	println(1)
+	println(1, 2)
+	println("foo")
+	println(2.718281828)
+	println(false)
+}
+
 func _real() {
 	var f32 float32
 	var f64 float64
@@ -235,6 +268,26 @@ func _recover() {
 	recover()
 }
 
+// assuming types.DefaultPtrSize == 8
+type S0 struct{      // offset
+	a bool       //  0
+	b rune       //  4
+	c *int       //  8
+	d bool       // 16
+	e complex128 // 24
+}                    // 40
+
+type S1 struct{   // offset
+	x float32 //  0
+	y string  //  8
+	z *S1     // 24
+	S0        // 32
+}                 // 72
+
+type S2 struct{ // offset
+	*S1     //  0
+}               //  8
+
 func _Alignof() {
 	var x int
 	_ = unsafe /* ERROR "argument" */ .Alignof()
@@ -243,6 +296,13 @@ func _Alignof() {
 	_ = unsafe.Alignof(42)
 	_ = unsafe.Alignof(new(struct{}))
 	unsafe /* ERROR "not used" */ .Alignof(x)
+
+	var y S0
+	assert(unsafe.Alignof(y.a) == 1)
+	assert(unsafe.Alignof(y.b) == 4)
+	assert(unsafe.Alignof(y.c) == 8)
+	assert(unsafe.Alignof(y.d) == 1)
+	assert(unsafe.Alignof(y.e) == 8)
 }
 
 func _Offsetof() {
@@ -255,6 +315,30 @@ func _Offsetof() {
 	_ = unsafe.Offsetof((x.f))
 	_ = unsafe.Offsetof((((((((x))).f)))))
 	unsafe /* ERROR "not used" */ .Offsetof(x.f)
+
+	var y0 S0
+	assert(unsafe.Offsetof(y0.a) == 0)
+	assert(unsafe.Offsetof(y0.b) == 4)
+	assert(unsafe.Offsetof(y0.c) == 8)
+	assert(unsafe.Offsetof(y0.d) == 16)
+	assert(unsafe.Offsetof(y0.e) == 24)
+
+	var y1 S1
+	assert(unsafe.Offsetof(y1.x) == 0)
+	assert(unsafe.Offsetof(y1.y) == 8)
+	assert(unsafe.Offsetof(y1.z) == 24)
+	assert(unsafe.Offsetof(y1.S0) == 32)
+
+	assert(unsafe.Offsetof(y1.S0.a) == 0) // relative to S0
+	assert(unsafe.Offsetof(y1.a) == 32)   // relative to S1
+	assert(unsafe.Offsetof(y1.b) == 36)   // relative to S1
+	assert(unsafe.Offsetof(y1.c) == 40)   // relative to S1
+	assert(unsafe.Offsetof(y1.d) == 48)   // relative to S1
+	assert(unsafe.Offsetof(y1.e) == 56)   // relative to S1
+
+	var y2 S2
+	assert(unsafe.Offsetof(y2.S1) == 0)
+	_ = unsafe.Offsetof(y2 /* ERROR "embedded via pointer" */ .x)
 }
 
 func _Sizeof() {
@@ -280,6 +364,20 @@ func _Sizeof() {
 	assert(unsafe.Sizeof(float64(0)) == 8)
 	assert(unsafe.Sizeof(complex64(0)) == 8)
 	assert(unsafe.Sizeof(complex128(0)) == 16)
+
+	var y0 S0
+	assert(unsafe.Sizeof(y0.a) == 1)
+	assert(unsafe.Sizeof(y0.b) == 4)
+	assert(unsafe.Sizeof(y0.c) == 8)
+	assert(unsafe.Sizeof(y0.d) == 1)
+	assert(unsafe.Sizeof(y0.e) == 16)
+	assert(unsafe.Sizeof(y0) == 40)
+
+	var y1 S1
+	assert(unsafe.Sizeof(y1) == 72)
+
+	var y2 S2
+	assert(unsafe.Sizeof(y2) == 8)
 }
 
 // self-testing only

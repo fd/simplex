@@ -551,8 +551,9 @@ func stripCommonPrefix(lines []string) {
 			}
 			// Shorten the computed common prefix by the length of
 			// suffix, if it is found as suffix of the prefix.
+			// prefix = strings.TrimSuffix(prefix, string(suffix))
 			if strings.HasSuffix(prefix, string(suffix)) {
-				prefix = prefix[0 : len(prefix)-len(suffix)]
+				prefix = prefix[:len(prefix)-len(suffix)]
 			}
 		}
 	}

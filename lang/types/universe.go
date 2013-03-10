@@ -55,11 +55,11 @@ var aliases = [...]*Basic{
 }
 
 var predeclaredConstants = [...]*Const{
-	{"true", Typ[UntypedBool], true, nil},
-	{"false", Typ[UntypedBool], false, nil},
-	{"iota", Typ[UntypedInt], zeroConst, nil},
-	{"nil", Typ[UntypedNil], nilConst, nil},
-	{"SxVersion", Typ[UntypedString], "", nil},
+	{Name: "true", Type: Typ[UntypedBool], Val: true},
+	{Name: "false", Type: Typ[UntypedBool], Val: false},
+	{Name: "iota", Type: Typ[UntypedInt], Val: zeroConst},
+	{Name: "nil", Type: Typ[UntypedNil], Val: nilConst},
+	{Name: "SxVersion", Type: Typ[UntypedString], Val: ""},
 }
 
 var predeclaredFunctions = [...]*builtin{
@@ -74,8 +74,8 @@ var predeclaredFunctions = [...]*builtin{
 	{_Make, "make", 1, true, false},
 	{_New, "new", 1, false, false},
 	{_Panic, "panic", 1, false, true},
-	{_Print, "print", 1, true, true},
-	{_Println, "println", 1, true, true},
+	{_Print, "print", 0, true, true},
+	{_Println, "println", 0, true, true},
 	{_Real, "real", 1, false, false},
 	{_Recover, "recover", 0, false, true},
 
@@ -131,6 +131,15 @@ func def(obj Object) {
 	scope := Universe
 	if ast.IsExported(name) && name != "SxVersion" {
 		scope = Unsafe.Scope
+		// set Pkg field
+		switch obj := obj.(type) {
+		case *TypeName:
+			obj.Pkg = Unsafe
+		case *Func:
+			obj.Pkg = Unsafe
+		default:
+			unreachable()
+		}
 	}
 	if scope.Insert(obj) != nil {
 		panic("internal error: double declaration")

@@ -352,13 +352,6 @@ func Lookup(ident string) Token {
 	if tok, is_keyword := keywords[ident]; is_keyword {
 		return tok
 	}
-	return IDENT
-}
-
-func LookupWithSimplex(ident string) Token {
-	if tok, is_keyword := keywords[ident]; is_keyword {
-		return tok
-	}
 	if tok, is_keyword := sx_keywords[ident]; is_keyword {
 		return tok
 	}

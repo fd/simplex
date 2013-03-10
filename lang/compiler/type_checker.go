@@ -21,7 +21,7 @@ func (c *Context) check_types() error {
 	cache := map[types.Type]bool{}
 	mapping := map[ast.Node]types.Type{}
 
-	ctx := types.Default
+	ctx := types.Context{}
 	ctx.Expr = func(x ast.Expr, typ types.Type, val interface{}) {
 		mapping[x] = typ
 		collect_types(typ, views, tables, cache)
