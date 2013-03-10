@@ -54,7 +54,7 @@ func (check *checker) formatMsg(format string, args []interface{}) string {
 	for i, arg := range args {
 		switch a := arg.(type) {
 		case token.Pos:
-			args[i] = check.fset.Position(a)
+			args[i] = check.fset.Position(a).String()
 		case ast.Expr:
 			args[i] = exprString(a)
 		case Type:
@@ -307,7 +307,11 @@ func writeType(buf *bytes.Buffer, typ Type) {
 
 	case *NamedType:
 		s := "<NamedType w/o object>"
-		if t.Obj != nil {
+		if obj := t.Obj; obj != nil {
+			if obj.Pkg != nil && obj.Pkg.Path != "" {
+				buf.WriteString(obj.Pkg.Path)
+				buf.WriteString(".")
+			}
 			s = t.Obj.GetName()
 		}
 		buf.WriteString(s)
@@ -316,3 +320,16 @@ func writeType(buf *bytes.Buffer, typ Type) {
 		fmt.Fprintf(buf, "<type %T>", t)
 	}
 }
+
+func (t *Array) String() string     { return typeString(t) }
+func (t *Basic) String() string     { return typeString(t) }
+func (t *Chan) String() string      { return typeString(t) }
+func (t *Interface) String() string { return typeString(t) }
+func (t *Map) String() string       { return typeString(t) }
+func (t *NamedType) String() string { return typeString(t) }
+func (t *Pointer) String() string   { return typeString(t) }
+func (t *Result) String() string    { return typeString(t) }
+func (t *Signature) String() string { return typeString(t) }
+func (t *Slice) String() string     { return typeString(t) }
+func (t *Struct) String() string    { return typeString(t) }
+func (t *builtin) String() string   { return typeString(t) }

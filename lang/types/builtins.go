@@ -21,8 +21,7 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, bin *builtin, iota
 	id := bin.id
 
 	// declare before goto's
-	var arg0 ast.Expr
-	var typ0 Type
+	var arg0 ast.Expr // first argument, if present
 
 	// check argument count
 	n := len(args)
@@ -42,31 +41,24 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, bin *builtin, iota
 	if n > 0 {
 		arg0 = args[0]
 		switch id {
-		case _Make, _New:
-			// argument must be a type
-			typ0 = check.typ(arg0, false)
-			if typ0 == Typ[Invalid] {
-				goto Error
-			}
-		case _Trace:
-			// _Trace implementation does the work
+		case _Make, _New, _Print, _Println, _Offsetof, _Trace:
+			// respective cases below do the work
 		default:
 			// argument must be an expression
 			check.expr(x, arg0, nil, iota)
 			if x.mode == invalid {
 				goto Error
 			}
-			typ0 = underlying(x.typ)
 		}
 	}
 
 	switch id {
 	case _Append:
-		s, ok := typ0.(*Slice)
-		if !ok {
+		if _, ok := underlying(x.typ).(*Slice); !ok {
 			check.invalidArg(x.pos(), "%s is not a typed slice", x)
 			goto Error
 		}
+		resultTyp := x.typ
 		for _, arg := range args[1:] {
 			check.expr(x, arg, nil, iota)
 			if x.mode == invalid {
@@ -75,12 +67,12 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, bin *builtin, iota
 			// TODO(gri) check assignability
 		}
 		x.mode = value
-		x.typ = s
+		x.typ = resultTyp
 
 	case _Cap, _Len:
 		mode := invalid
 		var val interface{}
-		switch typ := implicitDeref(typ0).(type) {
+		switch typ := implicitArrayDeref(underlying(x.typ)).(type) {
 		case *Basic:
 			if isString(typ) && id == _Len {
 				if x.mode == constant {
@@ -93,7 +85,11 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, bin *builtin, iota
 
 		case *Array:
 			mode = value
-			if !containsCallsOrReceives(arg0) {
+			// spec: "The expressions len(s) and cap(s) are constants
+			// if the type of s is an array or pointer to an array and
+			// the expression s does not contain channel receives or
+			// function calls; in this case s is not evaluated."
+			if !check.containsCallsOrReceives(arg0) {
 				mode = constant
 				val = typ.Len
 			}
@@ -116,7 +112,7 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, bin *builtin, iota
 		x.val = val
 
 	case _Close:
-		ch, ok := typ0.(*Chan)
+		ch, ok := underlying(x.typ).(*Chan)
 		if !ok {
 			check.invalidArg(x.pos(), "%s is not a channel", x)
 			goto Error
@@ -150,7 +146,7 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, bin *builtin, iota
 			goto Error
 		}
 
-		if !isIdentical(x.typ, y.typ) {
+		if !IsIdentical(x.typ, y.typ) {
 			check.invalidArg(x.pos(), "mismatched types %s and %s", x.typ, y.typ)
 			goto Error
 		}
@@ -182,7 +178,7 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, bin *builtin, iota
 		}
 
 		var dst, src Type
-		if t, ok := typ0.(*Slice); ok {
+		if t, ok := underlying(x.typ).(*Slice); ok {
 			dst = t.Elt
 		}
 		switch t := underlying(y.typ).(type) {
@@ -199,7 +195,7 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, bin *builtin, iota
 			goto Error
 		}
 
-		if !isIdentical(dst, src) {
+		if !IsIdentical(dst, src) {
 			check.invalidArg(x.pos(), "arguments to copy %s and %s have different element types %s and %s", x, &y, dst, src)
 			goto Error
 		}
@@ -208,7 +204,7 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, bin *builtin, iota
 		x.typ = Typ[Int]
 
 	case _Delete:
-		m, ok := typ0.(*Map)
+		m, ok := underlying(x.typ).(*Map)
 		if !ok {
 			check.invalidArg(x.pos(), "%s is not a map", x)
 			goto Error
@@ -217,14 +213,14 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, bin *builtin, iota
 		if x.mode == invalid {
 			goto Error
 		}
-		if !x.isAssignable(m.Key) {
+		if !x.isAssignable(check.ctxt, m.Key) {
 			check.invalidArg(x.pos(), "%s is not assignable to %s", x, m.Key)
 			goto Error
 		}
 		x.mode = novalue
 
 	case _Imag, _Real:
-		if !isComplex(typ0) {
+		if !isComplex(x.typ) {
 			check.invalidArg(x.pos(), "%s must be a complex number", x)
 			goto Error
 		}
@@ -242,7 +238,7 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, bin *builtin, iota
 			x.mode = value
 		}
 		k := Invalid
-		switch typ0.(*Basic).Kind {
+		switch underlying(x.typ).(*Basic).Kind {
 		case Complex64:
 			k = Float32
 		case Complex128:
@@ -255,8 +251,12 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, bin *builtin, iota
 		x.typ = Typ[k]
 
 	case _Make:
+		resultTyp := check.typ(arg0, false)
+		if resultTyp == Typ[Invalid] {
+			goto Error
+		}
 		var min int // minimum number of arguments
-		switch underlying(typ0).(type) {
+		switch underlying(resultTyp).(type) {
 		case *Slice:
 			min = 2
 		case *Map, *Chan:
@@ -272,7 +272,7 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, bin *builtin, iota
 		var sizes []interface{} // constant integer arguments, if any
 		for _, arg := range args[1:] {
 			check.expr(x, arg, nil, iota)
-			if x.isInteger() {
+			if x.isInteger(check.ctxt) {
 				if x.mode == constant {
 					if isNegConst(x.val) {
 						check.invalidArg(x.pos(), "%s must not be negative", x)
@@ -291,15 +291,25 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, bin *builtin, iota
 			// safe to continue
 		}
 		x.mode = variable
-		x.typ = typ0
+		x.typ = resultTyp
 
 	case _New:
+		resultTyp := check.typ(arg0, false)
+		if resultTyp == Typ[Invalid] {
+			goto Error
+		}
 		x.mode = variable
-		x.typ = &Pointer{Base: typ0}
+		x.typ = &Pointer{Base: resultTyp}
 
-	case _Panic, _Print, _Println:
-		for _, arg := range args[1:] {
+	case _Panic:
+		x.mode = novalue
+
+	case _Print, _Println:
+		for _, arg := range args {
 			check.expr(x, arg, nil, -1)
+			if x.mode == invalid {
+				goto Error
+			}
 		}
 		x.mode = novalue
 
@@ -309,34 +319,44 @@ func (check *checker) builtin(x *operand, call *ast.CallExpr, bin *builtin, iota
 
 	case _Alignof:
 		x.mode = constant
+		x.val = check.ctxt.alignof(x.typ)
 		x.typ = Typ[Uintptr]
-		// For now we return 1 always as it satisfies the spec's alignment guarantees.
-		// TODO(gri) Extend typechecker API so that platform-specific values can be
-		//           provided.
-		x.val = int64(1)
 
 	case _Offsetof:
-		if _, ok := unparen(x.expr).(*ast.SelectorExpr); !ok {
-			check.invalidArg(x.pos(), "%s is not a selector", x)
+		arg, ok := unparen(arg0).(*ast.SelectorExpr)
+		if !ok {
+			check.invalidArg(arg0.Pos(), "%s is not a selector expression", arg0)
+			goto Error
+		}
+		check.expr(x, arg.X, nil, -1)
+		if x.mode == invalid {
+			goto Error
+		}
+		sel := arg.Sel.Name
+		res := lookupField(x.typ, QualifiedName{check.pkg, arg.Sel.Name})
+		if res.index == nil {
+			check.invalidArg(x.pos(), "%s has no single field %s", x, sel)
+			goto Error
+		}
+		offs := check.ctxt.offsetof(deref(x.typ), res.index)
+		if offs < 0 {
+			check.invalidArg(x.pos(), "field %s is embedded via a pointer in %s", sel, x)
 			goto Error
 		}
 		x.mode = constant
+		x.val = offs
 		x.typ = Typ[Uintptr]
-		// because of the size guarantees for basic types (> 0 for some),
-		// returning 0 is only correct if two distinct non-zero size
-		// structs can have the same address (the spec permits that)
-		x.val = int64(0)
 
 	case _Sizeof:
 		x.mode = constant
+		x.val = check.ctxt.sizeof(x.typ)
 		x.typ = Typ[Uintptr]
-		x.val = sizeof(check.ctxt, typ0)
 
 	case _Assert:
 		// assert(pred) causes a typechecker error if pred is false.
 		// The result of assert is the value of pred if there is no error.
 		// Note: assert is only available in self-test mode.
-		if x.mode != constant || !isBoolean(typ0) {
+		if x.mode != constant || !isBoolean(x.typ) {
 			check.invalidArg(x.pos(), "%s is not a boolean constant", x)
 			goto Error
 		}
@@ -382,10 +402,10 @@ Error:
 	x.expr = call
 }
 
-// implicitDeref returns A if typ is of the form *A and A is an array;
+// implicitArrayDeref returns A if typ is of the form *A and A is an array;
 // otherwise it returns typ.
 //
-func implicitDeref(typ Type) Type {
+func implicitArrayDeref(typ Type) Type {
 	if p, ok := typ.(*Pointer); ok {
 		if a, ok := underlying(p.Base).(*Array); ok {
 			return a
@@ -394,25 +414,25 @@ func implicitDeref(typ Type) Type {
 	return typ
 }
 
-// containsCallsOrReceives returns true if the expression x contains
-// function calls or channel receives; it returns false otherwise.
+// containsCallsOrReceives reports if x contains function calls or channel receives.
+// Expects that x was type-checked already.
 //
-func containsCallsOrReceives(x ast.Expr) bool {
-	res := false
+func (check *checker) containsCallsOrReceives(x ast.Expr) (found bool) {
 	ast.Inspect(x, func(x ast.Node) bool {
 		switch x := x.(type) {
 		case *ast.CallExpr:
-			res = true
-			return false
+			// calls and conversions look the same
+			if !check.conversions[x] {
+				found = true
+			}
 		case *ast.UnaryExpr:
 			if x.Op == token.ARROW {
-				res = true
-				return false
+				found = true
 			}
 		}
-		return true
+		return !found // no need to continue if found
 	})
-	return res
+	return
 }
 
 // unparen removes any parentheses surrounding an expression and returns
@@ -432,26 +452,4 @@ func (check *checker) complexArg(x *operand) bool {
 	}
 	check.invalidArg(x.pos(), "%s must be a float32, float64, or an untyped non-complex numeric constant", x)
 	return false
-}
-
-func sizeof(ctxt *Context, typ Type) int64 {
-	switch typ := underlying(typ).(type) {
-	case *Basic:
-		switch typ.Kind {
-		case Int, Uint:
-			return ctxt.IntSize
-		case Uintptr:
-			return ctxt.PtrSize
-		}
-		return typ.Size
-	case *Array:
-		return sizeof(ctxt, typ.Elt) * typ.Len
-	case *Struct:
-		var size int64
-		for _, f := range typ.Fields {
-			size += sizeof(ctxt, f.Type)
-		}
-		return size
-	}
-	return ctxt.PtrSize // good enough
 }

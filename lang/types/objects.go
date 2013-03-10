@@ -14,6 +14,7 @@ import (
 // All objects implement the Object interface.
 //
 type Object interface {
+	GetPkg() *Package
 	GetName() string
 	GetType() Type
 	GetPos() token.Pos
@@ -34,15 +35,18 @@ type Package struct {
 
 // A Const represents a declared constant.
 type Const struct {
+	Pkg  *Package
 	Name string
 	Type Type
-	Val  interface{}
+	Val  interface{} // nil means unknown constant value due to type error
 
-	spec *ast.ValueSpec
+	visited bool // for initialization cycle detection
+	spec    *ast.ValueSpec
 }
 
 // A TypeName represents a declared type.
 type TypeName struct {
+	Pkg  *Package
 	Name string
 	Type Type // *NamedType or *Basic
 
@@ -51,6 +55,7 @@ type TypeName struct {
 
 // A Variable represents a declared variable (including function parameters and results).
 type Var struct {
+	Pkg  *Package // nil for parameters
 	Name string
 	Type Type
 
@@ -60,11 +65,18 @@ type Var struct {
 
 // A Func represents a declared function.
 type Func struct {
+	Pkg  *Package
 	Name string
 	Type Type // *Signature or *Builtin
 
 	decl *ast.FuncDecl
 }
+
+func (obj *Package) GetPkg() *Package  { return obj }
+func (obj *Const) GetPkg() *Package    { return obj.Pkg }
+func (obj *TypeName) GetPkg() *Package { return obj.Pkg }
+func (obj *Var) GetPkg() *Package      { return obj.Pkg }
+func (obj *Func) GetPkg() *Package     { return obj.Pkg }
 
 func (obj *Package) GetName() string  { return obj.Name }
 func (obj *Const) GetName() string    { return obj.Name }
@@ -78,7 +90,13 @@ func (obj *TypeName) GetType() Type { return obj.Type }
 func (obj *Var) GetType() Type      { return obj.Type }
 func (obj *Func) GetType() Type     { return obj.Type }
 
-func (obj *Package) GetPos() token.Pos { return obj.spec.Pos() }
+func (obj *Package) GetPos() token.Pos {
+	if obj.spec != nil {
+		return obj.spec.Pos()
+	}
+	return token.NoPos
+}
+
 func (obj *Const) GetPos() token.Pos {
 	for _, n := range obj.spec.Names {
 		if n.Name == obj.Name {
@@ -87,7 +105,13 @@ func (obj *Const) GetPos() token.Pos {
 	}
 	return token.NoPos
 }
-func (obj *TypeName) GetPos() token.Pos { return obj.spec.Pos() }
+func (obj *TypeName) GetPos() token.Pos {
+	if obj.spec != nil {
+		return obj.spec.Pos()
+	}
+	return token.NoPos
+}
+
 func (obj *Var) GetPos() token.Pos {
 	switch d := obj.decl.(type) {
 	case *ast.Field:
@@ -111,7 +135,12 @@ func (obj *Var) GetPos() token.Pos {
 	}
 	return token.NoPos
 }
-func (obj *Func) GetPos() token.Pos { return obj.decl.Name.Pos() }
+func (obj *Func) GetPos() token.Pos {
+	if obj.decl != nil && obj.decl.Name != nil {
+		return obj.decl.Name.Pos()
+	}
+	return token.NoPos
+}
 
 func (*Package) anObject()  {}
 func (*Const) anObject()    {}
@@ -126,7 +155,8 @@ func (*Func) anObject()     {}
 // TODO(gri) Once we do identifier resolution completely in
 //           in the typechecker, this functionality can go.
 //
-func newObj(astObj *ast.Object) Object {
+func newObj(pkg *Package, astObj *ast.Object) Object {
+	assert(pkg != nil)
 	name := astObj.Name
 	typ, _ := astObj.Type.(Type)
 	switch astObj.Kind {
@@ -135,18 +165,20 @@ func newObj(astObj *ast.Object) Object {
 	case ast.Pkg:
 		unreachable()
 	case ast.Con:
-		return &Const{Name: name, Type: typ, Val: astObj.Data, spec: astObj.Decl.(*ast.ValueSpec)}
+		return &Const{Pkg: pkg, Name: name, Type: typ, Val: astObj.Data, spec: astObj.Decl.(*ast.ValueSpec)}
 	case ast.Typ:
-		return &TypeName{Name: name, Type: typ, spec: astObj.Decl.(*ast.TypeSpec)}
+		return &TypeName{Pkg: pkg, Name: name, Type: typ, spec: astObj.Decl.(*ast.TypeSpec)}
 	case ast.Var:
 		switch astObj.Decl.(type) {
-		case *ast.Field, *ast.ValueSpec, *ast.AssignStmt: // these are ok
+		case *ast.Field: // function parameters
+		case *ast.ValueSpec: // proper variable declarations
+		case *ast.AssignStmt: // short variable declarations
 		default:
-			unreachable()
+			unreachable() // everything else is not ok
 		}
-		return &Var{Name: name, Type: typ, decl: astObj.Decl}
+		return &Var{Pkg: pkg, Name: name, Type: typ, decl: astObj.Decl}
 	case ast.Fun:
-		return &Func{Name: name, Type: typ, decl: astObj.Decl.(*ast.FuncDecl)}
+		return &Func{Pkg: pkg, Name: name, Type: typ, decl: astObj.Decl.(*ast.FuncDecl)}
 	case ast.Lbl:
 		unreachable() // for now
 	}

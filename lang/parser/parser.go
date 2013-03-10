@@ -340,8 +340,26 @@ func (p *parser) next() {
 	}
 }
 
+// A bailout panic is raised to indicate early termination.
+type bailout struct{}
+
 func (p *parser) error(pos token.Pos, msg string) {
-	p.errors.Add(p.file.Position(pos), msg)
+	epos := p.file.Position(pos)
+
+	// If AllErrors is not set, discard errors reported on the same line
+	// as the last recorded error and stop parsing if there are more than
+	// 10 errors.
+	if p.mode&AllErrors == 0 {
+		n := len(p.errors)
+		if n > 0 && p.errors[n-1].Pos.Line == epos.Line {
+			return // discard - likely a spurious error
+		}
+		if n > 10 {
+			panic(bailout{})
+		}
+	}
+
+	p.errors.Add(epos, msg)
 }
 
 func (p *parser) errorExpected(pos token.Pos, msg string) {
@@ -1211,11 +1229,11 @@ func (p *parser) parseElement(keyOk bool) ast.Expr {
 	// In the former case we are done, and in the latter case we don't
 	// care because the type checker will do a separate field lookup.
 	//
-	// If the key does not resolve, it must a) be defined at the top-
-	// level in another file of the same package or be undeclared, or
-	// b) it is a struct field. In the former case, the type checker
-	// can do a top-level lookup, and in the latter case it will do a
-	// separate field lookup.
+	// If the key does not resolve, it a) must be defined at the top
+	// level in another file of the same package, the universe scope, or be
+	// undeclared; or b) it is a struct field. In the former case, the type
+	// checker can do a top-level lookup, and in the latter case it will do
+	// a separate field lookup.
 	x := p.checkExpr(p.parseExpr(keyOk))
 	if keyOk {
 		if p.tok == token.COLON {

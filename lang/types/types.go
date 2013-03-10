@@ -8,6 +8,7 @@ import "go/ast"
 
 // All types implement the Type interface.
 type Type interface {
+	String() string
 	aType()
 }
 
@@ -73,7 +74,7 @@ const (
 type Basic struct {
 	Kind BasicKind
 	Info BasicInfo
-	Size int64
+	size int64 // use DefaultSizeof to get size
 	Name string
 }
 
@@ -89,8 +90,11 @@ type Slice struct {
 }
 
 // A QualifiedName is a name qualified with the package that declared the name.
+// Note: Pkg may be a fake package (no name, no scope) because the GC compiler's
+//       export information doesn't provide full information in some cases.
+// TODO(gri): Should change Pkg to PkgPath since it's the only thing we care about.
 type QualifiedName struct {
-	Pkg  *Package // nil only for predeclared error.Error
+	Pkg  *Package // nil only for predeclared error.Error (exported)
 	Name string   // unqualified type name for anonymous fields
 }
 
@@ -104,7 +108,7 @@ func (p QualifiedName) IsSame(q QualifiedName) bool {
 		return false
 	}
 	// p.Name == q.Name
-	return ast.IsExported(p.Name) || p.Pkg == q.Pkg
+	return ast.IsExported(p.Name) || p.Pkg.Path == q.Pkg.Path
 }
 
 // A Field represents a field of a struct.
@@ -117,12 +121,13 @@ type Field struct {
 
 // A Struct represents a struct type struct{...}.
 type Struct struct {
-	Fields []*Field
+	Fields  []*Field
+	offsets []int64 // field offsets in bytes, lazily computed
 }
 
-func (typ *Struct) fieldIndex(name string) int {
+func (typ *Struct) fieldIndex(name QualifiedName) int {
 	for i, f := range typ.Fields {
-		if f.Name == name {
+		if f.QualifiedName.IsSame(name) {
 			return i
 		}
 	}
