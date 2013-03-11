@@ -271,21 +271,25 @@ func (check *checker) object(obj Object, cycleOk bool) {
 			case *Interface:
 				// methods cannot be associated with an interface type
 				for _, m := range scope.Entries {
-					recv := m.(*Func).decl.Recv.List[0].Type
-					check.errorf(recv.Pos(), "invalid receiver type %s (%s is an interface type)", obj.Name, obj.Name)
-					// ok to continue
+					if func_decl, ok := m.(*Func).decl.(*ast.FuncDecl); ok {
+						recv := func_decl.Recv.List[0].Type
+						check.errorf(recv.Pos(), "invalid receiver type %s (%s is an interface type)", obj.Name, obj.Name)
+						// ok to continue
+					}
 				}
 			}
 			// typecheck method signatures
 			var methods []*Method
 			for _, obj := range scope.Entries {
 				m := obj.(*Func)
-				sig := check.typ(m.decl.Type, cycleOk).(*Signature)
-				params, _ := check.collectParams(m.decl.Recv, false)
-				sig.Recv = params[0] // the parser/assocMethod ensure there is exactly one parameter
-				m.Type = sig
-				methods = append(methods, &Method{QualifiedName{check.pkg, m.Name}, sig})
-				check.later(m, sig, m.decl.Body)
+				if func_decl, ok := m.decl.(*ast.FuncDecl); ok {
+					sig := check.typ(func_decl.Type, cycleOk).(*Signature)
+					params, _ := check.collectParams(func_decl.Recv, false)
+					sig.Recv = params[0] // the parser/assocMethod ensure there is exactly one parameter
+					m.Type = sig
+					methods = append(methods, &Method{QualifiedName{check.pkg, m.Name}, sig})
+					check.later(m, sig, func_decl.Body)
+				}
 			}
 			typ.Methods = methods
 			delete(check.methods, obj) // we don't need this scope anymore

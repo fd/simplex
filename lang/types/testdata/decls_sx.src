@@ -1,0 +1,9 @@
+package main
+
+doct a_document(color string) html {
+  A-Header: /Hello
+
+  <span class="cool {{ color }}">
+    Some {{ color }} text
+  </span>
+}

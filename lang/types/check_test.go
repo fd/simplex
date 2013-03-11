@@ -50,6 +50,7 @@ var tests = []struct {
 	{"decls1", []string{"testdata/decls1.src"}},
 	{"decls2", []string{"testdata/decls2a.src", "testdata/decls2b.src"}},
 	{"decls3", []string{"testdata/decls3.src"}},
+	{"decls_sx", []string{"testdata/decls_sx.src"}},
 	{"const0", []string{"testdata/const0.src"}},
 	{"expr0", []string{"testdata/expr0.src"}},
 	{"expr1", []string{"testdata/expr1.src"}},

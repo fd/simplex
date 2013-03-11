@@ -69,7 +69,8 @@ type Func struct {
 	Name string
 	Type Type // *Signature or *Builtin
 
-	decl *ast.FuncDecl
+	//decl *ast.FuncDecl
+	decl interface{}
 }
 
 func (obj *Package) GetPkg() *Package  { return obj }
@@ -135,9 +136,17 @@ func (obj *Var) GetPos() token.Pos {
 	}
 	return token.NoPos
 }
+
 func (obj *Func) GetPos() token.Pos {
-	if obj.decl != nil && obj.decl.Name != nil {
-		return obj.decl.Name.Pos()
+	switch d := obj.decl.(type) {
+	case *ast.FuncDecl:
+		if d.Name != nil {
+			return d.Name.Pos()
+		}
+	case *ast.SxFuncDecl:
+		if d.Name != nil {
+			return d.Name.Pos()
+		}
 	}
 	return token.NoPos
 }
@@ -178,7 +187,13 @@ func newObj(pkg *Package, astObj *ast.Object) Object {
 		}
 		return &Var{Pkg: pkg, Name: name, Type: typ, decl: astObj.Decl}
 	case ast.Fun:
-		return &Func{Pkg: pkg, Name: name, Type: typ, decl: astObj.Decl.(*ast.FuncDecl)}
+		switch d := astObj.Decl.(type) {
+		case *ast.FuncDecl:
+		case *ast.SxFuncDecl:
+		default:
+			unreachable() // everything else is not ok
+		}
+		return &Func{Pkg: pkg, Name: name, Type: typ, decl: astObj.Decl}
 	case ast.Lbl:
 		unreachable() // for now
 	}

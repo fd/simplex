@@ -113,6 +113,11 @@ func (check *checker) resolve(importer Importer) (methods []*ast.FuncDecl) {
 					continue // blank (_) and init functions are inaccessible
 				}
 				pkg.Scope.Insert(check.lookup(d.Name))
+			case *ast.SxFuncDecl:
+				if d.Name.Name == "_" || d.Name.Name == "init" {
+					continue // blank (_) and init functions are inaccessible
+				}
+				pkg.Scope.Insert(check.lookup(d.Name))
 			default:
 				check.invalidAST(d.Pos(), "unknown ast.Decl node %T", d)
 			}
