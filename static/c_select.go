@@ -1,8 +1,8 @@
 package static
 
 import (
-	"github.com/fd/static/errors"
 	"reflect"
+	"simplex.sh/errors"
 )
 
 func (in *C) Select(f interface{}) *C {

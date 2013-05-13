@@ -2,8 +2,8 @@ package static
 
 import (
 	"fmt"
-	"github.com/fd/static/errors"
 	"reflect"
+	"simplex.sh/errors"
 )
 
 type Waiter interface {

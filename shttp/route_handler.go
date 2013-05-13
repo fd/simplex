@@ -2,9 +2,9 @@ package shttp
 
 import (
 	"encoding/json"
-	"github.com/fd/static/store"
 	"io"
 	"net/http"
+	"simplex.sh/store"
 	"strings"
 	"sync"
 )

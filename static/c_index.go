@@ -1,7 +1,7 @@
 package static
 
 import (
-	"github.com/fd/static/errors"
+	"simplex.sh/errors"
 )
 
 func (in *C) Index(f func(v interface{}) string) *I {

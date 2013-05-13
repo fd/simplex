@@ -1,12 +1,12 @@
 package stesting
 
 import (
-	"github.com/fd/static"
-	"github.com/fd/static/store"
-	_ "github.com/fd/static/store/file"
 	"os"
 	"path"
 	"runtime"
+	"simplex.sh/static"
+	"simplex.sh/store"
+	_ "simplex.sh/store/file"
 	"testing"
 )
 

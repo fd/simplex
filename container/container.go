@@ -1,10 +1,10 @@
 package container
 
 import (
-	"github.com/fd/static/errors"
-	"github.com/fd/static/shttp"
-	"github.com/fd/static/store"
 	"os"
+	"simplex.sh/errors"
+	"simplex.sh/shttp"
+	"simplex.sh/store"
 	"sync"
 )
 

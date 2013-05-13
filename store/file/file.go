@@ -1,12 +1,12 @@
 package file
 
 import (
-	"github.com/fd/static/errors"
-	"github.com/fd/static/store"
 	"io"
 	"net/url"
 	"os"
 	"path"
+	"simplex.sh/errors"
+	"simplex.sh/store"
 )
 
 func init() {

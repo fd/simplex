@@ -2,8 +2,8 @@ package shttp
 
 import (
 	"encoding/json"
-	"github.com/fd/static/errors"
 	"net/http"
+	"simplex.sh/errors"
 	"sync"
 )
 

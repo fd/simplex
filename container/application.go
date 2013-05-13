@@ -1,11 +1,11 @@
 package container
 
 import (
-	"github.com/fd/static"
-	"github.com/fd/static/shttp"
-	"github.com/fd/static/store"
 	"github.com/gorilla/mux"
 	"net/http"
+	"simplex.sh/shttp"
+	"simplex.sh/static"
+	"simplex.sh/store"
 )
 
 type Factory func(*Application)

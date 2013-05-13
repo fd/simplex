@@ -1,8 +1,8 @@
 package static
 
 import (
-	"github.com/fd/static/errors"
-	"github.com/fd/static/store"
+	"simplex.sh/errors"
+	"simplex.sh/store"
 	"sync"
 )
 

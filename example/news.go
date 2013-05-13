@@ -2,11 +2,11 @@ package example
 
 import (
 	"fmt"
-	"github.com/fd/static"
-	"github.com/fd/static/container"
-	"github.com/fd/static/paginate"
-	"github.com/fd/static/shttp"
 	"html/template"
+	"simplex.sh/container"
+	"simplex.sh/paginate"
+	"simplex.sh/shttp"
+	"simplex.sh/static"
 	"time"
 )
 

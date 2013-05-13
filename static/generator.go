@@ -1,7 +1,7 @@
 package static
 
 import (
-	"github.com/fd/static/store"
+	"simplex.sh/store"
 )
 
 type Generator interface {

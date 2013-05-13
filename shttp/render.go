@@ -1,8 +1,8 @@
 package shttp
 
 import (
-	"github.com/fd/static"
 	"reflect"
+	"simplex.sh/static"
 )
 
 var (

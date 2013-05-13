@@ -1,9 +1,9 @@
 package static
 
 import (
-	"github.com/fd/static/errors"
 	"reflect"
 	"runtime"
+	"simplex.sh/errors"
 	"sync"
 )
 
