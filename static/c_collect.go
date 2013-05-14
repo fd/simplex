@@ -15,46 +15,14 @@ and returns one value (To) and an optional error
 
 */
 func (in *C) Collect(f interface{}) *C {
-	var (
-		fv      = reflect.ValueOf(f)
-		ft      = fv.Type()
-		it      reflect.Type
-		ot      reflect.Type
-		has_err bool
-	)
+	fv, ft := f_type_Collect(in.elem_type, f)
 
-	if fv.Kind() != reflect.Func {
-		panic("Collect(f) expects f to  be a function")
-	}
-
-	if ft.NumIn() != 1 {
-		panic("Collect(f): f must take one argument")
-	}
-
-	if ft.NumOut() != 1 && ft.NumOut() != 2 {
-		panic("Collect(f): f must take one or two argument")
-	}
-
-	if ft.NumOut() == 2 {
-		if ft.Out(1) != reflect.TypeOf((*error)(nil)).Elem() {
-			panic("Collect(f): the second return value of f must be of type error")
-		}
-		has_err = true
-	}
-
-	it = ft.In(0)
-	ot = ft.Out(0)
-
-	if it != in.elem_type && it != reflect.TypeOf((*interface{})(nil)).Elem() {
-		panic("Collect(f): the input type of f is not compatible with in")
-	}
-
-	return in.Transform(ot, func(i_elems []interface{}) ([]interface{}, error) {
+	return in.Transform(ft.Out(0), func(i_elems []interface{}) ([]interface{}, error) {
 		var (
 			o_elems    = make([]interface{}, len(i_elems))
 			workers    = runtime.NumCPU() * 2
 			slice_size = len(i_elems)/workers + 1
-			ctx        = &collect_context{f: fv, has_err: has_err}
+			ctx        = &collect_context{f: fv, has_err: ft.NumOut() == 2}
 		)
 
 		for i := 0; i < workers; i++ {
