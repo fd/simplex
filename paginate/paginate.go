@@ -19,7 +19,7 @@ func Paginate(in *static.C, size int) *static.C {
 	return in.Transform(reflect.TypeOf(&Page{}), func(elems []interface{}) ([]interface{}, error) {
 		var (
 			number = 1
-			pages  = make([]interface{}, 0, (len(elems)/size)+1)
+			pages  = make([]interface{}, 0, len(elems)/size+1)
 		)
 
 		for l := len(elems); l > 0; l -= size {
