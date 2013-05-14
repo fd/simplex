@@ -2,9 +2,9 @@ package shttp
 
 import (
 	"encoding/json"
-	"github.com/fd/static/store"
 	"io"
 	"net/http"
+	"simplex.sh/store"
 	"strings"
 	"sync"
 )
@@ -77,7 +77,12 @@ func (m *RouteHandler) load_routing_table() error {
 
 	r, err := m.store.Get("route_table.json")
 	if err != nil {
-		return err
+		if store.IsNotFound(err) {
+			m.table = map[string][]route_rule{}
+			return nil
+		} else {
+			return err
+		}
 	}
 
 	var (

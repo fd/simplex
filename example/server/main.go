@@ -1,9 +1,9 @@
 package main
 
 import (
-	"github.com/fd/static/container"
-	_ "github.com/fd/static/example"
-	_ "github.com/fd/static/store/file"
+	"simplex.sh/container"
+	_ "simplex.sh/example"
+	_ "simplex.sh/store/file"
 )
 
 func main() { container.CLI() }

@@ -1,8 +1,8 @@
 package paginate
 
 import (
-	"github.com/fd/static"
 	"reflect"
+	"simplex.sh/static"
 )
 
 type Page struct {

@@ -1,8 +1,8 @@
 package example
 
 import (
-	"github.com/fd/static"
-	"github.com/fd/static/stesting"
+	"simplex.sh/static"
+	"simplex.sh/stesting"
 	"testing"
 )
 

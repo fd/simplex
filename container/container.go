@@ -1,10 +1,10 @@
 package container
 
 import (
-	"github.com/fd/static/errors"
-	"github.com/fd/static/shttp"
-	"github.com/fd/static/store"
 	"os"
+	"simplex.sh/errors"
+	"simplex.sh/shttp"
+	"simplex.sh/store"
 	"sync"
 )
 
@@ -57,7 +57,10 @@ func new_container(env Environment) (*container_t, error) {
 	}
 
 	for _, factory := range app_registry {
-		factory.build(c)
+		err := factory.build(c)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	// reset the host router

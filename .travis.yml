@@ -1,0 +1,21 @@
+---
+language: go
+
+before_install:
+  - sudo apt-get update -qq > apt-get.out || (cat apt-get.out && exit 1)
+  - sudo apt-get install bzr mercurial git libyaml-dev cmake -qq >> apt-get.out || (cat apt-get.out && exit 1)
+
+services:
+  - redis-server
+
+install:
+  - mkdir -p $GOPATH/src/simplex.sh
+  - mv * $GOPATH/src/simplex.sh
+  - pushd $GOPATH/src/simplex.sh
+  - make
+  - popd
+
+script:
+  - pushd $GOPATH/src/simplex.sh
+  - make test
+  - popd

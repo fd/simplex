@@ -1,8 +1,8 @@
 package store
 
 import (
-	"github.com/fd/static/errors"
 	"net/url"
+	"simplex.sh/errors"
 )
 
 type (
