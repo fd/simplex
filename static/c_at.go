@@ -1,7 +1,11 @@
 package static
 
-func (in *C) PromiseAt(idx int) *Promise {
-	p := &Promise{tx: in.tx}
+import (
+	"simplex.sh/future"
+)
+
+func (in *C) PromiseAt(idx int) future.P {
+	p := &future.Promise{}
 
 	p.Do(func() (interface{}, error) {
 		if err := in.t.Wait(); err != nil {

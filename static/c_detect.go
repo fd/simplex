@@ -1,6 +1,10 @@
 package static
 
-func (in *C) PromiseDetect(f func(v interface{}) bool) *Promise {
+import (
+	"simplex.sh/future"
+)
+
+func (in *C) PromiseDetect(f func(v interface{}) bool) future.P {
 	return in.Select(f).PromiseAt(0)
 }
 

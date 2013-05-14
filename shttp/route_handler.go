@@ -112,7 +112,7 @@ func (m *RouteHandler) load_routing_table() error {
 		}
 	}
 
-	for host, _ := range host_map {
+	for host := range host_map {
 		hosts = append(hosts, host)
 	}
 

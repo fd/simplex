@@ -2,10 +2,11 @@ package static
 
 import (
 	"reflect"
+	"simplex.sh/future"
 )
 
 type C struct {
-	t         Transformation
+	t         future.Deferred
 	tx        *Tx
 	elem_type reflect.Type
 	elems     []interface{}

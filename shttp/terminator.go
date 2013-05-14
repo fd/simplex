@@ -3,12 +3,13 @@ package shttp
 import (
 	"encoding/json"
 	"simplex.sh/errors"
+	"simplex.sh/future"
 	"simplex.sh/static"
 	"sync"
 )
 
 type terminator struct {
-	static.Transformation
+	future.Deferred
 	tx          *static.Tx
 	collections []*static.C
 	route_table *route_table_writer

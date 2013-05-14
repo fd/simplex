@@ -1,7 +1,11 @@
 package static
 
-func (in *I) PromiseLen(key string) *Promise {
-	p := &Promise{tx: in.tx}
+import (
+	"simplex.sh/future"
+)
+
+func (in *I) PromiseLen(key string) future.P {
+	p := &future.Promise{}
 
 	p.Do(func() (interface{}, error) {
 		if err := in.t.Wait(); err != nil {

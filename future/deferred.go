@@ -1,4 +1,4 @@
-package static
+package future
 
 import (
 	"runtime/debug"
@@ -6,26 +6,31 @@ import (
 	"sync"
 )
 
-type Transformation struct {
+type D interface {
+	Wait() error
+	Err() error
+}
+
+type Deferred struct {
 	wg  sync.WaitGroup
 	err errors.List
 }
 
-func (t *Transformation) Wait() error {
+func (t *Deferred) Wait() error {
 	t.wg.Wait()
 	return t.Err()
 }
 
-func (t *Transformation) Err() error {
+func (t *Deferred) Err() error {
 	return t.err.Normalize()
 }
 
-func (t *Transformation) Do(f func() error) {
+func (t *Deferred) Do(f func() error) {
 	t.wg.Add(1)
 	go t.go_do(f)
 }
 
-func (t *Transformation) go_do(f func() error) {
+func (t *Deferred) go_do(f func() error) {
 	defer t.wg.Done()
 
 	defer func() {
@@ -35,15 +40,11 @@ func (t *Transformation) go_do(f func() error) {
 			return
 		}
 
-		// if e, ok := r.(error); ok {
-		//   t.err.Add(e)
-		//   return
-		// }
-
 		t.err.Add(errors.Panic(r, debug.Stack()))
 	}()
 
 	err := f()
+
 	if err != nil {
 		t.err.Add(err)
 	}

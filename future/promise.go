@@ -1,8 +1,12 @@
-package static
+package future
+
+type P interface {
+	Wait() (interface{}, error)
+	Err() error
+}
 
 type Promise struct {
-	t     Transformation
-	tx    *Tx
+	t     Deferred
 	Value interface{}
 	Valid bool
 }
