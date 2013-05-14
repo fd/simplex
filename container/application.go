@@ -3,6 +3,7 @@ package container
 import (
 	"github.com/gorilla/mux"
 	"net/http"
+	"simplex.sh/errors"
 	"simplex.sh/shttp"
 	"simplex.sh/static"
 	"simplex.sh/store"
@@ -15,7 +16,7 @@ func App(f Factory) Factory {
 	return f
 }
 
-func (f Factory) build(c *container_t) {
+func (f Factory) build(c *container_t) error {
 	c.mtx.Lock()
 	defer c.mtx.Unlock()
 
@@ -27,23 +28,23 @@ func (f Factory) build(c *container_t) {
 	f(app)
 
 	if app.Name == "" {
-		panic("application name must not be empty.")
+		return errors.Fmt("application name must not be empty.")
 	}
 
 	if _, p := c.app_map[app.Name]; p {
-		panic("application name must be unique.")
+		return errors.Fmt("%s: application name must be unique.", app.Name)
 	}
 
 	if app.Generator == nil {
-		panic("application must have a generator.")
+		return errors.Fmt("%s: application must have a generator.", app.Name)
 	}
 
 	app.src = store.SubStore(c.src, app.Name)
 	app.dst = store.SubStore(c.dst, app.Name)
 
-	static, err := shttp.NewRouteHandler(app.dst)
+	static, err := shttp.NewRouteHandler(store.Cache(app.dst))
 	if err != nil {
-		panic(err)
+		return errors.Forward(err, "%s: error while loading the route handler.", app.Name)
 	}
 
 	app.static = static
@@ -52,6 +53,8 @@ func (f Factory) build(c *container_t) {
 	c.router.Add(app)
 	c.apps = append(c.apps, app)
 	c.app_map[app.Name] = app
+
+	return nil
 }
 
 type Application struct {

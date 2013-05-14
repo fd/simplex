@@ -57,7 +57,10 @@ func new_container(env Environment) (*container_t, error) {
 	}
 
 	for _, factory := range app_registry {
-		factory.build(c)
+		err := factory.build(c)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	// reset the host router
