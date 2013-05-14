@@ -4,7 +4,7 @@ package static
 func (in *C) Slice(beg, end int) *C {
 	return in.Transform(in.elem_type, func(i_elems []interface{}) ([]interface{}, error) {
 		if end > len(i_elems) {
-			return i_elems[beg:len(i_elems)], nil
+			return i_elems[beg:], nil
 		}
 
 		return i_elems[beg:end], nil

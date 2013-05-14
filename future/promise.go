@@ -13,7 +13,7 @@ type Promise struct {
 
 func (p *Promise) Wait() (interface{}, error) {
 	err := p.t.Wait()
-	p.Valid = (err == nil)
+	p.Valid = err == nil
 	return p.Value, err
 }
 

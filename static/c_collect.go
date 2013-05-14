@@ -53,7 +53,7 @@ func (in *C) Collect(f interface{}) *C {
 		var (
 			o_elems    = make([]interface{}, len(i_elems))
 			workers    = runtime.NumCPU() * 2
-			slice_size = (len(i_elems) / workers) + 1
+			slice_size = len(i_elems)/workers + 1
 			ctx        = &collect_context{f: fv, has_err: has_err}
 		)
 
