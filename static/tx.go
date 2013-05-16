@@ -32,13 +32,13 @@ func (tx *Tx) DstStore() store.Store {
 
 func (tx *Tx) RegisterTerminator(name string, t Terminator) Terminator {
 	tx.mtx.Lock()
+	defer tx.mtx.Unlock()
 
 	if tx.terminators == nil {
 		tx.terminators = map[string]Terminator{}
 	}
 
 	if t := tx.terminators[name]; t != nil {
-		tx.mtx.Unlock()
 		return t
 	}
 
@@ -47,10 +47,8 @@ func (tx *Tx) RegisterTerminator(name string, t Terminator) Terminator {
 	err := t.Open(tx)
 	if err != nil {
 		tx.err.Add(err)
-		tx.mtx.Unlock()
 		return nil
 	}
 
-	tx.mtx.Unlock()
 	return t
 }
