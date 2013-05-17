@@ -86,9 +86,9 @@ func (m *RouteHandler) load_routing_table() error {
 	}
 
 	var (
-		table    = map[string][]route_rule{}
+		table    = make(map[string][]route_rule, 10000)
 		hosts    = []string{}
-		host_map = map[string]bool{}
+		host_map = make(map[string]bool, 10)
 	)
 
 	err = json.NewDecoder(r).Decode(&table)
