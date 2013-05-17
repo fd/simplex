@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-const C = 50
+const C = 100000
 
 func main() {
 

@@ -18,11 +18,11 @@ func Cache(sub Store) Store {
 	}
 }
 
-func (c *cache_store) Set(name string) (io.WriteCloser, error) {
-	return c.store.Set(name)
+func (c *cache_store) SetBlob(name string) (io.WriteCloser, error) {
+	return c.store.SetBlob(name)
 }
 
-func (c *cache_store) Get(name string) (io.ReadCloser, error) {
+func (c *cache_store) GetBlob(name string) (io.ReadCloser, error) {
 	if data, p := c.entries[name]; p {
 		return ioutil.NopCloser(bytes.NewReader(data)), nil
 	}
@@ -33,7 +33,7 @@ func (c *cache_store) Get(name string) (io.ReadCloser, error) {
 		err      error
 	)
 
-	upstream, err = c.store.Get(name)
+	upstream, err = c.store.GetBlob(name)
 	if err != nil {
 		return upstream, err
 	}

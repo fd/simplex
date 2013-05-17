@@ -28,7 +28,7 @@ func Open(u *url.URL) (store.Store, error) {
 
 type file_store_t string
 
-func (f file_store_t) Get(name string) (io.ReadCloser, error) {
+func (f file_store_t) GetBlob(name string) (io.ReadCloser, error) {
 	r, err := os.Open(path.Join(string(f), name))
 
 	if err != nil {
@@ -42,7 +42,7 @@ func (f file_store_t) Get(name string) (io.ReadCloser, error) {
 	return r, err
 }
 
-func (f file_store_t) Set(name string) (io.WriteCloser, error) {
+func (f file_store_t) SetBlob(name string) (io.WriteCloser, error) {
 	p := path.Join(string(f), name)
 
 	err := os.MkdirAll(path.Dir(p), 0755)

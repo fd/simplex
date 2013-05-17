@@ -5,8 +5,8 @@ import (
 )
 
 type Store interface {
-	Get(name string) (io.ReadCloser, error)
-	Set(name string) (io.WriteCloser, error)
+	GetBlob(name string) (io.ReadCloser, error)
+	SetBlob(name string) (io.WriteCloser, error)
 }
 
 type notfound_error struct {

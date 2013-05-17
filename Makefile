@@ -5,4 +5,7 @@ build:
 test:
 	go test -v './...'
 
-.PHONY: build test
+clean:
+	rm -r $(GOPATH)/pkg
+
+.PHONY: build test clean

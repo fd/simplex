@@ -58,7 +58,7 @@ func (r *terminator) Commit() error {
 func (t *terminator) write_route_table() {
 	defer t.wg.Done()
 
-	w, err := t.tx.DstStore().Set("route_table.json")
+	w, err := t.tx.DstStore().SetBlob("route_table.json")
 	if err != nil {
 		t.err.Add(err)
 		return
@@ -106,7 +106,7 @@ func (t *terminator) document_writer(c <-chan *document) {
 	store := t.tx.DstStore()
 
 	for doc := range c {
-		w, err := store.Set("blobs/" + doc.Digest)
+		w, err := store.SetBlob("blobs/" + doc.Digest)
 		if err != nil {
 			t.err.Add(err)
 			continue

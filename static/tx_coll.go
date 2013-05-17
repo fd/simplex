@@ -34,7 +34,7 @@ func (tx *Tx) Coll(name string, typ interface{}) *C {
 			et = et.Elem()
 		}
 
-		r, err := tx.src.Get(name + ".json")
+		r, err := tx.src.GetBlob(name + ".json")
 		if err != nil {
 			return err
 		}

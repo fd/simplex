@@ -47,7 +47,7 @@ func (m *RouteHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if rule.Address != "" {
-		body, err = m.store.Get("blobs/" + rule.Address)
+		body, err = m.store.GetBlob("blobs/" + rule.Address)
 		if err != nil {
 			http.Error(w, err.Error(), 500)
 			return
@@ -75,7 +75,7 @@ func (m *RouteHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 func (m *RouteHandler) load_routing_table() error {
 
-	r, err := m.store.Get("route_table.json")
+	r, err := m.store.GetBlob("route_table.json")
 	if err != nil {
 		if store.IsNotFound(err) {
 			m.table = map[string][]route_rule{}
