@@ -3,6 +3,7 @@ package shttp
 import (
 	"reflect"
 	"simplex.sh/static"
+	"simplex.sh/store/cas"
 )
 
 var (
@@ -38,12 +39,17 @@ func Render(in *static.C, f interface{}) {
 		panic("Render(f): f must have signature: func(m T, w Writer) error")
 	}
 
+	err := cas.UpdateSchema(in.Tx().SqlTx())
+	if err != nil {
+		panic(err)
+	}
+
 	router := terminator_for_tx(in.Tx())
 
 	docs := in.Collect(func(v interface{}) (*document, error) {
 		var (
 			d      *document
-			dw     = new_document_writer()
+			dw     = new_document_writer(in.Tx().SqlTx())
 			rw     = Writer(dw)
 			args_o []reflect.Value
 			args_i = []reflect.Value{
@@ -58,7 +64,11 @@ func Render(in *static.C, f interface{}) {
 			return nil, args_o[0].Interface().(error)
 		}
 
-		dw.Close()
+		err := dw.Close()
+		if err != nil {
+			return nil, err
+		}
+
 		d = dw.document
 
 		for _, rule := range dw.route_builder.rules {

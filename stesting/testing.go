@@ -18,12 +18,17 @@ func Golden(t *testing.T, g static.Generator) {
 		t.Fatal(err)
 	}
 
-	src, err := store.Open("file://" + path.Join(wd, "test/src"))
+	db, err := store.Open("")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	dst, err := store.Open("file://" + path.Join(wd, "test/dst"))
+	src, err := store.OpenOld("file://" + path.Join(wd, "test/src"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	dst, err := store.OpenOld("file://" + path.Join(wd, "test/dst"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -33,6 +38,7 @@ func Golden(t *testing.T, g static.Generator) {
 	err = static.Generate(
 		src,
 		dst,
+		db,
 		g,
 	)
 

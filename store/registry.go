@@ -21,7 +21,7 @@ func Register(name string, f Factory) {
 	registry[name] = f
 }
 
-func Open(source string) (Store, error) {
+func OpenOld(source string) (Store, error) {
 	u, err := url.Parse(source)
 	if err != nil {
 		return nil, err

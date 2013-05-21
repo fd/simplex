@@ -26,11 +26,6 @@ func (h *HostRouter) Reset() {
 
 	for _, handler := range h.handlers {
 		for _, hostname := range handler.Hostnames() {
-
-			if !strings.HasSuffix(hostname, ".") {
-				hostname += "."
-			}
-
 			table[hostname] = handler
 		}
 	}

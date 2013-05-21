@@ -1,6 +1,7 @@
 package container
 
 import (
+	"database/sql"
 	"os"
 	"simplex.sh/errors"
 	"simplex.sh/shttp"
@@ -13,6 +14,7 @@ var (
 )
 
 type Environment struct {
+	Database    string
 	Source      string
 	Destination string
 	HttpAddr    string
@@ -21,11 +23,12 @@ type Environment struct {
 type container_t struct {
 	env Environment
 
-	src     store.Store
-	dst     store.Store
-	apps    []*Application
-	app_map map[string]*Application
-	router  shttp.HostRouter
+	database *sql.DB
+	src      store.Store
+	dst      store.Store
+	apps     []*Application
+	app_map  map[string]*Application
+	router   shttp.HostRouter
 
 	shutdown chan os.Signal
 	mtx      sync.RWMutex
@@ -38,12 +41,17 @@ func new_container(env Environment) (*container_t, error) {
 		env.HttpAddr = ":3000"
 	}
 
-	src, err := store.Open(env.Source)
+	db, err := store.Open(env.Database)
 	if err != nil {
 		return nil, err
 	}
 
-	dst, err := store.Open(env.Destination)
+	src, err := store.OpenOld(env.Source)
+	if err != nil {
+		return nil, err
+	}
+
+	dst, err := store.OpenOld(env.Destination)
 	if err != nil {
 		return nil, err
 	}
@@ -51,6 +59,7 @@ func new_container(env Environment) (*container_t, error) {
 	c := &container_t{
 		env:      env,
 		app_map:  map[string]*Application{},
+		database: db,
 		src:      src,
 		dst:      dst,
 		shutdown: make(chan os.Signal, 1),

@@ -22,7 +22,7 @@ type route_rule_builder struct {
 }
 
 func (r *route_builder) Path(s string) Constrainer {
-	rule := &route_rule_builder{path: s}
+	rule := &route_rule_builder{path: s, host: "."}
 	r.rules = append(r.rules, rule)
 	return rule
 }

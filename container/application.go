@@ -1,6 +1,7 @@
 package container
 
 import (
+	"database/sql"
 	"github.com/gorilla/mux"
 	"net/http"
 	"simplex.sh/errors"
@@ -39,6 +40,7 @@ func (f Factory) build(c *container_t) error {
 		return errors.Fmt("%s: application must have a generator.", app.Name)
 	}
 
+	app.database = c.database
 	app.src = store.SubStore(c.src, app.Name)
 	app.dst = store.SubStore(c.dst, app.Name)
 
@@ -63,6 +65,7 @@ type Application struct {
 	ExtraHosts []string // extra hosts that route to this application
 
 	container *container_t
+	database  *sql.DB
 	src       store.Store
 	dst       store.Store
 	dynamic   *mux.Router
@@ -81,6 +84,7 @@ func (a *Application) Generate() error {
 	return static.Generate(
 		a.src,
 		a.dst,
+		a.database,
 		a.Generator,
 	)
 }

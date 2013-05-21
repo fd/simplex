@@ -100,10 +100,6 @@ func (m *RouteHandler) load_routing_table() error {
 		for _, rule := range rules {
 			host := rule.Host
 
-			if !strings.HasSuffix(host, ".") {
-				host += "."
-			}
-
 			if host == "." {
 				continue
 			}

@@ -1,6 +1,7 @@
 package static
 
 import (
+	"database/sql"
 	"simplex.sh/errors"
 	"simplex.sh/store"
 	"sync"
@@ -12,6 +13,8 @@ type Tx struct {
 	src         store.Store
 	dst         store.Store
 	err         errors.List
+	database    *sql.DB
+	transaction *sql.Tx
 
 	mtx sync.Mutex
 }
@@ -20,6 +23,10 @@ type Terminator interface {
 	Waiter
 	Open(tx *Tx) error
 	Commit() error
+}
+
+func (tx *Tx) SqlTx() *sql.Tx {
+	return tx.transaction
 }
 
 func (tx *Tx) SrcStore() store.Store {
