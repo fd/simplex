@@ -1,17 +1,16 @@
 package shttp
 
 import (
-	"database/sql"
-	"encoding/hex"
 	"net/http"
+	"simplex.sh/static"
 	"simplex.sh/store/cas"
 	"strconv"
 )
 
 type document struct {
-	Digest string
-	Status int
-	Header http.Header
+	address cas.Addr
+	Status  int
+	Header  http.Header
 }
 
 type Writer interface {
@@ -20,14 +19,14 @@ type Writer interface {
 }
 
 type document_writer struct {
-	cas.Writer
+	*cas.BlobWriter
 	route_builder
 	document *document
 }
 
-func new_document_writer(tx *sql.Tx) *document_writer {
+func new_document_writer(tx *static.Tx) *document_writer {
 	w := &document_writer{
-		Writer: cas.OpenWriter(tx),
+		BlobWriter: tx.Cas().Open(),
 		document: &document{
 			Header: make(http.Header, 10),
 		},
@@ -41,13 +40,13 @@ func (d *document_writer) Header() http.Header {
 }
 
 func (d *document_writer) Close() error {
-	err := d.Writer.Close()
+	err := d.BlobWriter.Close()
 	if err != nil {
 		return err
 	}
 
 	addr := d.Address()
-	d.document.Digest = hex.EncodeToString(addr[:])
+	d.document.address = addr
 
 	if d.document.Status == 0 {
 		d.document.Status = 200
@@ -58,7 +57,7 @@ func (d *document_writer) Close() error {
 	}
 
 	d.document.Header.Set("Content-Length", strconv.Itoa(d.Len()))
-	d.document.Header.Set("ETag", strconv.Quote(d.document.Digest))
+	d.document.Header.Set("ETag", strconv.Quote(addr.String()))
 
 	return nil
 }

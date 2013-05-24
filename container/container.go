@@ -14,10 +14,9 @@ var (
 )
 
 type Environment struct {
-	Database    string
-	Source      string
-	Destination string
-	HttpAddr    string
+	Database string
+	Source   string
+	HttpAddr string
 }
 
 type container_t struct {
@@ -25,7 +24,6 @@ type container_t struct {
 
 	database *sql.DB
 	src      store.Store
-	dst      store.Store
 	apps     []*Application
 	app_map  map[string]*Application
 	router   shttp.HostRouter
@@ -51,17 +49,11 @@ func new_container(env Environment) (*container_t, error) {
 		return nil, err
 	}
 
-	dst, err := store.OpenOld(env.Destination)
-	if err != nil {
-		return nil, err
-	}
-
 	c := &container_t{
 		env:      env,
 		app_map:  map[string]*Application{},
 		database: db,
 		src:      src,
-		dst:      dst,
 		shutdown: make(chan os.Signal, 1),
 	}
 

@@ -3,7 +3,7 @@ package shttp
 import (
 	"reflect"
 	"simplex.sh/static"
-	"simplex.sh/store/cas"
+	"simplex.sh/store/router"
 )
 
 var (
@@ -39,17 +39,12 @@ func Render(in *static.C, f interface{}) {
 		panic("Render(f): f must have signature: func(m T, w Writer) error")
 	}
 
-	err := cas.UpdateSchema(in.Tx().SqlTx())
-	if err != nil {
-		panic(err)
-	}
-
-	router := terminator_for_tx(in.Tx())
+	w := in.Tx().Router()
 
 	docs := in.Collect(func(v interface{}) (*document, error) {
 		var (
 			d      *document
-			dw     = new_document_writer(in.Tx().SqlTx())
+			dw     = new_document_writer(in.Tx())
 			rw     = Writer(dw)
 			args_o []reflect.Value
 			args_i = []reflect.Value{
@@ -72,15 +67,17 @@ func Render(in *static.C, f interface{}) {
 		d = dw.document
 
 		for _, rule := range dw.route_builder.rules {
-			set := router.route_table.path(rule.path)
-			err := set.add(&route_rule{
-				Host:        rule.host,
-				Language:    d.Header.Get("Language"),
-				ContentType: d.Header.Get("Content-Type"),
-				Status:      d.Status,
-				Header:      d.Header,
-				Address:     d.Digest,
+			err := w.Insert(&router.Rule{
+				nil,
+				rule.path,
+				rule.host,
+				d.Header.Get("Language"),
+				d.Header.Get("Content-Type"),
+				d.Status,
+				d.Header,
+				d.address,
 			})
+
 			if err != nil {
 				return nil, err
 			}
@@ -89,7 +86,8 @@ func Render(in *static.C, f interface{}) {
 		return d, nil
 	})
 
-	router.mtx.Lock()
-	defer router.mtx.Unlock()
-	router.collections = append(router.collections, docs)
+	terminator := terminator_for_tx(in.Tx())
+	terminator.mtx.Lock()
+	defer terminator.mtx.Unlock()
+	terminator.collections = append(terminator.collections, docs)
 }

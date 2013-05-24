@@ -4,17 +4,20 @@ import (
 	"database/sql"
 	"simplex.sh/errors"
 	"simplex.sh/store"
+	"simplex.sh/store/cas"
+	"simplex.sh/store/router"
 	"sync"
 )
 
 type Tx struct {
-	collections map[string]*C
-	terminators map[string]Terminator
-	src         store.Store
-	dst         store.Store
-	err         errors.List
-	database    *sql.DB
-	transaction *sql.Tx
+	collections   map[string]*C
+	terminators   map[string]Terminator
+	src           store.Store
+	err           errors.List
+	database      *sql.DB
+	transaction   *sql.Tx
+	cas_writer    *cas.Writer
+	router_writer *router.Writer
 
 	mtx sync.Mutex
 }
@@ -33,8 +36,12 @@ func (tx *Tx) SrcStore() store.Store {
 	return tx.src
 }
 
-func (tx *Tx) DstStore() store.Store {
-	return tx.dst
+func (t *Tx) Cas() *cas.Writer {
+	return t.cas_writer
+}
+
+func (t *Tx) Router() *router.Writer {
+	return t.router_writer
 }
 
 func (tx *Tx) RegisterTerminator(name string, t Terminator) Terminator {

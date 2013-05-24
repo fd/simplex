@@ -1,25 +1,22 @@
 package cas
 
 import (
-	"database/sql"
+	"simplex.sh/store/sqlutil"
 )
 
-func UpdateSchema(txn *sql.Tx) error {
+func (w *Writer) update_schema() error {
 	var (
-		err   error
-		count int64
+		present bool
+		err     error
 	)
 
-	err = txn.QueryRow(
-		`SELECT COUNT(table_name) FROM information_schema.tables WHERE table_schema = $1 AND table_name = $2;`,
-		"public", "cas_objects",
-	).Scan(&count)
+	present, err = sqlutil.TableExists(w.tx, "cas_objects")
 	if err != nil {
 		return err
 	}
 
-	if count == 0 {
-		_, err = txn.Exec(
+	if !present {
+		_, err = w.tx.Exec(
 			`
       CREATE TABLE cas_objects (
         address  BYTEA NOT NULL,
@@ -30,6 +27,24 @@ func UpdateSchema(txn *sql.Tx) error {
         CHECK (octet_length(address) = 20),
         CHECK (content IS NOT NULL OR external IS NOT NULL)
       );
+      `,
+		)
+		if err != nil {
+			return err
+		}
+	}
+
+	present, err = sqlutil.IndexExists(w.tx, "cas_objects", "cas_objects_addr_idx")
+	if err != nil {
+		return err
+	}
+
+	if !present {
+		_, err = w.tx.Exec(
+			`
+      CREATE
+      INDEX cas_objects_addr_idx
+      ON cas_objects (address);
       `,
 		)
 		if err != nil {

@@ -15,7 +15,6 @@ Semi-static web framework
 port=3000 -p,--port,PORT    HTTP server port
 addr=     -a,--addr,ADDR    HTTP server address (use instead of --port)
 src=      --src,DATA_SRC    Source data store
-dst=      --dst,DATA_DST    Source data store
 --
 --
 server    server,s          Run the web server
@@ -41,10 +40,6 @@ func CLI() {
 
 	if s := opts.Get("src"); s != "" {
 		env.Source = s
-	}
-
-	if s := opts.Get("dst"); s != "" {
-		env.Destination = s
 	}
 
 	switch opts.Command {

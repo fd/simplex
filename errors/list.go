@@ -9,11 +9,24 @@ import (
 type List []error
 
 func (l List) Normalize() error {
-	if l.HasErrors() {
-		return l
+	if !l.HasErrors() {
+		return nil
 	}
 
-	return nil
+	var (
+		cache = make(map[string]bool, 10)
+		l2    List
+	)
+
+	for _, err := range l {
+		s := err.Error()
+		if !cache[s] {
+			l2 = append(l2, err)
+			cache[s] = true
+		}
+	}
+
+	return l2
 }
 
 func (l List) HasErrors() bool {

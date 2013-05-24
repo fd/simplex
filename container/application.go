@@ -5,7 +5,7 @@ import (
 	"github.com/gorilla/mux"
 	"net/http"
 	"simplex.sh/errors"
-	"simplex.sh/shttp"
+	// "simplex.sh/shttp"
 	"simplex.sh/static"
 	"simplex.sh/store"
 )
@@ -42,15 +42,14 @@ func (f Factory) build(c *container_t) error {
 
 	app.database = c.database
 	app.src = store.SubStore(c.src, app.Name)
-	app.dst = store.SubStore(c.dst, app.Name)
 
-	static, err := shttp.NewRouteHandler(store.Cache(app.dst))
-	if err != nil {
-		return errors.Forward(err, "%s: error while loading the route handler.", app.Name)
-	}
+	// static, err := shttp.NewRouteHandler(nil, app.database)
+	// if err != nil {
+	//   return errors.Forward(err, "%s: error while loading the route handler.", app.Name)
+	// }
 
-	app.static = static
-	app.dynamic.NotFoundHandler = static
+	// app.static = static
+	// app.dynamic.NotFoundHandler = static
 
 	c.router.Add(app)
 	c.apps = append(c.apps, app)
@@ -67,9 +66,8 @@ type Application struct {
 	container *container_t
 	database  *sql.DB
 	src       store.Store
-	dst       store.Store
 	dynamic   *mux.Router
-	static    *shttp.RouteHandler
+	// static    *shttp.RouteHandler
 }
 
 func (a *Application) Router() *mux.Router {
@@ -83,7 +81,6 @@ func (a *Application) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func (a *Application) Generate() error {
 	return static.Generate(
 		a.src,
-		a.dst,
 		a.database,
 		a.Generator,
 	)
@@ -96,9 +93,9 @@ func (a *Application) Hostnames() []string {
 		hosts = append(hosts, host)
 	}
 
-	for _, host := range a.static.Hostnames() {
-		hosts = append(hosts, host)
-	}
+	// for _, host := range a.static.Hostnames() {
+	//   hosts = append(hosts, host)
+	// }
 
 	return hosts
 }

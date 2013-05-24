@@ -1,28 +1,31 @@
 package shttp
 
 import (
+	"database/sql"
 	"encoding/json"
 	"io"
 	"net/http"
 	"simplex.sh/store"
+	"simplex.sh/store/cas"
 	"strings"
 	"sync"
 )
 
 type RouteHandler struct {
-	store store.Store
-	hosts []string
-	table map[string][]route_rule
-	mtx   sync.RWMutex
+	store    store.Store
+	database *sql.DB
+	hosts    []string
+	table    map[string][]route_rule
+	mtx      sync.RWMutex
 }
 
-func NewRouteHandler(store store.Store) (*RouteHandler, error) {
-	m := &RouteHandler{store: store}
+func NewRouteHandler(store store.Store, db *sql.DB) (*RouteHandler, error) {
+	m := &RouteHandler{store: store, database: db}
 
-	err := m.load_routing_table()
-	if err != nil {
-		return nil, err
-	}
+	// err := m.load_routing_table()
+	// if err != nil {
+	//   return nil, err
+	// }
 
 	return m, nil
 }
@@ -46,8 +49,8 @@ func (m *RouteHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if rule.Address != "" {
-		body, err = m.store.GetBlob("blobs/" + rule.Address)
+	if len(rule.Address) != 0 {
+		body, err = cas.OpenReader(m.database, rule.Address)
 		if err != nil {
 			http.Error(w, err.Error(), 500)
 			return

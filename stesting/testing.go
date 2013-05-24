@@ -28,16 +28,10 @@ func Golden(t *testing.T, g static.Generator) {
 		t.Fatal(err)
 	}
 
-	dst, err := store.OpenOld("file://" + path.Join(wd, "test/dst"))
-	if err != nil {
-		t.Fatal(err)
-	}
-
 	os.RemoveAll(path.Join(wd, "test/dst"))
 
 	err = static.Generate(
 		src,
-		dst,
 		db,
 		g,
 	)
