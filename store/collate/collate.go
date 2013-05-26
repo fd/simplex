@@ -99,6 +99,15 @@ func (collator *Collator) Key(buf *Buffer, v interface{}) ([]byte, error) {
 	return buf.key, nil
 }
 
+func (collator *Collator) KeyForValue(buf *Buffer, v reflect.Value) ([]byte, error) {
+	buf.init()
+	err := collator.key_for_value(buf, v)
+	if err != nil {
+		return nil, err
+	}
+	return buf.key, nil
+}
+
 func (collator *Collator) key(buf *Buffer, v interface{}) error {
 
 	if v == nil {

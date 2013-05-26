@@ -9,13 +9,8 @@ services:
   - redis-server
 
 install:
-  - mkdir -p $GOPATH/src/simplex.sh
-  - mv * $GOPATH/src/simplex.sh
-  - pushd $GOPATH/src/simplex.sh
-  - make
-  - popd
+  - mv $GOPATH/src/github.com/fd/simplex $GOPATH/src/simplex.sh
+  - make -C $GOPATH/src/simplex.sh
 
 script:
-  - pushd $GOPATH/src/simplex.sh
-  - make test
-  - popd
+  - make -C $GOPATH/src/simplex.sh test

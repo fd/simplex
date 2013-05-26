@@ -1,9 +1,9 @@
 
 build:
-	go get -v './...'
+	go get './...'
 
 test:
-	go test -v './...'
+	go test './...'
 
 clean:
 	rm -r $(GOPATH)/pkg

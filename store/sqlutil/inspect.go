@@ -4,13 +4,13 @@ import (
 	"database/sql"
 )
 
-func IndexExists(txn *sql.Tx, table, index string) (bool, error) {
+func IndexExists(db *sql.DB, table, index string) (bool, error) {
 	var (
 		err   error
 		count int64
 	)
 
-	err = txn.QueryRow(
+	err = db.QueryRow(
 		`
       SELECT
         COUNT(*)
@@ -29,13 +29,13 @@ func IndexExists(txn *sql.Tx, table, index string) (bool, error) {
 	return (count == 1), nil
 }
 
-func TableExists(txn *sql.Tx, table string) (bool, error) {
+func TableExists(db *sql.DB, table string) (bool, error) {
 	var (
 		err   error
 		count int64
 	)
 
-	err = txn.QueryRow(
+	err = db.QueryRow(
 		`
       SELECT
         COUNT(*)

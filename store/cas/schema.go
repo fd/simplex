@@ -1,22 +1,23 @@
 package cas
 
 import (
+	"database/sql"
 	"simplex.sh/store/sqlutil"
 )
 
-func (w *Writer) update_schema() error {
+func update_schema(db *sql.DB) error {
 	var (
 		present bool
 		err     error
 	)
 
-	present, err = sqlutil.TableExists(w.tx, "cas_objects")
+	present, err = sqlutil.TableExists(db, "cas_objects")
 	if err != nil {
 		return err
 	}
 
 	if !present {
-		_, err = w.tx.Exec(
+		_, err = db.Exec(
 			`
       CREATE TABLE cas_objects (
         address  BYTEA NOT NULL,
@@ -34,13 +35,13 @@ func (w *Writer) update_schema() error {
 		}
 	}
 
-	present, err = sqlutil.IndexExists(w.tx, "cas_objects", "cas_objects_addr_idx")
+	present, err = sqlutil.IndexExists(db, "cas_objects", "cas_objects_addr_idx")
 	if err != nil {
 		return err
 	}
 
 	if !present {
-		_, err = w.tx.Exec(
+		_, err = db.Exec(
 			`
       CREATE
       INDEX cas_objects_addr_idx
